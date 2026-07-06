@@ -1,0 +1,179 @@
+{
+  "name": "CI Pipeline",
+  "source_platform": "github_actions",
+  "source_file": ".github/workflows/ci.yml",
+  "triggers": [
+    {
+      "type": "push",
+      "branches": [
+        "main"
+      ],
+      "branches_ignore": [],
+      "tags": [],
+      "tags_ignore": [],
+      "paths": [],
+      "paths_ignore": [],
+      "schedule": null,
+      "inputs": [],
+      "source_workflow": null,
+      "raw": "push:\n  branches: [main]"
+    },
+    {
+      "type": "pull_request",
+      "branches": [
+        "main"
+      ],
+      "branches_ignore": [],
+      "tags": [],
+      "tags_ignore": [],
+      "paths": [],
+      "paths_ignore": [],
+      "schedule": null,
+      "inputs": [],
+      "source_workflow": null,
+      "raw": "pull_request:\n  branches: [main]"
+    }
+  ],
+  "jobs": [
+    {
+      "name": "build",
+      "stage": null,
+      "runner": "ubuntu-latest",
+      "dependencies": [],
+      "artifacts_produced": [],
+      "artifacts_consumed": [],
+      "matrix": null,
+      "allow_failure": false,
+      "condition": null,
+      "environment": {},
+      "steps": [
+        {
+          "name": "checkout",
+          "type": "action",
+          "value": "actions/checkout@v4",
+          "with_args": {},
+          "condition": null,
+          "environment": {},
+          "continue_on_error": false,
+          "raw_extras": {}
+        },
+        {
+          "name": "build",
+          "type": "command",
+          "value": "python setup.py build",
+          "with_args": {},
+          "condition": null,
+          "environment": {},
+          "continue_on_error": false,
+          "raw_extras": {}
+        }
+      ],
+      "timeout_minutes": null,
+      "raw_extras": {}
+    },
+    {
+      "name": "test",
+      "stage": null,
+      "runner": "ubuntu-latest",
+      "dependencies": [
+        "build"
+      ],
+      "artifacts_produced": [],
+      "artifacts_consumed": [],
+      "matrix": {
+        "axes": {
+          "python-version": [
+            "3.10",
+            "3.11",
+            "3.12"
+          ]
+        },
+        "include": [],
+        "exclude": [],
+        "fail_fast": false
+      },
+      "allow_failure": false,
+      "condition": null,
+      "environment": {},
+      "steps": [
+        {
+          "name": "checkout",
+          "type": "action",
+          "value": "actions/checkout@v4",
+          "with_args": {},
+          "condition": null,
+          "environment": {},
+          "continue_on_error": false,
+          "raw_extras": {}
+        },
+        {
+          "name": "run tests",
+          "type": "command",
+          "value": "pytest",
+          "with_args": {},
+          "condition": null,
+          "environment": {},
+          "continue_on_error": false,
+          "raw_extras": {}
+        }
+      ],
+      "timeout_minutes": null,
+      "raw_extras": {}
+    },
+    {
+      "name": "deploy",
+      "stage": null,
+      "runner": "ubuntu-latest",
+      "dependencies": [
+        "test"
+      ],
+      "artifacts_produced": [],
+      "artifacts_consumed": [],
+      "matrix": null,
+      "allow_failure": false,
+      "condition": {
+        "expression": "github.ref == 'refs/heads/main' && github.event_name == 'push'",
+        "structured": {
+          "type": "branch_equals",
+          "value": "main"
+        }
+      },
+      "environment": {
+        "DEPLOY_ENV": "production"
+      },
+      "steps": [
+        {
+          "name": "deploy to production",
+          "type": "script",
+          "value": "./deploy.sh",
+          "with_args": {},
+          "condition": null,
+          "environment": {
+            "DEPLOY_API_KEY": "${{ secrets.DEPLOY_API_KEY }}"
+          },
+          "continue_on_error": false,
+          "raw_extras": {}
+        }
+      ],
+      "timeout_minutes": null,
+      "raw_extras": {}
+    }
+  ],
+  "secrets": [
+    {
+      "name": "DEPLOY_API_KEY",
+      "scope": "pipeline",
+      "scope_ref": null
+    }
+  ],
+  "environment_variables": [
+    {
+      "name": "PYTHON_VERSION",
+      "value": "3.11",
+      "scope": "pipeline",
+      "scope_ref": null
+    }
+  ],
+  "linked_workflows": [],
+  "raw_extras": {}
+}
