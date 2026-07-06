@@ -135,7 +135,7 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 - [ ] `llm/base.py`: minimal interface (`beautify(structured_text, ir_context) -> prose`) that any provider implements
 - [ ] `llm/gemini_provider.py`: Gemini API integration (Google AI Studio free tier)
 - [ ] Prompt engineering pass: the prompt must make clear the LLM is rewriting already-verified facts into prose, not analysing or inferring new ones
-- [ ] Write a hallucination check: for each generated doc, verify every job/secret/trigger name mentioned in the prose actually exists in the IR (simple string-presence check is a fine first pass) — this is directly reusable for Tier 1 evaluation later
+- [ ] Write a hallucination check as a standalone, importable module (not inlined in the LLM call) — Phase 7 Tier 1 reuses it unmodified, so it needs a clean function signature now, not a refactor later.
 - [ ] Test on 5+ pipelines across the complexity range in fixtures
 - [ ] `llm/ollama_provider.py`: stub only — interface implemented, not filled in (local LLM stays documented future work per existing scope decision, unless time allows later)
 
@@ -204,7 +204,7 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 
 ### Phase 9 — Expand beyond GitHub Actions (extension phase, explicitly secondary)
 
-**Goal:** prove the platform-agnostic claim by adding a second platform, now that Tool 1/2 are solid on GitHub Actions. Only start this phase if Phases 1–8 are genuinely done — this is scoped as a stretch/extension, not core deliverable work, and should not eat into evaluation or report-writing time.
+**Goal:** prove the platform-agnostic claim by adding a second platform, now that Tool 1/2 are solid on GitHub Actions. Do not start this phase until every item in Section 4's checklist is checked off. If time runs out before Section 4 is complete, Phase 9 is skipped entirely and the report frames multi-platform support as future work — a fully working, evaluated GitHub-Actions-only tool is the shippable deliverable, not a partially-working multi-platform one.
 
 **Tasks**
 - [ ] Pick one additional platform (GitLab CI is the structurally straightforward choice per existing notes; CircleCI is a similar shape; Jenkins is the outlier — Groovy, not YAML — and should be the last choice if attempted at all)
