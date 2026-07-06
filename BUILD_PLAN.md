@@ -67,10 +67,10 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 **Goal:** a working Python project skeleton, dependency management, and a small set of real GitHub Actions YAML files to develop against.
 
 **Tasks**
-- [ ] Initialise GitHub repo with the structure in Section 2
-- [ ] Set up virtual environment, `requirements.txt` / `pyproject.toml` (PyYAML at minimum)
-- [ ] Pull 8–10 real GitHub Actions workflow files from open-source repos into `tests/fixtures/`, ranging from trivial (lint-only) to complex (matrix builds, reusable workflows, multi-job with `needs`)
-- [ ] Write `parsers/base.py` — an abstract interface (`parse(file_path) -> IR`) that every future platform parser must implement, even though only one implementation exists yet
+- [x] Initialise GitHub repo with the structure in Section 2
+- [x] Set up virtual environment, `requirements.txt` / `pyproject.toml` (PyYAML at minimum)
+- [x] Pull 8–10 real GitHub Actions workflow files from open-source repos into `tests/fixtures/`, ranging from trivial (lint-only) to complex (matrix builds, reusable workflows, multi-job with `needs`)
+- [x] Write `parsers/base.py` — an abstract interface (`parse(file_path) -> IR`) that every future platform parser must implement, even though only one implementation exists yet
 
 **Explicitly deferred:** any parsing logic, IR schema detail, LLM setup.
 
@@ -83,9 +83,9 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 **Goal:** lock the platform-agnostic data structure everything else depends on. This is the highest-leverage phase to get right early — get Suzanne's sign-off before Phase 3 depends heavily on it.
 
 **Tasks**
-- [ ] Implement the IR as Python dataclasses/TypedDicts matching the schema already drafted in `PROJECT_PLAN.md` (`pipeline`, `jobs`, `steps`, `triggers`, `secrets`, `environment_variables`)
-- [ ] Write `ir/validate.py`: a function that checks a built IR object is well-formed (no job depends on a job that doesn't exist, no empty required fields, etc.) — this becomes useful later for the Tier 1 evaluation checks too
-- [ ] Write 2–3 IR objects by hand (not via a parser) representing simple/medium/complex pipelines, to use as ground truth in tests before the parser exists
+- [x] Implement the IR as Python dataclasses/TypedDicts matching the schema already drafted in `PROJECT_PLAN.md` (`pipeline`, `jobs`, `steps`, `triggers`, `secrets`, `environment_variables`)
+- [x] Write `ir/validate.py`: a function that checks a built IR object is well-formed (no job depends on a job that doesn't exist, no empty required fields, etc.) — this becomes useful later for the Tier 1 evaluation checks too
+- [x] Write 2–3 IR objects by hand (not via a parser) representing simple/medium/complex pipelines, to use as ground truth in tests before the parser exists
 - [ ] Share the field-naming table with Suzanne for sign-off
 
 **Explicitly deferred:** GitLab/Jenkins/CircleCI field mappings — the table in `PROJECT_PLAN.md` can stay aspirational for now; only the GitHub Actions → IR mapping needs to be solid.
@@ -265,3 +265,4 @@ Carried over from `PROJECT_PLAN.md` — resolve before they block a phase above:
 ## 7. Change log
 
 - *[Add a dated line here each time this document is materially edited, so it's easy to see how the plan actually evolved — useful for the report's process narrative too.]*
+- 2026-07-06: Phase 1 skeleton created, IR (schema.py/validate.py) integrated as ir/ package, Phase 2 ground-truth fixtures added.
