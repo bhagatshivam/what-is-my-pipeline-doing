@@ -26,7 +26,7 @@ Rationale: a working, evaluated, GitHub-Actions-only pair of tools is a complete
 ## 2. Repository structure
 
 ```
-ci-doc-tool/
+what-is-my-pipeline-doing/
 ├── parsers/
 │   ├── base.py              # abstract parser interface
 │   └── github_actions.py    # first and only parser until Phase 9
