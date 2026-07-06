@@ -1,0 +1,64 @@
+{
+  "name": "Lint",
+  "source_platform": "github_actions",
+  "source_file": ".github/workflows/lint.yml",
+  "triggers": [
+    {
+      "type": "push",
+      "branches": [
+        "main"
+      ],
+      "branches_ignore": [],
+      "tags": [],
+      "tags_ignore": [],
+      "paths": [],
+      "paths_ignore": [],
+      "schedule": null,
+      "inputs": [],
+      "source_workflow": null,
+      "raw": "push:\n  branches: [main]"
+    }
+  ],
+  "jobs": [
+    {
+      "name": "lint",
+      "stage": null,
+      "runner": "ubuntu-latest",
+      "dependencies": [],
+      "artifacts_produced": [],
+      "artifacts_consumed": [],
+      "matrix": null,
+      "allow_failure": false,
+      "condition": null,
+      "environment": {},
+      "steps": [
+        {
+          "name": "checkout",
+          "type": "action",
+          "value": "actions/checkout@v4",
+          "with_args": {},
+          "condition": null,
+          "environment": {},
+          "continue_on_error": false,
+          "raw_extras": {}
+        },
+        {
+          "name": "run flake8",
+          "type": "command",
+          "value": "flake8 .",
+          "with_args": {},
+          "condition": null,
+          "environment": {},
+          "continue_on_error": false,
+          "raw_extras": {}
+        }
+      ],
+      "timeout_minutes": null,
+      "raw_extras": {}
+    }
+  ],
+  "secrets": [],
+  "environment_variables": [],
+  "linked_workflows": [],
+  "raw_extras": {}
+}
