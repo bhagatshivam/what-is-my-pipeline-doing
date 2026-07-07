@@ -2,11 +2,13 @@
 parsers/github_actions.py — GitHub Actions YAML -> ir.schema.Pipeline.
 
 Implemented incrementally per BUILD_PLAN.md Phase 3. So far: the `on:`
-trigger block (see `_parse_triggers`) and `jobs:` name/runs-on (see
-`_parse_jobs`). Steps, `needs`, env vars, conditions, and matrix strategy
-are intentionally not implemented yet — every `Job` currently has an empty
-`steps` list. Later passes fill those in. See LIMITATIONS.md for what's
-known-unhandled so far.
+trigger block (see `_parse_triggers`), `jobs:` name/runs-on (see
+`_parse_jobs`), and each job's `steps:` name/type/value/with_args (see
+`_parse_steps`). `needs`, job/step env vars, `if:` conditions, matrix
+strategy, and `continue-on-error:` are intentionally not implemented yet —
+every `Step`'s `condition`/`environment`/`continue_on_error` stay at their
+dataclass defaults. Later passes fill those in. See LIMITATIONS.md for
+what's known-unhandled so far.
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
-from ir.schema import Job, Pipeline, SourcePlatform, Trigger, TriggerType
+from ir.schema import Job, Pipeline, SourcePlatform, Step, StepType, Trigger, TriggerType
 from parsers.base import BaseParser
 
 
@@ -236,6 +238,102 @@ def _parse_triggers(on_block: Any) -> List[Trigger]:
 
 
 # ---------------------------------------------------------------------------
+# Step parsing
+# ---------------------------------------------------------------------------
+
+def _step_name_fallback(step: Dict[str, Any]) -> str:
+    """Derive a name for a step with no `name:` field, from `uses:`/`run:`."""
+    if "uses" in step:
+        return str(step["uses"])
+
+    first_line = ""
+    for line in str(step.get("run", "")).splitlines():
+        if line.strip():
+            first_line = line.strip()
+            break
+    if len(first_line) > 60:
+        return first_line[:60] + "..."
+    return first_line
+
+
+def _parse_step(step: Dict[str, Any]) -> Step:
+    raw_extras: Dict[str, Any] = {}
+
+    # `id:` has no dedicated Step field — always preserved when present, per
+    # the schema's raw_extras escape-hatch convention, regardless of whether
+    # the name fallback also happened to use this step.
+    if "id" in step:
+        raw_extras["step_id"] = step["id"]
+    # `shell:`/`working-directory:` likewise have no dedicated Step field
+    # (unlike env/if/continue-on-error, which do and are deferred to later
+    # passes) — preserved here rather than silently dropped.
+    if "shell" in step:
+        raw_extras["shell"] = step["shell"]
+    if "working-directory" in step:
+        raw_extras["working-directory"] = step["working-directory"]
+
+    if "uses" in step:
+        step_type = StepType.ACTION
+        value = step["uses"]
+    elif "run" in step:
+        step_type = StepType.COMMAND
+        # LIMITATION: GH Actions has no distinct YAML construct for "external
+        # script reference" vs. an inline command — `run: ./deploy.sh` is
+        # syntactically identical to `run: npm test`. This parser always maps
+        # `run:` to StepType.COMMAND, never StepType.SCRIPT; SCRIPT exists in
+        # the IR for platforms that do distinguish the two and may go unused
+        # by this parser entirely.
+        value = step["run"]
+    else:
+        # LIMITATION: a step with neither `uses:` nor `run:` isn't valid GH
+        # Actions syntax as far as we've seen (0 of 299 steps across all 10
+        # fixtures) — rather than raise or guess, the whole step body is
+        # preserved in raw_extras and StepType.COMMAND is used as a neutral
+        # placeholder type. Untested against real-world data.
+        step_type = StepType.COMMAND
+        value = ""
+        raw_extras["unrecognized_step"] = step
+
+    name = step.get("name") or _step_name_fallback(step)
+    with_args = step.get("with")
+
+    return Step(
+        name=name,
+        type=step_type,
+        value=value,
+        with_args=dict(with_args) if isinstance(with_args, dict) else {},
+        raw_extras=raw_extras,
+    )
+
+
+def _parse_steps(steps_block: Any) -> List[Step]:
+    """
+    Parse a job's `steps:` list into Step objects. This pass covers name
+    (with a fallback when absent), type/value (uses vs. run), and with_args.
+    condition/environment/continue_on_error are intentionally left at their
+    dataclass defaults — later passes fill those in.
+    """
+    if not isinstance(steps_block, list):
+        return []
+
+    steps: List[Step] = []
+    for step in steps_block:
+        if isinstance(step, dict):
+            steps.append(_parse_step(step))
+        else:
+            # LIMITATION: a non-dict entry in `steps:` isn't valid GH Actions
+            # syntax we've seen — preserved minimally rather than raised or
+            # dropped. Untested against real-world data.
+            steps.append(Step(
+                name=str(step)[:60],
+                type=StepType.COMMAND,
+                value="",
+                raw_extras={"unrecognized_step": step},
+            ))
+    return steps
+
+
+# ---------------------------------------------------------------------------
 # Job parsing
 # ---------------------------------------------------------------------------
 
@@ -271,9 +369,10 @@ def _parse_runner(runs_on: Any) -> Optional[str]:
 
 def _parse_jobs(jobs_block: Any) -> List[Job]:
     """
-    Parse a workflow's `jobs:` map into Job objects. This pass only handles
-    the job key (-> Job.name) and `runs-on` (-> Job.runner); steps/needs/env/
-    conditions/matrix are left at their dataclass defaults.
+    Parse a workflow's `jobs:` map into Job objects. This pass handles the
+    job key (-> Job.name), `runs-on` (-> Job.runner), and each job's `steps:`
+    (see _parse_steps); `needs`/env/conditions/matrix are left at their
+    dataclass defaults.
     """
     if not isinstance(jobs_block, dict):
         return []
@@ -294,6 +393,7 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
         jobs.append(Job(
             name=job_key,
             runner=_parse_runner(job_body.get("runs-on")),
+            steps=_parse_steps(job_body.get("steps")),
             raw_extras=raw_extras,
         ))
     return jobs
@@ -307,10 +407,10 @@ class GitHubActionsParser(BaseParser):
     """
     Layer 1 parser for GitHub Actions workflow YAML.
 
-    Currently implemented: `on:` triggers and `jobs:` name/runs-on (see
-    module docstring). `parse()` returns a Pipeline with accurate `triggers`
-    and `jobs` lists, though every Job's `steps` is still empty until a
-    later pass.
+    Currently implemented: `on:` triggers, `jobs:` name/runs-on, and each
+    job's `steps:` name/type/value/with_args (see module docstring).
+    `parse()` returns a Pipeline with accurate `triggers` and `jobs` (incl.
+    steps), though `needs`/env/conditions/matrix are still unimplemented.
     """
 
     def parse(self, file_path: str) -> Pipeline:
