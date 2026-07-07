@@ -76,11 +76,22 @@ risk in leaving them for those passes to fill in directly from the YAML.
 - **Name-fallback heuristic when `name:` is absent** (37 of 299 steps
   across the 10 fixtures — not rare). `uses:` steps fall back to the action
   ref itself; `run:` steps fall back to the first non-empty line, truncated
-  to ~60 chars. This is a parser design choice that can affect the
+  to ~60 chars at the last word boundary (preferring to complete the word
+  straddling the cutoff, up to a 75-char ceiling, over cutting mid-word —
+  a strict cut at the 60-char boundary was tried first and found to drop
+  meaningful words like `typing` in `flask_tests.yml`'s `typing` job
+  entirely). This is a parser design choice that can affect the
   *readability* of generated documentation (a truncated first line is a
   weaker step label than a hand-written name), not a silent data-loss
   concern — the original `run:`/`uses:` value is always intact in
-  `Step.value` regardless of what name was derived.
+  `Step.value` regardless of what name was derived. Separately, a
+  SHA-pinned `uses:` ref (40 hex chars after `@`, e.g.
+  `actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0` — 15 of 30
+  `uses:` fallbacks across the fixtures) is shortened to just the
+  `owner/repo` part for the name fallback, since the full SHA is unreadable
+  as a display label; tag/branch-pinned refs (e.g. `actions/checkout@v7`)
+  are left as the full string, since those are already readable.
+  `Step.value` is unaffected by this either way.
 - **`shell:` and `working-directory:`** (33 and 4 occurrences respectively)
   have no dedicated `Step` field and no pass currently scheduled to add
   one, unlike env/if/continue-on-error above — preserved in

@@ -145,7 +145,11 @@ def test_id_no_name_step_falls_back_to_uses_and_preserves_step_id():
     pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "fastapi_test.yml"))
     job = next(j for j in pipeline.jobs if j.name == "changes")
     step = next(s for s in job.steps if "paths-filter" in s.value)
-    assert step.name == step.value  # fallback: name == the uses: value
+    # dorny/paths-filter is SHA-pinned here, so the name fallback is the
+    # shortened owner/repo form (see test_sha_pinned_uses_fallback_* below);
+    # Step.value still keeps the exact original SHA-pinned uses: string.
+    assert step.name == "dorny/paths-filter"
+    assert step.value == "dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d"
     assert step.raw_extras["step_id"] == "filter"
 
 
@@ -181,7 +185,10 @@ def test_no_name_uses_step_falls_back_to_uses_value():
 def test_no_name_run_step_falls_back_to_truncated_first_line():
     long_command = "echo " + ("x" * 80)
     steps = _parse_steps(_load_steps(f"steps:\n  - run: {long_command}\n"))
-    assert steps[0].name == long_command[:60] + "..."
+    # The trailing "x"*80 token alone exceeds the 75-char completion ceiling,
+    # so this falls back to the last word boundary (right after "echo")
+    # rather than either completing the giant token or cutting mid-word.
+    assert steps[0].name == "echo..."
     assert steps[0].type == StepType.COMMAND
     assert steps[0].value == long_command  # value itself is never truncated
 
@@ -237,5 +244,57 @@ def test_multiline_run_value_never_truncated_even_when_long():
     steps = _parse_steps(_load_steps(snippet))
     assert long_line in steps[0].value
     assert "second line" in steps[0].value
-    # only the derived *name* is truncated, never Step.value
+    # only the derived *name* is truncated, never Step.value. A single token
+    # with no whitespace at all still falls back to the hard cutoff.
     assert steps[0].name == long_line[:60] + "..."
+
+
+# ---------------------------------------------------------------------------
+# Name-fallback quality fixes (word-boundary truncation, SHA-pinned uses:
+# shortening) — regression tests for the two issues found reviewing the
+# original heuristic against all 37 no-name: steps across the 10 fixtures.
+# ---------------------------------------------------------------------------
+
+def test_word_boundary_fix_keeps_disambiguating_word_intact():
+    # flask_tests.yml's `typing` job: the old hard-60-char cutoff produced
+    # '...tox run -e t...', mangling the one word ("typing") that
+    # distinguishes this step from the near-identical step in the `tests`
+    # job. Assert the word survives — not just that the old garbled
+    # fragment is gone, since a fix that still dropped "typing" cleanly
+    # would also satisfy a weaker "!= old value" assertion.
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "flask_tests.yml"))
+    job = next(j for j in pipeline.jobs if j.name == "typing")
+    step = next(s for s in job.steps if "tox run" in s.value and "-e typing" in s.value)
+    assert "typing" in step.name
+    assert step.name == "uv run --locked --no-default-groups --group dev tox run -e typing"
+
+
+def test_sha_pinned_uses_fallback_shortened_to_owner_repo():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "fastapi_test.yml"))
+    job = next(j for j in pipeline.jobs if j.name == "changes")
+    step = next(s for s in job.steps if "checkout" in s.value)
+    assert step.name == "actions/checkout"
+    assert step.value == "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+
+
+def test_sha_pinned_uses_fallback_shortened_second_fixture():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "flask_tests.yml"))
+    job = next(j for j in pipeline.jobs if j.name == "tests")
+    step = next(s for s in job.steps if "setup-uv" in s.value)
+    assert step.name == "astral-sh/setup-uv"
+    assert step.value == "astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57"
+
+
+def test_tag_pinned_uses_fallback_unchanged():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "checkout_check_dist.yml"))
+    step = pipeline.jobs[0].steps[0]
+    assert step.name == "actions/checkout@v7"
+
+
+def test_uses_with_no_at_sign_returned_unchanged():
+    # A local action reference (no version pin at all) has no '@' —
+    # str.rpartition("@") returns ("", "", original_string) when the
+    # separator is absent, which must not be mistaken for a SHA match.
+    snippet = "steps:\n  - uses: ./.github/actions/foo\n"
+    steps = _parse_steps(_load_steps(snippet))
+    assert steps[0].name == "./.github/actions/foo"
