@@ -127,11 +127,17 @@ def test_display_name_absent_when_job_has_no_name_field():
     assert job.raw_extras == {}
 
 
-def test_all_fixtures_have_no_steps_yet():
+def test_all_fixture_steps_have_no_env_condition_or_continue_on_error_yet():
+    # steps: name/type/value/with_args parsing landed in a later pass (see
+    # tests/test_github_actions_steps.py); env/if/continue-on-error are still
+    # unimplemented, so every Step keeps those dataclass defaults for now.
     for filename in EXPECTED_JOB_KEYS:
         pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, filename))
         for job in pipeline.jobs:
-            assert job.steps == []
+            for step in job.steps:
+                assert step.condition is None
+                assert step.environment == {}
+                assert step.continue_on_error is False
 
 
 # ---------------------------------------------------------------------------

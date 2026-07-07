@@ -56,3 +56,39 @@ the original data still survives in `Trigger.raw` or `Job.raw_extras`.
   will reference once implemented; the display name is preserved in
   `Job.raw_extras["display_name"]` rather than dropped, but is not
   otherwise interpreted or evaluated.
+
+## Steps (`steps:`)
+
+Deliberately deferred this pass, each with a dedicated `Step` field already
+in the schema waiting for a specific future pass: `env:` (step env vars —
+"env/secrets" pass), `if:` (step conditions — "if conditions" pass),
+`continue-on-error:` (bundled into the env/secrets pass since it's a small
+structural addition alongside it). None of these are stored anywhere yet,
+including `raw_extras` — they have a promised home, so there's no data-loss
+risk in leaving them for those passes to fill in directly from the YAML.
+
+- **`StepType.SCRIPT` is never produced by this parser.** GH Actions has no
+  distinct YAML construct for "external script reference" vs. an inline
+  command — `run: ./deploy.sh` is syntactically identical to `run: npm
+  test`. Every `run:` step maps to `StepType.COMMAND`; `SCRIPT` exists in
+  the IR for platforms that do distinguish the two (e.g. a dedicated
+  `script:` file reference) and may go entirely unused by this parser.
+- **Name-fallback heuristic when `name:` is absent** (37 of 299 steps
+  across the 10 fixtures — not rare). `uses:` steps fall back to the action
+  ref itself; `run:` steps fall back to the first non-empty line, truncated
+  to ~60 chars. This is a parser design choice that can affect the
+  *readability* of generated documentation (a truncated first line is a
+  weaker step label than a hand-written name), not a silent data-loss
+  concern — the original `run:`/`uses:` value is always intact in
+  `Step.value` regardless of what name was derived.
+- **`shell:` and `working-directory:`** (33 and 4 occurrences respectively)
+  have no dedicated `Step` field and no pass currently scheduled to add
+  one, unlike env/if/continue-on-error above — preserved in
+  `Step.raw_extras["shell"]` / `["working-directory"]` rather than dropped.
+- **A step with neither `uses:` nor `run:`.** Not valid GH Actions syntax
+  as far as we've seen (0 of 299 steps) — the whole step body is preserved
+  in `Step.raw_extras["unrecognized_step"]` and `StepType.COMMAND` is used
+  as a neutral placeholder type, rather than raising or guessing. Untested
+  against real-world data.
+- **A non-dict entry inside `steps:`.** Same treatment as above — not seen
+  in any current fixture, defensive only.
