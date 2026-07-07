@@ -73,67 +73,52 @@ Each supported CI platform gets its own parser. The parser reads the raw YAML fi
 
 ### Layer 2 — Intermediate Representation (IR)
 
-This is the heart of the platform-agnostic design. Every parser converts its platform-specific YAML into a common Python dictionary structure — the IR. All downstream processing works only with this IR, never with raw YAML.
+This is the heart of the platform-agnostic design. Every parser converts its platform-specific YAML into the IR — implemented as typed Python dataclasses in `ir/schema.py` (`Pipeline`, `Job`, `Step`, `Trigger`, `Condition`, `MatrixStrategy`, `Secret`, `EnvironmentVariable`, `LinkedWorkflow`, plus `SourcePlatform`/`TriggerType`/`StepType`/`SecretScope` enums). All downstream processing works only with this IR, never with raw YAML.
+
+**Migration note:** the IR started as a flat dict (an earlier draft's `pipeline = {...}` literal, since replaced below) but was rebuilt as a typed superset once it was stress-tested against GitLab CI/CircleCI/Jenkins requirements, not just GitHub Actions. That surfaced real gaps: inconsistent step shapes, dependency and artifact-passing semantics conflated into one list, no defined structure for conditions, no concept of build matrices or named stages, and no escape hatch for platform fields the schema didn't yet model. Most of the change is additive — `matrix`, `stage`, `artifacts_produced`/`artifacts_consumed`, `linked_workflows`, and `raw_extras` are new, not replacements. Only three fields actually changed shape: steps now use a unified `type`/`value` pair instead of separate `action`/`command` keys, `dependencies` is execution-order only (artifact passing moved to its own fields), and conditions are a structured `Condition` object rather than a bare list.
 
 **Field names are deliberately generic — not tied to any platform:**
 
-| GitHub Actions term | GitLab CI term | IR field name |
-|--------------------|----------------|---------------|
-| `runs-on` | `image` | `runner` |
-| `steps` | `script` | `steps` |
-| `needs` | `needs` | `dependencies` |
-| `on` | `only/rules` | `triggers` |
-| `env` | `variables` | `environment` |
-| `uses` | `include` | `action` |
+| GitHub Actions term | GitLab CI term | IR field | Note |
+|--------------------|----------------|----------|------|
+| `runs-on` | `image`/`tags` | `Job.runner` | |
+| `steps` | `script` | `Job.steps` (`Step[]`) | unified `type` (`ACTION`/`COMMAND`/`SCRIPT`) + `value`, not separate `action`/`command` keys |
+| `needs` | `needs` | `Job.dependencies` | execution-order only |
+| *(implicit)* | `artifacts:` | `Job.artifacts_produced` / `artifacts_consumed` | split out from `dependencies` |
+| `on` | `only`/`rules` | `Pipeline.triggers` (`Trigger[]`) | |
+| `env` | `variables` | `Job.environment` / `Pipeline.environment_variables` | |
+| `uses` | `include` (step-level) | `Step.value` when `type == ACTION` | no separate `action` key |
+| `if:` | `rules:`/`only:`/`except:` | `Job.condition` / `Step.condition` (`Condition`) | `expression` always set, `structured` best-effort |
+| `strategy.matrix` | `parallel:matrix` | `Job.matrix` (`MatrixStrategy`) | new field |
+| *(n/a)* | `stage:` | `Job.stage` | new field |
+| `secrets.X` | masked variables | `Pipeline.secrets` (`Secret[]`) | scoped via `SecretScope`/`scope_ref`, not a flat string list |
+| `workflow_call`/`workflow_run` | `include:` | `Pipeline.linked_workflows` (`LinkedWorkflow[]`) | new field |
+| *(unmapped)* | *(unmapped)* | `raw_extras` on `Pipeline`/`Job`/`Step` | new escape hatch — unmapped platform fields are preserved, never dropped |
 
-**Example IR structure:**
+**Example — building a simple IR pipeline directly via the dataclasses:**
 ```python
-pipeline = {
-    "name": "CI Pipeline",
-    "source_platform": "github_actions",
-    "source_file": "ci.yml",
-    "triggers": [
-        {"type": "push", "branches": ["main"]},
-        {"type": "pull_request", "branches": ["main"]}
+from ir.schema import Pipeline, Job, Step, StepType, Trigger, TriggerType, SourcePlatform
+
+pipeline = Pipeline(
+    name="Lint",
+    source_platform=SourcePlatform.GITHUB_ACTIONS,
+    source_file=".github/workflows/lint.yml",
+    triggers=[
+        Trigger(type=TriggerType.PUSH, branches=["main"], raw="push:\n  branches: [main]"),
     ],
-    "jobs": [
-        {
-            "name": "lint",
-            "runner": "ubuntu-latest",
-            "dependencies": [],
-            "steps": [
-                {"name": "checkout", "action": "actions/checkout@v3"},
-                {"name": "run linter", "command": "flake8 ."}
+    jobs=[
+        Job(
+            name="lint",
+            runner="ubuntu-latest",
+            steps=[
+                Step(name="checkout", type=StepType.ACTION, value="actions/checkout@v4"),
+                Step(name="run flake8", type=StepType.COMMAND, value="flake8 ."),
             ],
-            "conditions": []
-        },
-        {
-            "name": "test",
-            "runner": "ubuntu-latest",
-            "dependencies": ["lint"],
-            "steps": [
-                {"name": "checkout", "action": "actions/checkout@v3"},
-                {"name": "run tests", "command": "pytest"}
-            ],
-            "conditions": []
-        },
-        {
-            "name": "deploy",
-            "runner": "ubuntu-latest",
-            "dependencies": ["test"],
-            "steps": [
-                {"name": "deploy to production", "command": "./deploy.sh"}
-            ],
-            "conditions": [
-                {"type": "branch", "value": "main"},
-                {"type": "event", "value": "push_only"}
-            ]
-        }
+        ),
     ],
-    "secrets": ["DEPLOY_API_KEY"],
-    "environment_variables": []
-}
+)
 ```
+`pipeline.to_dict()` is what generators and LLM prompts actually receive — a plain JSON-serializable dict, matching the shape of `tests/fixtures/simple_pipeline_ir.json`.
 
 ---
 
@@ -308,4 +293,4 @@ Because of the layered architecture, future additions require no restructuring:
 ---
 
 *This document is a living reference — update as the project evolves.*  
-*Last updated: June 2026*
+*Last updated: July 2026*
