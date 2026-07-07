@@ -226,7 +226,11 @@ def test_empty_on_block_returns_no_triggers():
 # for now.
 # ---------------------------------------------------------------------------
 
-def test_parse_returns_empty_jobs_for_now():
+def test_parse_returns_jobs_with_empty_steps_for_now():
+    # jobs: name/runs-on parsing landed in a later pass (see
+    # tests/test_github_actions_jobs.py); steps/needs/env/conditions/matrix
+    # are still unimplemented, so every Job's steps list stays empty for now.
     pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "eslint_ci.yml"))
-    assert pipeline.jobs == []
+    assert len(pipeline.jobs) == 6
+    assert all(job.steps == [] for job in pipeline.jobs)
     assert pipeline.name == "CI"
