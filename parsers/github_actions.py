@@ -1,11 +1,12 @@
 """
 parsers/github_actions.py — GitHub Actions YAML -> ir.schema.Pipeline.
 
-Implemented incrementally per BUILD_PLAN.md Phase 3. This pass only handles
-the `on:` trigger block (see `_parse_triggers`). Jobs, steps, `needs`, env
-vars, conditions, and matrix strategy are intentionally not implemented yet
-— `parse()` currently returns a `Pipeline` with an empty `jobs` list. Later
-passes fill those in.
+Implemented incrementally per BUILD_PLAN.md Phase 3. So far: the `on:`
+trigger block (see `_parse_triggers`) and `jobs:` name/runs-on (see
+`_parse_jobs`). Steps, `needs`, env vars, conditions, and matrix strategy
+are intentionally not implemented yet — every `Job` currently has an empty
+`steps` list. Later passes fill those in. See LIMITATIONS.md for what's
+known-unhandled so far.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
-from ir.schema import Pipeline, SourcePlatform, Trigger, TriggerType
+from ir.schema import Job, Pipeline, SourcePlatform, Trigger, TriggerType
 from parsers.base import BaseParser
 
 
@@ -235,6 +236,70 @@ def _parse_triggers(on_block: Any) -> List[Trigger]:
 
 
 # ---------------------------------------------------------------------------
+# Job parsing
+# ---------------------------------------------------------------------------
+
+def _parse_runner(runs_on: Any) -> Optional[str]:
+    """
+    `runs-on:` -> Job.runner. Only name/runs-on are handled this pass — steps,
+    needs, env, conditions, and matrix are intentionally left for later.
+    """
+    if runs_on is None:
+        # Valid for reusable-workflow-call jobs (`uses: ./.github/workflows/x.yml`),
+        # which don't declare their own runner. Don't fabricate one.
+        return None
+
+    if isinstance(runs_on, str):
+        # LIMITATION: matrix-templated runners (e.g. `${{ matrix.os }}`, or
+        # `${{ matrix.os || 'ubuntu-latest' }}` as seen in tests/fixtures/flask_tests.yml)
+        # are stored as the raw expression string, unresolved — matrix parsing isn't
+        # implemented yet (a later pass), which will need to reconcile Job.runner
+        # against the job's matrix once it lands.
+        return runs_on
+
+    if isinstance(runs_on, list):
+        # LIMITATION: self-hosted runner labels (e.g. `runs-on: [self-hosted, linux,
+        # x64]`) are a set of labels a runner must match, not a single named runner.
+        # Job.runner is typed as a single Optional[str], so the labels are joined into
+        # one comma-separated string; the original list structure isn't preserved
+        # separately. Not seen in any current fixture — untested against real data.
+        return ", ".join(str(label) for label in runs_on)
+
+    # Unexpected shape (e.g. a dict) — stringify rather than raise or drop.
+    return str(runs_on)
+
+
+def _parse_jobs(jobs_block: Any) -> List[Job]:
+    """
+    Parse a workflow's `jobs:` map into Job objects. This pass only handles
+    the job key (-> Job.name) and `runs-on` (-> Job.runner); steps/needs/env/
+    conditions/matrix are left at their dataclass defaults.
+    """
+    if not isinstance(jobs_block, dict):
+        return []
+
+    jobs: List[Job] = []
+    for job_key, job_body in jobs_block.items():
+        job_body = job_body if isinstance(job_body, dict) else {}
+
+        raw_extras: Dict[str, Any] = {}
+        display_name = job_body.get("name")
+        if display_name and display_name != job_key:
+            # Job.name must stay the job key — it's what `needs:`/`dependencies`
+            # will reference once that's implemented. The human-facing display
+            # name is common (not rare — e.g. eslint_ci.yml's `verify_files` job
+            # is named "Verify Files") and isn't dropped, just not structured.
+            raw_extras["display_name"] = display_name
+
+        jobs.append(Job(
+            name=job_key,
+            runner=_parse_runner(job_body.get("runs-on")),
+            raw_extras=raw_extras,
+        ))
+    return jobs
+
+
+# ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
 
@@ -242,10 +307,10 @@ class GitHubActionsParser(BaseParser):
     """
     Layer 1 parser for GitHub Actions workflow YAML.
 
-    Currently only `on:` triggers are implemented (see module docstring).
-    `parse()` returns a Pipeline with an accurate `triggers` list and an
-    empty `jobs` list until later passes add jobs/steps/needs/env/
-    conditions/matrix.
+    Currently implemented: `on:` triggers and `jobs:` name/runs-on (see
+    module docstring). `parse()` returns a Pipeline with accurate `triggers`
+    and `jobs` lists, though every Job's `steps` is still empty until a
+    later pass.
     """
 
     def parse(self, file_path: str) -> Pipeline:
@@ -253,11 +318,12 @@ class GitHubActionsParser(BaseParser):
 
         name = data.get("name") or os.path.basename(file_path)
         triggers = _parse_triggers(data.get("on"))
+        jobs = _parse_jobs(data.get("jobs"))
 
         return Pipeline(
             name=name,
             source_platform=SourcePlatform.GITHUB_ACTIONS,
             source_file=file_path,
             triggers=triggers,
-            jobs=[],
+            jobs=jobs,
         )
