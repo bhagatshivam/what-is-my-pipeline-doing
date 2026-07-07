@@ -241,19 +241,54 @@ def _parse_triggers(on_block: Any) -> List[Trigger]:
 # Step parsing
 # ---------------------------------------------------------------------------
 
+_SHA_PIN_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+
+
+def _truncate_at_word_boundary(text: str, limit: int, ceiling: int) -> str:
+    """
+    Truncate `text` to roughly `limit` chars. Prefers completing the word
+    that straddles `limit` (up to `ceiling` chars total) over cutting
+    mid-word or dropping that word entirely — a strict "last whitespace
+    before `limit`" cut would, e.g., turn `... -e typing` into `... -e...`,
+    losing the one word that mattered. Falls back to the last whitespace
+    boundary before `limit` if the straddling word itself would blow the
+    ceiling, and further to a hard cutoff at `limit` if there's no
+    whitespace before `limit` at all (a single very long token).
+    """
+    if len(text) <= limit:
+        return text
+
+    boundary = text.rfind(" ", 0, limit)
+    word_start = boundary + 1 if boundary != -1 else 0
+    next_space = text.find(" ", word_start)
+    word_end = next_space if next_space != -1 else len(text)
+
+    if word_end <= ceiling:
+        return text[:word_end] + ("..." if word_end < len(text) else "")
+    if boundary > 0:
+        return text[:boundary] + "..."
+    return text[:limit] + "..."
+
+
 def _step_name_fallback(step: Dict[str, Any]) -> str:
     """Derive a name for a step with no `name:` field, from `uses:`/`run:`."""
     if "uses" in step:
-        return str(step["uses"])
+        uses = str(step["uses"])
+        ref_part, _, sha = uses.rpartition("@")
+        if ref_part and _SHA_PIN_RE.match(sha):
+            # LIMITATION: a SHA-pinned uses: ref (e.g. actions/checkout@<40 hex
+            # chars>) is correct but unreadable as a display name — shortened to
+            # just the owner/repo(/path) part for the *name* fallback only.
+            # Step.value always keeps the exact original SHA-pinned string.
+            return ref_part
+        return uses
 
     first_line = ""
     for line in str(step.get("run", "")).splitlines():
         if line.strip():
             first_line = line.strip()
             break
-    if len(first_line) > 60:
-        return first_line[:60] + "..."
-    return first_line
+    return _truncate_at_word_boundary(first_line, 60, 75)
 
 
 def _parse_step(step: Dict[str, Any]) -> Step:
