@@ -5,12 +5,11 @@ Implemented incrementally per BUILD_PLAN.md Phase 3. So far: the `on:`
 trigger block (see `_parse_triggers`), `jobs:` name/runs-on (see
 `_parse_jobs`), each job's `steps:` name/type/value/with_args (see
 `_parse_steps`), each job's `needs:` (see `_parse_dependencies`), job/step
-`env:` and `continue-on-error:` (see `_parse_env_vars`/
-`_parse_continue_on_error`), and pipeline-wide secret references (see
-`_parse_secret_references`). `if:` conditions and matrix strategy are
-intentionally not implemented yet — every `Step`'s/`Job`'s `condition`
-stays at its dataclass default, and `Job.matrix` stays `None`. Later passes
-fill those in. See LIMITATIONS.md for what's known-unhandled so far.
+`env:`, `continue-on-error:`, and `if:` conditions (see `_parse_env_vars`/
+`_parse_continue_on_error`/`_parse_condition`), and pipeline-wide secret
+references (see `_parse_secret_references`). Matrix strategy is
+intentionally not implemented yet — `Job.matrix` stays `None`. Later passes
+fill that in. See LIMITATIONS.md for what's known-unhandled so far.
 """
 
 from __future__ import annotations
@@ -22,6 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 
 from ir.schema import (
+    Condition,
     EnvironmentVariable,
     Job,
     Pipeline,
@@ -327,10 +327,14 @@ def _scan_dict_for_secrets(block: Any) -> List[str]:
 def _iter_scoped_blocks(data: Dict[str, Any]):
     """
     Single shared traversal of a workflow's pipeline/job/step levels,
-    yielding `(scope, scope_ref, env_block, with_block, run_value)` for
-    each. Reused by `_parse_pipeline_env_vars` (only needs `env_block`) and
-    `_parse_secret_references` (needs `env_block`/`with_block`/`run_value`)
-    so the tree only gets walked once and the two can't drift apart.
+    yielding `(scope, scope_ref, env_block, with_block, run_value,
+    if_value)` for each. Reused by `_parse_pipeline_env_vars` (only needs
+    `env_block`) and `_parse_secret_references` (needs `env_block`/
+    `with_block`/`run_value`/`if_value`) so the tree only gets walked once
+    and the two can't drift apart.
+
+    `if_value` is always `None` at PIPELINE scope — the top-level workflow
+    YAML has no `if:` concept, only jobs/steps do.
 
     STEP scope_ref is `f"{job_key}.{step_index}"` (0-based index, not step
     name) — steps often lack a stable, unique `name:`. This is safe by
@@ -339,14 +343,21 @@ def _iter_scoped_blocks(data: Dict[str, Any]):
     that would confuse `scope_ref.split(".")[0]` (what
     ir.validate._check_secret_and_env_scopes uses).
     """
-    yield SecretScope.PIPELINE, None, data.get("env"), None, None
+    yield SecretScope.PIPELINE, None, data.get("env"), None, None, None
 
     jobs_block = data.get("jobs")
     if not isinstance(jobs_block, dict):
         return
     for job_key, job_body in jobs_block.items():
         job_body = job_body if isinstance(job_body, dict) else {}
-        yield SecretScope.JOB, job_key, job_body.get("env"), job_body.get("with"), None
+        yield (
+            SecretScope.JOB,
+            job_key,
+            job_body.get("env"),
+            job_body.get("with"),
+            None,
+            job_body.get("if"),
+        )
 
         steps_block = job_body.get("steps")
         if not isinstance(steps_block, list):
@@ -360,13 +371,14 @@ def _iter_scoped_blocks(data: Dict[str, Any]):
                 step.get("env"),
                 step.get("with"),
                 step.get("run"),
+                step.get("if"),
             )
 
 
 def _parse_pipeline_env_vars(data: Dict[str, Any]) -> List[EnvironmentVariable]:
     """Build the pipeline-wide `Pipeline.environment_variables` list from every scope."""
     entries: List[EnvironmentVariable] = []
-    for scope, scope_ref, env_block, _with_block, _run_value in _iter_scoped_blocks(data):
+    for scope, scope_ref, env_block, _with_block, _run_value, _if_value in _iter_scoped_blocks(data):
         entries.extend(_parse_env_vars(env_block, scope, scope_ref))
     return entries
 
@@ -375,11 +387,11 @@ def _parse_secret_references(data: Dict[str, Any]) -> List[Secret]:
     """
     Scan the whole workflow for `${{ secrets.NAME }}` references — GH
     Actions has no declarative secrets block, so secrets only show up
-    wherever they're used (`env:`/`with:`/`run:` at any scope). Deduped by
-    (name, scope, scope_ref): a secret referenced twice in the exact same
-    location collapses to one entry (no new information), but the same
-    secret referenced from two different jobs/steps stays as separate
-    entries, since those are genuinely different usage sites.
+    wherever they're used (`env:`/`with:`/`run:`/`if:` at any scope).
+    Deduped by (name, scope, scope_ref): a secret referenced twice in the
+    exact same location collapses to one entry (no new information), but
+    the same secret referenced from two different jobs/steps stays as
+    separate entries, since those are genuinely different usage sites.
     `ir.validate._check_secret_and_env_scopes` itself tolerates duplicates
     freely, so this dedup is a parser-side cleanliness choice, not a
     correctness requirement.
@@ -390,19 +402,15 @@ def _parse_secret_references(data: Dict[str, Any]) -> List[Secret]:
     here — deferred to the future reusable-workflows pass. Not seen in any
     fixture (eslint_ci.yml's `test_package_manager`, the only `uses:`-based
     job across all 10 fixtures, has no `secrets:` key).
-
-    LIMITATION: secrets referenced inside `if:` condition expressions
-    aren't scanned here either, since `if:` parsing itself is a separate,
-    not-yet-implemented pass. Not seen in any of the 10 fixtures' 8 real
-    secret references.
     """
     seen: set = set()
     secrets: List[Secret] = []
-    for scope, scope_ref, env_block, with_block, run_value in _iter_scoped_blocks(data):
+    for scope, scope_ref, env_block, with_block, run_value, if_value in _iter_scoped_blocks(data):
         names = (
             _scan_dict_for_secrets(env_block)
             + _scan_dict_for_secrets(with_block)
             + _extract_secret_names(run_value)
+            + _extract_secret_names(if_value)
         )
         for name in names:
             key = (name, scope, scope_ref)
@@ -441,6 +449,104 @@ def _parse_job_continue_on_error(value: Any) -> Tuple[bool, Optional[str]]:
     if value is None:
         return False, None
     return False, str(value)
+
+
+# ---------------------------------------------------------------------------
+# Condition (if:) parsing
+# ---------------------------------------------------------------------------
+
+_STATUS_CHECK_RE = re.compile(
+    r"^(?P<negated>!)?\s*(?P<function>always|success|failure|cancelled)\(\)$"
+)
+_GITHUB_EQUALS_RE = re.compile(
+    r"^github\.(?P<field>ref|event_name)\s*==\s*(['\"])(?P<value>[^'\"]*)\2$"
+)
+
+
+def _strip_expression_wrapper(expr: str) -> str:
+    """
+    Strip a leading `${{`/trailing `}}` (plus surrounding whitespace) for
+    pattern-matching purposes only — GH Actions allows `if:` both wrapped
+    (`${{ github.ref == 'main' }}`) and bare (`github.ref == 'main'`); 12 of
+    44 real conditions across the fixtures are wrapped, 32 bare. Never used
+    to modify the stored `Condition.expression`, which always preserves the
+    original text (wrapped or not) verbatim.
+    """
+    stripped = expr.strip()
+    if stripped.startswith("${{") and stripped.endswith("}}"):
+        return stripped[3:-2].strip()
+    return stripped
+
+
+def _classify_condition(inner: str) -> Dict[str, Any]:
+    """
+    Best-effort classification of a `${{ }}`-stripped condition into one of
+    a small, explicitly-named set of recognized shapes — not a general
+    expression parser. Two shapes recognized:
+      - a bare (optionally negated) status-check function call
+      - a bare `github.ref == 'X'` / `github.event_name == 'X'` equality
+
+    Anything else -> {"type": "unparsed"}, per the schema's documented
+    "don't guess" convention, rather than partially parsing a compound
+    expression.
+
+    LIMITATION: `needs.<job>.outputs.*` / `needs.<job>.result` references
+    are a meaningfully common real shape (7 occurrences across 3 fixtures:
+    fastapi_test.yml, pytorch_lint.yml, rust_ci.yml) that isn't
+    structured-parsed this pass — a reasonable future enhancement, not an
+    oversight.
+    """
+    status_match = _STATUS_CHECK_RE.match(inner)
+    if status_match:
+        return {
+            "type": "status_check",
+            "function": status_match.group("function"),
+            "negated": status_match.group("negated") is not None,
+        }
+
+    equals_match = _GITHUB_EQUALS_RE.match(inner)
+    if equals_match:
+        field = equals_match.group("field")
+        condition_type = "ref_equals" if field == "ref" else "event_equals"
+        return {"type": condition_type, "value": equals_match.group("value")}
+
+    return {"type": "unparsed"}
+
+
+def _parse_condition(if_value: Any) -> Optional[Condition]:
+    """
+    `if:` -> Condition. Missing/`None`/empty-or-whitespace-only string ->
+    no condition at all (`None`) — `_check_conditions` in ir/validate.py
+    requires `expression` be non-empty whenever a Condition exists, so an
+    empty `if:` must map to `None`, never an empty-expression Condition.
+
+    A string's `expression` is stored exactly as written, `${{ }}` wrapper
+    included verbatim if present — never normalized, since `expression` is
+    the ground truth per the schema's docstring.
+    """
+    if if_value is None:
+        return None
+
+    if isinstance(if_value, str):
+        if not if_value.strip():
+            return None
+        expression = if_value
+    elif isinstance(if_value, bool):
+        # `if: true`/`if: false` (a literal YAML boolean, not a `${{ }}`
+        # expression string) is real syntax — seen in
+        # tests/fixtures/pandas_unit_tests.yml's `python-dev` job.
+        # Lowercased to match GH Actions' own true/false string convention
+        # (mirrors _stringify_env_value's precedent from the env/secrets
+        # pass), not Python's str(False) == "False".
+        expression = "true" if if_value else "false"
+    else:
+        # LIMITATION: an `if:` value that's neither a string nor a bool
+        # isn't valid GH Actions syntax we've seen — stringify defensively
+        # rather than raise. Untested against real data.
+        expression = str(if_value)
+
+    structured = _classify_condition(_strip_expression_wrapper(expression))
+    return Condition(expression=expression, structured=structured)
 
 
 # ---------------------------------------------------------------------------
@@ -506,8 +612,8 @@ def _parse_step(step: Dict[str, Any]) -> Step:
     if "id" in step:
         raw_extras["step_id"] = step["id"]
     # `shell:`/`working-directory:` have no dedicated Step field (unlike
-    # env/continue-on-error, which do — `if:` conditions are still deferred
-    # to a later pass) — preserved here rather than silently dropped.
+    # env/continue-on-error/if, which all do) — preserved here rather than
+    # silently dropped.
     if "shell" in step:
         raw_extras["shell"] = step["shell"]
     if "working-directory" in step:
@@ -544,6 +650,7 @@ def _parse_step(step: Dict[str, Any]) -> Step:
         type=step_type,
         value=value,
         with_args=dict(with_args) if isinstance(with_args, dict) else {},
+        condition=_parse_condition(step.get("if")),
         environment={e.name: e.value if e.value is not None else "" for e in env_entries},
         continue_on_error=_parse_continue_on_error(step.get("continue-on-error")),
         raw_extras=raw_extras,
@@ -554,8 +661,7 @@ def _parse_steps(steps_block: Any) -> List[Step]:
     """
     Parse a job's `steps:` list into Step objects. This pass covers name
     (with a fallback when absent), type/value (uses vs. run), with_args,
-    environment, and continue_on_error. `condition` (`if:`) is intentionally
-    left at its dataclass default — a later pass fills that in.
+    condition, environment, and continue_on_error.
     """
     if not isinstance(steps_block, list):
         return []
@@ -606,8 +712,8 @@ def _parse_dependencies(needs: Any) -> List[str]:
 
 def _parse_runner(runs_on: Any) -> Optional[str]:
     """
-    `runs-on:` -> Job.runner. `if:` conditions and matrix strategy are
-    intentionally left for a later pass.
+    `runs-on:` -> Job.runner. Matrix strategy is intentionally left for a
+    later pass.
     """
     if runs_on is None:
         # Valid for reusable-workflow-call jobs (`uses: ./.github/workflows/x.yml`),
@@ -640,9 +746,9 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
     job key (-> Job.name), `runs-on` (-> Job.runner), each job's `steps:`
     (see _parse_steps), each job's `needs:` (-> Job.dependencies, see
     _parse_dependencies), each job's `env:` (-> Job.environment, see
-    _parse_env_vars), and each job's `continue-on-error:` (-> Job.allow_failure,
-    see _parse_job_continue_on_error); `condition`/`matrix` are left at
-    their dataclass defaults.
+    _parse_env_vars), each job's `continue-on-error:` (-> Job.allow_failure,
+    see _parse_job_continue_on_error), and each job's `if:` (-> Job.condition,
+    see _parse_condition); `matrix` is left at its dataclass default.
     """
     if not isinstance(jobs_block, dict):
         return []
@@ -675,6 +781,7 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
             runner=_parse_runner(job_body.get("runs-on")),
             dependencies=_parse_dependencies(job_body.get("needs")),
             allow_failure=allow_failure,
+            condition=_parse_condition(job_body.get("if")),
             environment={e.name: e.value if e.value is not None else "" for e in env_entries},
             steps=_parse_steps(job_body.get("steps")),
             raw_extras=raw_extras,
@@ -691,12 +798,12 @@ class GitHubActionsParser(BaseParser):
     Layer 1 parser for GitHub Actions workflow YAML.
 
     Currently implemented: `on:` triggers, `jobs:` name/runs-on/needs/env/
-    continue-on-error, each job's `steps:` name/type/value/with_args/env/
-    continue-on-error (see module docstring), and pipeline-wide secret
+    continue-on-error/if, each job's `steps:` name/type/value/with_args/env/
+    continue-on-error/if (see module docstring), and pipeline-wide secret
     references. `parse()` returns a Pipeline with accurate `triggers`,
-    `jobs` (incl. steps, dependencies, environment, allow_failure), `secrets`,
-    and `environment_variables`, though `if:` conditions and matrix strategy
-    are still unimplemented.
+    `jobs` (incl. steps, dependencies, environment, allow_failure, condition),
+    `secrets`, and `environment_variables`, though matrix strategy is still
+    unimplemented.
     """
 
     def parse(self, file_path: str) -> Pipeline:

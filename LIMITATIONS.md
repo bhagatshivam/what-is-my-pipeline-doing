@@ -59,14 +59,9 @@ the original data still survives in `Trigger.raw` or `Job.raw_extras`.
 
 ## Steps (`steps:`)
 
-`env:` and `continue-on-error:` (deferred when this section was first
-written) are now implemented — see `## Environment variables and secrets`
-and `## continue-on-error` below. `if:` (step conditions) remains
-deliberately deferred to a future "if conditions" pass; `Step.condition`
-stays at its dataclass default (`None`) for now — nothing is stored
-anywhere yet for it, but it has a promised home (`Condition`) so there's no
-data-loss risk in leaving it for that pass to fill in directly from the
-YAML.
+`env:`, `continue-on-error:`, and `if:` (all deferred when this section was
+first written) are now implemented — see `## Environment variables and
+secrets`, `## continue-on-error`, and `## Conditions (if:)` below.
 
 - **`StepType.SCRIPT` is never produced by this parser.** GH Actions has no
   distinct YAML construct for "external script reference" vs. an inline
@@ -95,9 +90,9 @@ YAML.
   `Step.value` is unaffected by this either way.
 - **`shell:` and `working-directory:`** (33 and 4 occurrences respectively)
   have no dedicated `Step` field and no pass currently scheduled to add
-  one, unlike env/continue-on-error (now implemented) or `if:` (still
-  deferred but has a promised field) — preserved in
-  `Step.raw_extras["shell"]` / `["working-directory"]` rather than dropped.
+  one, unlike env/continue-on-error/if (all now implemented) — preserved
+  in `Step.raw_extras["shell"]` / `["working-directory"]` rather than
+  dropped.
 - **A step with neither `uses:` nor `run:`.** Not valid GH Actions syntax
   as far as we've seen (0 of 299 steps) — the whole step body is preserved
   in `Step.raw_extras["unrecognized_step"]` and `StepType.COMMAND` is used
@@ -199,11 +194,16 @@ multi-scope data for the first time.
   `secrets:` key, and no fixture has one at all. Deferred to a future
   reusable-workflows pass rather than scanned here — a deliberate scope
   boundary, not an oversight.
-- **Secrets referenced inside `if:` condition expressions aren't scanned.**
-  `if:` parsing itself is a separate, not-yet-implemented pass (see
-  `## Steps` above). Checked directly: none of the 8 real
-  `${{ secrets.X }}` references found across the 10 fixtures fall inside
-  an `if:` line — a real gap for future data, not a currently-observed one.
+- **Resolved: secrets referenced inside `if:` condition expressions are now
+  scanned.** This was previously deferred here since `if:` parsing didn't
+  exist yet. Now that it does (see `## Conditions (if:)` below),
+  `_iter_scoped_blocks` yields each scope's `if:` value alongside
+  `env:`/`with:`/`run:`, and `_parse_secret_references` scans it via the
+  same `_extract_secret_names` — no new regex/extraction logic. Checked
+  directly: none of the 44 real `if:` expressions across the 10 fixtures
+  reference a secret, so this has zero behavioral impact on current
+  fixtures; the wiring is proven correct via hand-written snippet tests
+  instead (`tests/test_github_actions_conditions.py`).
 
 ## continue-on-error
 
@@ -231,3 +231,57 @@ uses `continue-on-error:` at all).
   be guessing) and the raw expression string is preserved in
   `Job.raw_extras["continue_on_error_expression"]` instead of being
   silently dropped.
+
+## Conditions (`if:`)
+
+Across all 10 fixtures: **44 total `if:` occurrences** (19 job-level, 25
+step-level), spread across 6 fixtures (`checkout_check_dist.yml`,
+`fastapi_test.yml`, `node_test_linux.yml`, `pandas_unit_tests.yml`,
+`pytorch_lint.yml`, `rust_ci.yml`); 4 fixtures have zero `if:` usage.
+`ir.validate.is_valid()` passes with zero errors on all 10 parsed
+pipelines, exercising `_check_conditions` against real data for the first
+time.
+
+- **`Condition.expression` always preserves the original text verbatim,
+  `${{ }}` wrapper included or omitted exactly as written.** GH Actions
+  allows both (12 of 44 real conditions are wrapped, 32 are bare) —
+  `expression` is never normalized to one form, since it's documented as
+  the ground truth. A `${{ }}`-stripped copy is used only internally, for
+  structured-pattern matching, and is never stored.
+- **Only two structured patterns are recognized**, deliberately narrow —
+  this is not a general expression parser:
+  - a bare (optionally negated) status-check function call — `always()`,
+    `success()`, `failure()`, `cancelled()` — → `{"type": "status_check",
+    "function": ..., "negated": bool}`. 2 real matches (both `always()`:
+    `fastapi_test.yml`'s `test-alls-green` job, `rust_ci.yml`'s `job` step
+    28). Negation isn't exercised by any real fixture — untested against
+    real data, covered by a snippet test instead.
+  - a bare `github.ref == 'X'` / `github.event_name == 'X'` equality → 
+    `{"type": "ref_equals"/"event_equals", "value": ...}`. 1 real match
+    (`rust_ci.yml`'s `calculate_matrix` step 1, a `ref_equals`); zero real
+    `event_equals` matches — every real `github.event_name` occurrence is
+    combined with `&&`/`||`, never bare — covered by a snippet test.
+  - Everything else (41 of 44 real conditions) → `{"type": "unparsed"}`,
+    including 9 real `github.repository_owner`/`github.repository`
+    equality checks that are structurally just as simple as the recognized
+    `github.ref`/`github.event_name` patterns but intentionally not
+    matched, to keep the recognized set small and explicit rather than
+    open-ended.
+  - **`needs.<job>.outputs.*`/`needs.<job>.result` references are a
+    meaningfully common real shape** (7 occurrences across `fastapi_test.yml`,
+    `pytorch_lint.yml`, `rust_ci.yml`) that isn't structured-parsed this
+    pass — a reasonable future enhancement, not an oversight.
+- **A real (not hypothetical) literal-boolean `if:` case.**
+  `pandas_unit_tests.yml`'s `python-dev` job has `if: false` — a literal
+  YAML boolean, not a `${{ }}` string at all. `_parse_condition` lowercases
+  this to `"false"`/`"true"` (mirroring `_stringify_env_value`'s precedent
+  from the env/secrets pass), not Python's `str(False) == "False"`.
+- **A real multi-line block-scalar case.** `pytorch_lint.yml`'s
+  `lintrunner-clang`/`lintrunner-pyrefly` jobs use `if: |` spanning ~10
+  lines with chained `contains(...)` calls. No special handling was
+  needed — the loaded string (embedded newlines and all) is stored as-is
+  in `expression`, and correctly falls through to `unparsed` since it
+  doesn't match either recognized pattern.
+- **A non-string, non-bool `if:` value** (not seen in any fixture) is
+  stringified defensively via `str(if_value)` rather than raised —
+  untested against real data.
