@@ -103,3 +103,21 @@ risk in leaving them for those passes to fill in directly from the YAML.
   against real-world data.
 - **A non-dict entry inside `steps:`.** Same treatment as above — not seen
   in any current fixture, defensive only.
+
+## Job dependencies (`needs:`)
+
+No limitations found, all shapes handled cleanly. Across all 10 fixtures
+(58 jobs total), `needs:` is either absent (42 jobs), a single job-key
+string (6 jobs, 6 edges), or a list of job-key strings (10 jobs, 17 edges)
+— 23 dependency edges total. Every referenced key resolves to an actual
+sibling job key in the same file, and `ir.validate.is_valid()` passes with
+zero errors on all 10 parsed pipelines, including the dependency-existence
+and circular-dependency checks now exercised for the first time against
+real multi-job graphs.
+
+Two shapes remain defensive-only (`# LIMITATION:` comments in
+`_parse_dependencies`, `parsers/github_actions.py`), since no fixture
+exercises them: a `needs:` list containing a non-string item (coerced via
+`str()` rather than raised), and a `needs:` value that's neither a string
+nor a list, e.g. a dict (treated as no dependencies). Both are untested
+against real-world data.
