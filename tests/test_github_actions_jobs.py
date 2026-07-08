@@ -127,19 +127,6 @@ def test_display_name_absent_when_job_has_no_name_field():
     assert job.raw_extras == {}
 
 
-def test_all_fixture_steps_have_no_condition_yet():
-    # steps: name/type/value/with_args parsing landed in a later pass (see
-    # tests/test_github_actions_steps.py); env/continue-on-error parsing landed
-    # in a later pass still (see tests/test_github_actions_env_secrets.py).
-    # `if:` conditions remain unimplemented, so every Step keeps that
-    # dataclass default for now.
-    for filename in EXPECTED_JOB_KEYS:
-        pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, filename))
-        for job in pipeline.jobs:
-            for step in job.steps:
-                assert step.condition is None
-
-
 # ---------------------------------------------------------------------------
 # `runs-on` shapes no fixture happens to use, tested directly.
 # ---------------------------------------------------------------------------
