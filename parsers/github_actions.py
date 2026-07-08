@@ -3,12 +3,13 @@ parsers/github_actions.py — GitHub Actions YAML -> ir.schema.Pipeline.
 
 Implemented incrementally per BUILD_PLAN.md Phase 3. So far: the `on:`
 trigger block (see `_parse_triggers`), `jobs:` name/runs-on (see
-`_parse_jobs`), and each job's `steps:` name/type/value/with_args (see
-`_parse_steps`). `needs`, job/step env vars, `if:` conditions, matrix
-strategy, and `continue-on-error:` are intentionally not implemented yet —
-every `Step`'s `condition`/`environment`/`continue_on_error` stay at their
-dataclass defaults. Later passes fill those in. See LIMITATIONS.md for
-what's known-unhandled so far.
+`_parse_jobs`), each job's `steps:` name/type/value/with_args (see
+`_parse_steps`), and each job's `needs:` (see `_parse_dependencies`). Job/
+step env vars, `if:` conditions, matrix strategy, and `continue-on-error:`
+are intentionally not implemented yet — every `Step`'s
+`condition`/`environment`/`continue_on_error` stay at their dataclass
+defaults. Later passes fill those in. See LIMITATIONS.md for what's
+known-unhandled so far.
 """
 
 from __future__ import annotations
@@ -372,6 +373,29 @@ def _parse_steps(steps_block: Any) -> List[Step]:
 # Job parsing
 # ---------------------------------------------------------------------------
 
+def _parse_dependencies(needs: Any) -> List[str]:
+    """
+    `needs:` -> Job.dependencies. GH Actions allows a bare job-key string
+    (`needs: build`) or a list of job-key strings (`needs: [build, test]`);
+    absent entirely is the common case (no upstream dependency). Job.name
+    is the YAML job key (see _parse_jobs), which is exactly what `needs:`
+    entries reference, so no key/display-name reconciliation is needed here.
+    """
+    if needs is None:
+        return []
+    if isinstance(needs, str):
+        return [needs]
+    if isinstance(needs, list):
+        # LIMITATION: a non-string entry in a `needs:` list isn't valid GH
+        # Actions syntax we've seen (0 of 58 jobs across all 10 fixtures) —
+        # coerced via str() rather than raised. Untested against real data.
+        return [item if isinstance(item, str) else str(item) for item in needs]
+    # LIMITATION: `needs:` shape we haven't seen in practice (not str/list,
+    # e.g. a dict) — treated as no dependencies rather than guessing
+    # structure. Untested against real data.
+    return []
+
+
 def _parse_runner(runs_on: Any) -> Optional[str]:
     """
     `runs-on:` -> Job.runner. Only name/runs-on are handled this pass — steps,
@@ -405,9 +429,10 @@ def _parse_runner(runs_on: Any) -> Optional[str]:
 def _parse_jobs(jobs_block: Any) -> List[Job]:
     """
     Parse a workflow's `jobs:` map into Job objects. This pass handles the
-    job key (-> Job.name), `runs-on` (-> Job.runner), and each job's `steps:`
-    (see _parse_steps); `needs`/env/conditions/matrix are left at their
-    dataclass defaults.
+    job key (-> Job.name), `runs-on` (-> Job.runner), each job's `steps:`
+    (see _parse_steps), and each job's `needs:` (-> Job.dependencies, see
+    _parse_dependencies); env/conditions/matrix are left at their dataclass
+    defaults.
     """
     if not isinstance(jobs_block, dict):
         return []
@@ -428,6 +453,7 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
         jobs.append(Job(
             name=job_key,
             runner=_parse_runner(job_body.get("runs-on")),
+            dependencies=_parse_dependencies(job_body.get("needs")),
             steps=_parse_steps(job_body.get("steps")),
             raw_extras=raw_extras,
         ))
@@ -442,10 +468,11 @@ class GitHubActionsParser(BaseParser):
     """
     Layer 1 parser for GitHub Actions workflow YAML.
 
-    Currently implemented: `on:` triggers, `jobs:` name/runs-on, and each
-    job's `steps:` name/type/value/with_args (see module docstring).
+    Currently implemented: `on:` triggers, `jobs:` name/runs-on/needs, and
+    each job's `steps:` name/type/value/with_args (see module docstring).
     `parse()` returns a Pipeline with accurate `triggers` and `jobs` (incl.
-    steps), though `needs`/env/conditions/matrix are still unimplemented.
+    steps and dependencies), though env/conditions/matrix are still
+    unimplemented.
     """
 
     def parse(self, file_path: str) -> Pipeline:
