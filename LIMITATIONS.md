@@ -412,3 +412,84 @@ instead. A calling job still gets its `condition`/`environment`/
 disable any of that. `raw_extras["secrets"]` is untested against real
 data: none of the 11 real `uses:`-jobs across all 10 fixtures has a
 `secrets:` key.
+
+## Text generator
+
+`generators/text_generator.py`'s `generate_text()` is a purely mechanical,
+non-LLM transform over the IR — it never infers semantic meaning from job
+or step names/commands (that's Layer 4's job on top of these
+Python-verified facts, not this layer's). Verified against all 10 real
+fixtures plus the 3 Phase 2 ground-truth fixtures by reading the actual
+generated output, not just checking it doesn't raise.
+
+- **Matrix combination counts are exact only when `axes` is the sole
+  populated field (or when `include` is the sole populated field with
+  empty `axes`).** When `axes` and `include` are both non-empty (real in
+  `eslint_ci.yml`'s `test_on_node`, `fastapi_test.yml`'s `test`,
+  `pandas_unit_tests.yml`'s `ubuntu`), the output states the axis-product
+  base count plus a separate "+N via include" rather than a single merged
+  figure — true GH Actions `include:` merge semantics (extend a matching
+  combo vs. append a new row) aren't replicated. Similarly, when `axes`
+  and `exclude` are both non-empty (real in `setup_python_test.yml`'s
+  `setup-versions-from-tool-versions-file`), the output is phrased as "up
+  to N combinations, M excluded" rather than a precise subtraction, since
+  a partial-key exclude entry could remove more than one row. A fully
+  dynamic matrix (`rust_ci.yml`'s `job`: empty axes and empty include,
+  populated at runtime via `fromJSON(...)`) is reported as "combinations
+  determined at runtime" rather than falsely claiming 0 or 1.
+- **`Job`/`LinkedWorkflow` are not mapped 1:1 in the output, by design.**
+  A `uses:`-only reusable-workflow-calling job (real in `eslint_ci.yml`
+  and `pytorch_lint.yml`) shows up in `JOBS (in order)` with `runner`
+  omitted and "0 steps" — nothing about *what* it calls, since that
+  detail lives only in `Job.raw_extras`, which this generator never
+  reads. The separate `LINKED WORKFLOWS` section lists the call targets
+  pipeline-wide instead, deduped by `(target, relationship)` (matching
+  the parser's own dedup precedent) — e.g. `pytorch_lint.yml` has 10
+  calling jobs but only 4 distinct `LinkedWorkflow` entries, so a
+  specific job cannot be traced back to a specific entry. Nothing is lost
+  between the two sections, they're just organized at different levels.
+- **Dependencies never imply success-gating.** `"after X"` in a job line
+  states execution order only; it never becomes "only runs if X
+  succeeds", even though that's GitHub Actions' real default runtime
+  behavior for `needs:`, because that semantic isn't literally encoded in
+  the IR's `dependencies` field and isn't guaranteed true for every
+  future platform this schema might model. Only an explicit
+  `Job.condition` is ever rendered as a gating rule.
+- **No step-level detail is surfaced** — only an aggregate step count per
+  job. A step-level `Condition` (e.g. `complex_pipeline_ir.json`'s `test`
+  job, an `"unparsed"` condition on its "run integration tests" step) is
+  present in the parsed `Pipeline` but not projected into this text
+  format; this matches `PROJECT_PLAN.md`'s target shape, which has no
+  step-level granularity either.
+- **`Pipeline.environment_variables` has no dedicated section**, and
+  job-level `Job.environment` names are not surfaced in job lines either
+  — out of scope for this slice, not a data-loss concern (the IR still
+  has the data; a future revision could add an "ENVIRONMENT" section).
+- **PROJECT_PLAN.md's illustrative prose ("checks code style using
+  flake8", "deploys to production") is deliberately not reproduced.**
+  Fabricating that kind of description from a job name alone would be
+  guessing intent this tool has no basis for; this generator only ever
+  renders facts the IR actually contains (step counts, matrix shape,
+  conditions verbatim/typed, dependency edges, secrets, linked workflows).
+- **Cycle fallback**: if a pipeline's job graph were cyclic (a state
+  `ir.validate._check_no_circular_dependencies` should already catch and
+  which should never legitimately occur), `_topological_job_order` does
+  not attempt to detect or report the cycle itself — it silently falls
+  back to YAML declaration order. Reporting cycles is `ir.validate`'s
+  responsibility; this generator's only obligation is to never crash or
+  hang on one. Proven via a hand-written 2-job cycle test, since no real
+  fixture has one.
+- **A real multi-line `unparsed` condition disrupts the one-line-per-job
+  format.** `pytorch_lint.yml`'s `lintrunner-clang`/`lintrunner-pyrefly`
+  jobs have a block-scalar `if: |` condition spanning ~10 lines; since
+  `Condition.expression` is rendered verbatim (never guessed at), the
+  embedded newlines appear directly inside the job line. Faithful to the
+  data, not silently truncated, but visually breaks the "one job per
+  numbered line" convention for these two real jobs.
+- **Step-scoped secrets surface the raw `job.stepindex` `scope_ref`
+  convention verbatim**, e.g. `rust_ci.yml` produces "`CACHES_AWS_ACCESS_KEY_ID
+  (used in job: job.26)`" rather than a decoded "step 26 of job job" —
+  this generator doesn't parse or reinterpret `scope_ref`'s internal
+  `f"{job_key}.{step_index}"` format (a parser-side convention documented
+  above under `## Environment variables and secrets`), it only ever
+  displays it as-is.
