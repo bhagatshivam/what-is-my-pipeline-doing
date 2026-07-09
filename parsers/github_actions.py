@@ -6,10 +6,10 @@ trigger block (see `_parse_triggers`), `jobs:` name/runs-on (see
 `_parse_jobs`), each job's `steps:` name/type/value/with_args (see
 `_parse_steps`), each job's `needs:` (see `_parse_dependencies`), job/step
 `env:`, `continue-on-error:`, and `if:` conditions (see `_parse_env_vars`/
-`_parse_continue_on_error`/`_parse_condition`), and pipeline-wide secret
-references (see `_parse_secret_references`). Matrix strategy is
-intentionally not implemented yet — `Job.matrix` stays `None`. Later passes
-fill that in. See LIMITATIONS.md for what's known-unhandled so far.
+`_parse_continue_on_error`/`_parse_condition`), each job's
+`strategy.matrix` (see `_parse_matrix`), and pipeline-wide secret
+references (see `_parse_secret_references`). Reusable workflows remain out
+of scope. See LIMITATIONS.md for what's known-unhandled so far.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from ir.schema import (
     Condition,
     EnvironmentVariable,
     Job,
+    MatrixStrategy,
     Pipeline,
     Secret,
     SecretScope,
@@ -550,6 +551,106 @@ def _parse_condition(if_value: Any) -> Optional[Condition]:
 
 
 # ---------------------------------------------------------------------------
+# Matrix strategy parsing
+# ---------------------------------------------------------------------------
+
+def _parse_matrix_combinations(value: Any) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """
+    `include:`/`exclude:` -> (entries, raw expression or None). Both keys
+    share the same shape, so this is used for either. `None` -> no entries.
+    A list -> each dict entry kept as-is (values stay `Any`, unlike
+    `axes` — MatrixStrategy types these `List[Dict[str, Any]]`, not
+    `Dict[str, List[str]]`, so there's nothing to stringify). Non-dict list
+    entries are dropped (not seen in any fixture, defensive only). Anything
+    else (a string expression, e.g. rust_ci.yml's `job` job:
+    `include: ${{ fromJSON(needs.calculate_matrix.outputs.jobs) }}` — a
+    genuinely dynamic matrix populated at runtime from a prior job's
+    output) can't be resolved statically -> ([], the raw expression) for
+    the caller to preserve rather than silently dropping it.
+    """
+    if value is None:
+        return [], None
+    if isinstance(value, list):
+        return [entry for entry in value if isinstance(entry, dict)], None
+    return [], str(value)
+
+
+def _parse_matrix(strategy_block: Any) -> Tuple[Optional[MatrixStrategy], Dict[str, str]]:
+    """
+    `strategy:` -> (Job.matrix, raw_extras fallback entries). Returns a
+    dict of raw string values the caller should merge into Job.raw_extras
+    for anything that can't be faithfully represented in MatrixStrategy's
+    typed fields (a dynamic `include:`/`exclude:`/`fail-fast:`, or
+    `max-parallel:` which has no schema field at all) — mirrors
+    `_parse_job_continue_on_error`'s "return the raw expression alongside
+    the resolved value, let the caller stash it" pattern from the
+    continue-on-error pass, generalized to a small flat dict since matrix
+    has several independent sub-values that can each be unresolvable.
+    """
+    extras: Dict[str, str] = {}
+
+    if not isinstance(strategy_block, dict):
+        return None, extras
+
+    matrix_block = strategy_block.get("matrix")
+    if not isinstance(matrix_block, dict):
+        # LIMITATION: `matrix:` itself as a non-dict (e.g. the whole matrix
+        # populated by a single expression, not just one sub-key) isn't seen
+        # in any fixture — the one real dynamic-matrix fixture (rust_ci.yml's
+        # `job`) still has a dict-shaped `matrix:` whose `include:` sub-key is
+        # dynamic, not the whole `matrix:` value. No matrix data to
+        # represent, so this returns None rather than guessing. Untested
+        # against real data.
+        return None, extras
+
+    axes: Dict[str, List[str]] = {}
+    for key, value in matrix_block.items():
+        if key in ("include", "exclude"):
+            continue
+        if isinstance(value, list):
+            axes[key] = ["null" if v is None else _stringify_env_value(v) for v in value]
+        # else: LIMITATION - a matrix axis key mapping to a non-list value
+        # isn't valid GH Actions syntax we've seen - skipped rather than
+        # guessed at. Untested against real data.
+
+    include, include_expr = _parse_matrix_combinations(matrix_block.get("include"))
+    if include_expr is not None:
+        extras["matrix_include_expression"] = include_expr
+
+    exclude, exclude_expr = _parse_matrix_combinations(matrix_block.get("exclude"))
+    if exclude_expr is not None:
+        # LIMITATION: a dynamic `exclude:` isn't seen in any fixture (only
+        # rust_ci.yml's `include:` is dynamic) - added symmetrically since
+        # include/exclude share identical structure. Untested against real
+        # data.
+        extras["matrix_exclude_expression"] = exclude_expr
+
+    fail_fast_raw = strategy_block.get("fail-fast")
+    fail_fast: Optional[bool]
+    if isinstance(fail_fast_raw, bool):
+        fail_fast = fail_fast_raw
+    elif fail_fast_raw is None:
+        fail_fast = None
+    else:
+        # LIMITATION: `fail-fast:` as an expression (e.g. rust_ci.yml's
+        # `job` job: `${{ needs.calculate_matrix.outputs.run_type != 'try' }}`)
+        # can't be faithfully coerced into the bool-typed
+        # MatrixStrategy.fail_fast - preserved here instead of guessed at.
+        # fail_fast stays None.
+        fail_fast = None
+        extras["matrix_fail_fast_expression"] = str(fail_fast_raw)
+
+    max_parallel = strategy_block.get("max-parallel")
+    if max_parallel is not None:
+        # LIMITATION: `max-parallel:` has no MatrixStrategy field - not seen
+        # in any fixture, preserved defensively rather than dropped.
+        extras["max_parallel"] = str(max_parallel)
+
+    matrix = MatrixStrategy(axes=axes, include=include, exclude=exclude, fail_fast=fail_fast)
+    return matrix, extras
+
+
+# ---------------------------------------------------------------------------
 # Step parsing
 # ---------------------------------------------------------------------------
 
@@ -711,10 +812,7 @@ def _parse_dependencies(needs: Any) -> List[str]:
 
 
 def _parse_runner(runs_on: Any) -> Optional[str]:
-    """
-    `runs-on:` -> Job.runner. Matrix strategy is intentionally left for a
-    later pass.
-    """
+    """`runs-on:` -> Job.runner."""
     if runs_on is None:
         # Valid for reusable-workflow-call jobs (`uses: ./.github/workflows/x.yml`),
         # which don't declare their own runner. Don't fabricate one.
@@ -723,9 +821,15 @@ def _parse_runner(runs_on: Any) -> Optional[str]:
     if isinstance(runs_on, str):
         # LIMITATION: matrix-templated runners (e.g. `${{ matrix.os }}`, or
         # `${{ matrix.os || 'ubuntu-latest' }}` as seen in tests/fixtures/flask_tests.yml)
-        # are stored as the raw expression string, unresolved — matrix parsing isn't
-        # implemented yet (a later pass), which will need to reconcile Job.runner
-        # against the job's matrix once it lands.
+        # are stored as the raw expression string, unresolved. Job.matrix now
+        # exists (see _parse_matrix) and separately exposes the actual axis
+        # values, but this parser doesn't cross-reference the two: resolving
+        # which concrete runner each matrix *combination* gets requires
+        # expanding one YAML job definition into N resolved instances (one
+        # per combination), which is a fan-out/expansion concern for a
+        # downstream generator or consumer, not a single Job object's
+        # parsing concern (Job.runner is a single Optional[str], not a
+        # per-combination list). Deliberately deferred, not an oversight.
         return runs_on
 
     if isinstance(runs_on, list):
@@ -747,8 +851,9 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
     (see _parse_steps), each job's `needs:` (-> Job.dependencies, see
     _parse_dependencies), each job's `env:` (-> Job.environment, see
     _parse_env_vars), each job's `continue-on-error:` (-> Job.allow_failure,
-    see _parse_job_continue_on_error), and each job's `if:` (-> Job.condition,
-    see _parse_condition); `matrix` is left at its dataclass default.
+    see _parse_job_continue_on_error), each job's `if:` (-> Job.condition,
+    see _parse_condition), and each job's `strategy:` (-> Job.matrix, see
+    _parse_matrix).
     """
     if not isinstance(jobs_block, dict):
         return []
@@ -764,6 +869,12 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
             # will reference once that's implemented. The human-facing display
             # name is common (not rare — e.g. eslint_ci.yml's `verify_files` job
             # is named "Verify Files") and isn't dropped, just not structured.
+            # LIMITATION: some display names are themselves matrix expressions
+            # (e.g. pandas_unit_tests.yml's `ubuntu` job: "${{ matrix.name ||
+            # format('{0} {1}', matrix.platform, matrix.environment) }}") —
+            # resolving these per matrix combination is the same expansion
+            # concern as _parse_runner's matrix-templated runs-on, and this
+            # pass doesn't touch it either; stored verbatim, unresolved.
             raw_extras["display_name"] = display_name
 
         allow_failure, coe_expr = _parse_job_continue_on_error(job_body.get("continue-on-error"))
@@ -775,6 +886,8 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
             raw_extras["continue_on_error_expression"] = coe_expr
 
         env_entries = _parse_env_vars(job_body.get("env"), SecretScope.JOB, job_key)
+        matrix, matrix_extras = _parse_matrix(job_body.get("strategy"))
+        raw_extras.update(matrix_extras)
 
         jobs.append(Job(
             name=job_key,
@@ -784,6 +897,7 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
             condition=_parse_condition(job_body.get("if")),
             environment={e.name: e.value if e.value is not None else "" for e in env_entries},
             steps=_parse_steps(job_body.get("steps")),
+            matrix=matrix,
             raw_extras=raw_extras,
         ))
     return jobs
@@ -798,12 +912,12 @@ class GitHubActionsParser(BaseParser):
     Layer 1 parser for GitHub Actions workflow YAML.
 
     Currently implemented: `on:` triggers, `jobs:` name/runs-on/needs/env/
-    continue-on-error/if, each job's `steps:` name/type/value/with_args/env/
-    continue-on-error/if (see module docstring), and pipeline-wide secret
-    references. `parse()` returns a Pipeline with accurate `triggers`,
-    `jobs` (incl. steps, dependencies, environment, allow_failure, condition),
-    `secrets`, and `environment_variables`, though matrix strategy is still
-    unimplemented.
+    continue-on-error/if/strategy.matrix, each job's `steps:`
+    name/type/value/with_args/env/continue-on-error/if (see module
+    docstring), and pipeline-wide secret references. `parse()` returns a
+    Pipeline with accurate `triggers`, `jobs` (incl. steps, dependencies,
+    environment, allow_failure, condition, matrix), `secrets`, and
+    `environment_variables`. Reusable workflows remain unimplemented.
     """
 
     def parse(self, file_path: str) -> Pipeline:
