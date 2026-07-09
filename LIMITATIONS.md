@@ -359,3 +359,56 @@ suppressed.
   matrix's four independent unresolvable sub-values (`fail-fast`,
   `include`, `exclude`, `max-parallel`) rather than inventing a second
   mechanism for the same underlying problem.
+
+## Reusable workflows
+
+This is the last item in `BUILD_PLAN.md`'s original Phase 3 ordering —
+after this pass, `GitHubActionsParser` implements every field Phase 3
+scoped for it.
+
+GH Actions relates one workflow file to another in three distinct ways,
+and each is handled differently:
+
+- **Job-level `uses:`** (a job that IS a reusable-workflow call) ->
+  `Pipeline.linked_workflows` gets a `LinkedWorkflow(relationship="calls")`
+  entry. Real in 2 of the 10 fixtures: `eslint_ci.yml`'s
+  `test_package_manager` job (1 occurrence) and `pytorch_lint.yml` (10
+  occurrences across 10 distinct jobs). The other 8 fixtures have zero.
+- **`on: workflow_run`** (this pipeline fires when another workflow
+  completes) -> `LinkedWorkflow(relationship="triggered_by")`, reusing
+  `Trigger.source_workflow` (already extracted by PR #3's
+  `_parse_workflow_run`) rather than re-deriving it from the raw data a
+  second time — this is why `_parse_linked_workflows(data, triggers)`
+  takes the already-parsed triggers list too, deviating from a
+  `data`-only signature (same precedent as `_parse_matrix`'s signature
+  deviation above). Not exercised by any of the 10 fixtures — covered
+  only by a hand-written snippet test.
+- **`on: workflow_call`** (this pipeline being callable BY another
+  workflow) -> **deliberately NOT promoted to a `LinkedWorkflow` entry.**
+  This isn't a deferral, it's structural: the callee has no way to learn
+  its callers' identity from its own file, so there's no `target` to
+  populate. This data remains solely on the existing
+  `Trigger(type=WORKFLOW_CALL)` object (see PR #3). Not exercised by any
+  fixture either.
+
+**Deduplication is by `(target, relationship)` alone**, not by job or
+usage site. Unlike `Secret` (deduped by `(name, scope, scope_ref)`, which
+preserves distinct usage sites), `LinkedWorkflow` has no field recording
+*which* job made a given call — the relationship is file-to-file per its
+own docstring, not job-to-file. 7 of `pytorch_lint.yml`'s 10 `uses:` jobs
+point at the identical `./.github/workflows/_lint.yml` and collapse to a
+single entry; across all 10 fixtures this produces exactly **5 distinct
+`LinkedWorkflow` entries** (1 from `eslint_ci.yml`, 4 from
+`pytorch_lint.yml`), all `relationship="calls"`.
+
+**A calling job's own `uses:`/`with:`/`secrets:` are preserved on that
+job's `raw_extras`**, not on `LinkedWorkflow` — `LinkedWorkflow` has no
+escape hatch at all (just `target`+`relationship`), so `raw_extras["uses"]`
+(the raw string), `raw_extras["with"]` (present on 10 of the 11 real
+`uses:`-jobs — only `eslint_ci.yml`'s `test_package_manager` lacks a
+`with:` block), and `raw_extras["secrets"]` (when present) live there
+instead. A calling job still gets its `condition`/`environment`/
+`allow_failure`/`matrix` parsed normally — job-level `uses:` doesn't
+disable any of that. `raw_extras["secrets"]` is untested against real
+data: none of the 11 real `uses:`-jobs across all 10 fixtures has a
+`secrets:` key.
