@@ -7,9 +7,11 @@ trigger block (see `_parse_triggers`), `jobs:` name/runs-on (see
 `_parse_steps`), each job's `needs:` (see `_parse_dependencies`), job/step
 `env:`, `continue-on-error:`, and `if:` conditions (see `_parse_env_vars`/
 `_parse_continue_on_error`/`_parse_condition`), each job's
-`strategy.matrix` (see `_parse_matrix`), and pipeline-wide secret
-references (see `_parse_secret_references`). Reusable workflows remain out
-of scope. See LIMITATIONS.md for what's known-unhandled so far.
+`strategy.matrix` (see `_parse_matrix`), pipeline-wide secret references
+(see `_parse_secret_references`), and reusable-workflow relationships
+(job-level `uses:` and `workflow_run` triggers, see
+`_parse_linked_workflows`). See LIMITATIONS.md for what's known-unhandled
+so far.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from ir.schema import (
     Condition,
     EnvironmentVariable,
     Job,
+    LinkedWorkflow,
     MatrixStrategy,
     Pipeline,
     Secret,
@@ -400,9 +403,9 @@ def _parse_secret_references(data: Dict[str, Any]) -> List[Secret]:
     LIMITATION: job-level `secrets:` (the reusable-workflow-call mechanism
     for passing secrets to a called workflow, e.g. `secrets: inherit`) is a
     distinct GH Actions construct from `env:`/`with:` and isn't scanned
-    here — deferred to the future reusable-workflows pass. Not seen in any
-    fixture (eslint_ci.yml's `test_package_manager`, the only `uses:`-based
-    job across all 10 fixtures, has no `secrets:` key).
+    here — it's preserved verbatim on the calling job's own `raw_extras`
+    instead (see `_parse_jobs`). Not seen in any of the 10 fixtures (their
+    11 job-level `uses:` jobs all lack a `secrets:` key).
     """
     seen: set = set()
     secrets: List[Secret] = []
@@ -420,6 +423,63 @@ def _parse_secret_references(data: Dict[str, Any]) -> List[Secret]:
             seen.add(key)
             secrets.append(Secret(name=name, scope=scope, scope_ref=scope_ref))
     return secrets
+
+
+def _parse_linked_workflows(data: Dict[str, Any], triggers: List[Trigger]) -> List[LinkedWorkflow]:
+    """
+    Build `Pipeline.linked_workflows` from the two mechanisms GH Actions
+    uses to relate one workflow file to another:
+
+    - A job-level `uses:` (the job itself IS a reusable-workflow call) ->
+      `LinkedWorkflow(target=<uses string>, relationship="calls")`.
+    - An `on: workflow_run` trigger (this pipeline fires when another
+      workflow completes) -> `LinkedWorkflow(target=<source workflow>,
+      relationship="triggered_by")`, reusing `Trigger.source_workflow`
+      (already extracted by `_parse_workflow_run`) rather than re-deriving
+      it from `data` a second time — this is why this function takes the
+      already-parsed `triggers` list as well as `data`, deviating from a
+      `data`-only signature.
+
+    Deliberately NOT handled: `on: workflow_call` (this pipeline being
+    callable BY another workflow). This isn't a deferral — the callee has
+    no way to learn its callers' identity from its own file, so there is
+    no `target` to populate. That data remains solely on the existing
+    `Trigger(type=WORKFLOW_CALL)` object.
+
+    LinkedWorkflow has no field distinguishing which job/site produced a
+    given relationship (unlike Secret's scope/scope_ref), so entries are
+    deduped purely by (target, relationship) — every job calling the same
+    target file collapses to one entry.
+    """
+    seen: set = set()
+    linked: List[LinkedWorkflow] = []
+
+    jobs_block = data.get("jobs")
+    if isinstance(jobs_block, dict):
+        for job_body in jobs_block.values():
+            if not isinstance(job_body, dict):
+                continue
+            uses = job_body.get("uses")
+            if not isinstance(uses, str):
+                # LIMITATION: a non-string `uses:` isn't valid GH Actions syntax and
+                # isn't seen in any fixture — skipped rather than guessed at.
+                continue
+            key = (uses, "calls")
+            if key in seen:
+                continue
+            seen.add(key)
+            linked.append(LinkedWorkflow(target=uses, relationship="calls"))
+
+    for trigger in triggers:
+        if trigger.type != TriggerType.WORKFLOW_RUN or not trigger.source_workflow:
+            continue
+        key = (trigger.source_workflow, "triggered_by")
+        if key in seen:
+            continue
+        seen.add(key)
+        linked.append(LinkedWorkflow(target=trigger.source_workflow, relationship="triggered_by"))
+
+    return linked
 
 
 def _parse_continue_on_error(value: Any) -> bool:
@@ -852,8 +912,11 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
     _parse_dependencies), each job's `env:` (-> Job.environment, see
     _parse_env_vars), each job's `continue-on-error:` (-> Job.allow_failure,
     see _parse_job_continue_on_error), each job's `if:` (-> Job.condition,
-    see _parse_condition), and each job's `strategy:` (-> Job.matrix, see
-    _parse_matrix).
+    see _parse_condition), each job's `strategy:` (-> Job.matrix, see
+    _parse_matrix), and a reusable-workflow-call job's `uses:`/`with:`/
+    `secrets:` (preserved on that job's own raw_extras; see
+    _parse_linked_workflows for the pipeline-level `Pipeline.linked_workflows`
+    entry this also produces).
     """
     if not isinstance(jobs_block, dict):
         return []
@@ -889,6 +952,22 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
         matrix, matrix_extras = _parse_matrix(job_body.get("strategy"))
         raw_extras.update(matrix_extras)
 
+        uses = job_body.get("uses")
+        if isinstance(uses, str):
+            # This job IS a reusable-workflow call. The relationship itself is
+            # promoted to a pipeline-level LinkedWorkflow (see
+            # _parse_linked_workflows); the call's own details have no home
+            # there (LinkedWorkflow is just target+relationship), so they're
+            # preserved here on the calling job instead.
+            raw_extras["uses"] = uses
+            if "with" in job_body:
+                raw_extras["with"] = job_body["with"]
+            if "secrets" in job_body:
+                # LIMITATION: not exercised by any of the 10 fixtures (none of
+                # their 11 job-level `uses:` jobs has a `secrets:` key) —
+                # untested against real data.
+                raw_extras["secrets"] = job_body["secrets"]
+
         jobs.append(Job(
             name=job_key,
             runner=_parse_runner(job_body.get("runs-on")),
@@ -914,10 +993,13 @@ class GitHubActionsParser(BaseParser):
     Currently implemented: `on:` triggers, `jobs:` name/runs-on/needs/env/
     continue-on-error/if/strategy.matrix, each job's `steps:`
     name/type/value/with_args/env/continue-on-error/if (see module
-    docstring), and pipeline-wide secret references. `parse()` returns a
-    Pipeline with accurate `triggers`, `jobs` (incl. steps, dependencies,
-    environment, allow_failure, condition, matrix), `secrets`, and
-    `environment_variables`. Reusable workflows remain unimplemented.
+    docstring), pipeline-wide secret references, and reusable-workflow
+    relationships (job-level `uses:` and `workflow_run` triggers, see
+    _parse_linked_workflows). `parse()` returns a Pipeline with accurate
+    `triggers`, `jobs` (incl. steps, dependencies, environment,
+    allow_failure, condition, matrix), `secrets`, `environment_variables`,
+    and `linked_workflows`. This completes every field BUILD_PLAN.md's
+    Phase 3 originally scoped for this parser.
     """
 
     def parse(self, file_path: str) -> Pipeline:
@@ -928,6 +1010,7 @@ class GitHubActionsParser(BaseParser):
         jobs = _parse_jobs(data.get("jobs"))
         secrets = _parse_secret_references(data)
         environment_variables = _parse_pipeline_env_vars(data)
+        linked_workflows = _parse_linked_workflows(data, triggers)
 
         return Pipeline(
             name=name,
@@ -937,4 +1020,5 @@ class GitHubActionsParser(BaseParser):
             jobs=jobs,
             secrets=secrets,
             environment_variables=environment_variables,
+            linked_workflows=linked_workflows,
         )
