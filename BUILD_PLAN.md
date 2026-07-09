@@ -99,7 +99,7 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 **Goal:** raw YAML in, valid IR out, for real-world files — this is Layer 1 for the one platform in scope.
 
 **Tasks**
-- [ ] Implement `parsers/github_actions.py` against the IR schema from Phase 2
+- [x] Implement `parsers/github_actions.py` against the IR schema from Phase 2
 - Handle incrementally, in this order (simplest first):
   - [x] `on` triggers (push/PR/schedule/manual)
   - [x] `jobs` + `runs-on`
@@ -108,7 +108,7 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
   - [x] `env`/`secrets` references
   - [x] `if` conditions
   - [x] `strategy.matrix`
-  - [ ] reusable workflows (`uses: ./.github/workflows/...` or external)
+  - [x] reusable workflows (`uses: ./.github/workflows/...` or external)
 - [x] Test against all fixtures from Phase 1 as each feature is added — don't wait until the end
 - [x] Document parser limitations as you hit them (dynamic expressions like `${{ matrix.python-version }}`, unusual anchor/alias usage) — this becomes report material later, not just a to-do list (see `LIMITATIONS.md`, updated alongside every merged pass)
 
@@ -291,3 +291,4 @@ Carried over from `PROJECT_PLAN.md` — resolve before they block a phase above:
 - 2026-07-06: Phase 1 skeleton created, IR (schema.py/validate.py) integrated as ir/ package, Phase 2 ground-truth fixtures added.
 - 2026-07-09: Phase 3 parser progressed through 8 merged PRs (#3–#10) — `on:` triggers, `jobs:`/`runs-on`, `steps:`, `needs:` dependencies, `env:`/secret references/`continue-on-error:`, `if:` conditions, and `strategy.matrix` are all implemented and tested against every fixture; only reusable workflows remain before Phase 3 is complete. `LIMITATIONS.md` has been updated alongside every pass and now serves as the living limitations log.
 - 2026-07-09: Added two additive tasks after researching `terraform-docs` (industry-standard Terraform documentation generator) as a prior-art reference: a Phase 4 `--check` drift-detection flag for `tool1/single_pipeline.py`, and Phase 6 marker-comment (`<!-- ci-docs:start/end -->`) injection support for Tool 2's unified doc.
+- 2026-07-09: Phase 3 is now fully complete — PR #11 merged reusable-workflow relationships (`uses:`/`workflow_run` → `Pipeline.linked_workflows`), the last outstanding sub-item. All Phase 3 checklist boxes are checked off.
