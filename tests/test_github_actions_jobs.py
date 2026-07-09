@@ -1,7 +1,8 @@
 """
 Tests for the second slice of parsers/github_actions.py: `jobs:` parsing
-(job name + runs-on only — steps/needs/env/conditions/matrix are still out
-of scope, see module docstring in parsers/github_actions.py).
+(job name + runs-on only — steps/needs/env/continue-on-error/conditions/
+matrix are all implemented but covered by their own dedicated test files,
+see module docstring in parsers/github_actions.py).
 
 Covers all 10 real-world fixtures (job keys and runner values checked
 against manual inspection of each file) plus the `runs-on` shapes no
