@@ -168,7 +168,13 @@ def test_parse_jobs_reusable_workflow_call_job_has_no_runner():
     )
     jobs_block = yaml.load(snippet, Loader=_GitHubActionsSafeLoader)["jobs"]
     jobs = _parse_jobs(jobs_block)
-    assert jobs == [Job(name="call-other", runner=None, raw_extras={})]
+    assert jobs == [
+        Job(
+            name="call-other",
+            runner=None,
+            raw_extras={"uses": "./.github/workflows/other.yml"},
+        )
+    ]
 
 
 def test_parse_jobs_self_hosted_labels():
