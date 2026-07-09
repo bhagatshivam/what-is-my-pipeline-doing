@@ -100,9 +100,17 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 
 **Tasks**
 - [ ] Implement `parsers/github_actions.py` against the IR schema from Phase 2
-- [ ] Handle incrementally, in this order (simplest first): `on` triggers (push/PR/schedule/manual) → `jobs` + `runs-on` → `steps` (both `run:` and `uses:`) → `needs` (dependencies) → `env`/`secrets` references → `if` conditions → `strategy.matrix` → reusable workflows (`uses: ./.github/workflows/...` or external)
-- [ ] Test against all fixtures from Phase 1 as each feature is added — don't wait until the end
-- [ ] Document parser limitations as you hit them (dynamic expressions like `${{ matrix.python-version }}`, unusual anchor/alias usage) — this becomes report material later, not just a to-do list
+- Handle incrementally, in this order (simplest first):
+  - [x] `on` triggers (push/PR/schedule/manual)
+  - [x] `jobs` + `runs-on`
+  - [x] `steps` (both `run:` and `uses:`)
+  - [x] `needs` (dependencies)
+  - [x] `env`/`secrets` references
+  - [x] `if` conditions
+  - [x] `strategy.matrix`
+  - [ ] reusable workflows (`uses: ./.github/workflows/...` or external)
+- [x] Test against all fixtures from Phase 1 as each feature is added — don't wait until the end
+- [x] Document parser limitations as you hit them (dynamic expressions like `${{ matrix.python-version }}`, unusual anchor/alias usage) — this becomes report material later, not just a to-do list (see `LIMITATIONS.md`, updated alongside every merged pass)
 
 **Explicitly deferred:** any other CI platform. Composite actions can be partially deferred if they prove complex — note it and move on rather than blocking the phase.
 
@@ -266,3 +274,4 @@ Carried over from `PROJECT_PLAN.md` — resolve before they block a phase above:
 
 - *[Add a dated line here each time this document is materially edited, so it's easy to see how the plan actually evolved — useful for the report's process narrative too.]*
 - 2026-07-06: Phase 1 skeleton created, IR (schema.py/validate.py) integrated as ir/ package, Phase 2 ground-truth fixtures added.
+- 2026-07-09: Phase 3 parser progressed through 8 merged PRs (#3–#10) — `on:` triggers, `jobs:`/`runs-on`, `steps:`, `needs:` dependencies, `env:`/secret references/`continue-on-error:`, `if:` conditions, and `strategy.matrix` are all implemented and tested against every fixture; only reusable workflows remain before Phase 3 is complete. `LIMITATIONS.md` has been updated alongside every pass and now serves as the living limitations log.
