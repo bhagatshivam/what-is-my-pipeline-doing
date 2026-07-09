@@ -217,21 +217,3 @@ def test_unknown_event_type_maps_to_other_and_preserves_raw():
 
 def test_empty_on_block_returns_no_triggers():
     assert _parse_triggers(None) == []
-
-
-# ---------------------------------------------------------------------------
-# Contract from parsers/base.py: parse() must return a Pipeline with the
-# `on:` gotcha handled correctly (PyYAML's YAML-1.1 bool resolver would
-# otherwise turn `on:` into the boolean key True) and jobs deliberately empty
-# for now.
-# ---------------------------------------------------------------------------
-
-def test_parse_returns_jobs_with_steps_but_no_needs_matrix_yet():
-    # jobs: name/runs-on and steps: name/type/value/with_args parsing landed
-    # in later passes (see tests/test_github_actions_jobs.py and
-    # tests/test_github_actions_steps.py); needs/matrix are still
-    # unimplemented, so every Job keeps those dataclass defaults for now.
-    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "eslint_ci.yml"))
-    assert len(pipeline.jobs) == 6
-    assert all(job.dependencies == [] and job.matrix is None for job in pipeline.jobs)
-    assert pipeline.name == "CI"

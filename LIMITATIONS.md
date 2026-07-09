@@ -38,10 +38,18 @@ the original data still survives in `Trigger.raw` or `Job.raw_extras`.
 - **Matrix-templated `runs-on`** (e.g. `runs-on: ${{ matrix.os }}`, or with a
   fallback like `${{ matrix.os || 'ubuntu-latest' }}` in
   `tests/fixtures/flask_tests.yml`). Stored as the raw expression string,
-  unresolved — matrix parsing isn't implemented yet (a later Phase 3 pass),
-  which will need to reconcile `Job.runner` against the job's `matrix` once
-  it lands. This is the *majority* shape across the 10 fixtures, not an edge
-  case (e.g. every job in `tests/fixtures/setup_python_test.yml`).
+  unresolved. **Revisited now that matrix parsing has landed** (see
+  `## Matrix strategy` below) — this is *not* reconciled against
+  `Job.matrix.axes`, and that's a final decision, not a "later pass" TODO:
+  resolving which concrete runner each matrix *combination* gets requires
+  expanding one YAML job definition into N resolved instances (one per
+  combination), which is a fan-out/expansion concern for a downstream
+  generator or consumer, not a single `Job` object's parsing concern
+  (`Job.runner` is a single `Optional[str]`, not a per-combination list).
+  `Job.matrix.axes` now separately exposes the actual axis values a
+  consumer would need to do that expansion itself. This is the *majority*
+  shape across the 10 fixtures, not an edge case (e.g. every job in
+  `tests/fixtures/setup_python_test.yml`).
 - **List-form `runs-on`** (self-hosted runner labels, e.g.
   `runs-on: [self-hosted, linux, x64]`). `Job.runner` is a single
   `Optional[str]`, so the labels are joined into one comma-separated string;
@@ -55,7 +63,14 @@ the original data still survives in `Trigger.raw` or `Job.raw_extras`.
   `Job.name` must stay the YAML key since it's what `needs:`/`dependencies`
   will reference once implemented; the display name is preserved in
   `Job.raw_extras["display_name"]` rather than dropped, but is not
-  otherwise interpreted or evaluated.
+  otherwise interpreted or evaluated. **Revisited now that matrix parsing
+  has landed**: some display names are themselves matrix expressions
+  (e.g. `tests/fixtures/pandas_unit_tests.yml`'s `ubuntu` job:
+  `"${{ matrix.name || format('{0} {1}', matrix.platform, matrix.environment)
+  }}"`) — this pass doesn't change anything about that. Resolving a
+  per-combination display name is the same matrix-expansion concern as the
+  `runs-on` case above, not a matrix-*strategy*-parsing concern, so it
+  stays verbatim and unresolved.
 
 ## Steps (`steps:`)
 
@@ -285,3 +300,62 @@ time.
 - **A non-string, non-bool `if:` value** (not seen in any fixture) is
   stringified defensively via `str(if_value)` rather than raised —
   untested against real data.
+
+## Matrix strategy
+
+**24 of 60 jobs** across 9 of the 10 fixtures have a `strategy.matrix`
+block (only `checkout_check_dist.yml` has none); `setup_python_test.yml`
+has one in every one of its 14 jobs. `ir.validate.is_valid()` stays `True`
+on all 10 parsed pipelines, but `validate_pipeline()` is genuinely **not**
+clean for 3 of them — see below, this is expected and accepted, not
+suppressed.
+
+- **`_check_matrix_structures` produces exactly 20 real warnings across 5
+  jobs in 5 distinct fixtures** (computed by hand against the real data,
+  then confirmed by running `validate_pipeline()` directly): 3 "matrix
+  object with no axes defined" (`flask_tests.yml`'s `tests`,
+  `pytorch_lint.yml`'s `test_collect_env`, `rust_ci.yml`'s `job` — all
+  three are `include:`-only matrices with zero declared axes, a common and
+  valid real GH Actions pattern, not a typo) plus 17 "include references
+  axes not in the matrix" (7 for `fastapi_test.yml`'s `test` — `coverage`/
+  `codspeed`/`without-httpx2` are real extra per-combination keys added via
+  `include:` beyond the base axes, also valid usage — and 10 for
+  `pandas_unit_tests.yml`'s `ubuntu`, mostly the `name` key). All
+  warning-severity, never error, so nothing here fails validation — the
+  parser's job is just to populate the data faithfully and let the
+  existing validator flag what it's designed to flag, not to pre-filter or
+  suppress.
+- **A real, genuinely dynamic matrix**: `rust_ci.yml`'s `job` has
+  `strategy.matrix.include: ${{ fromJSON(needs.calculate_matrix.outputs.jobs)
+  }}` (a string expression, not a literal list — the whole job matrix is
+  populated at runtime from a prior job's output) *and*
+  `strategy.fail-fast: ${{ needs.calculate_matrix.outputs.run_type != 'try' }}`
+  (also a dynamic expression, not a literal bool) — the only fixture/job
+  with either shape. Neither can be resolved statically: `MatrixStrategy.include`
+  stays `[]` and `.fail_fast` stays `None` (safe defaults, not guesses),
+  with the raw expressions preserved in `Job.raw_extras["matrix_include_expression"]`
+  / `["matrix_fail_fast_expression"]` instead of being silently dropped. A
+  dynamic `exclude:` is handled symmetrically (`_parse_matrix_combinations`
+  is shared by both `include:`/`exclude:`) but isn't exercised by any real
+  fixture — untested against real data.
+- **`max-parallel:`** doesn't appear anywhere in any of the 10 fixtures,
+  and `MatrixStrategy` has no field for it — if it were ever present, it
+  would be preserved in `Job.raw_extras["max_parallel"]` rather than
+  dropped. Untested against real data.
+- **Axis values are stringified defensively** (reusing
+  `_stringify_env_value`'s bool-lowercase + `str()` logic, with an
+  explicit `None -> "null"` mapping for the "axis element is itself
+  YAML null" case, which `_stringify_env_value` doesn't need to handle on
+  its own) even though every real axis value across all 10 fixtures is
+  already a YAML string — including tricky-looking cases like
+  `setup_python_test.yml`'s `3.9.13`, which doesn't match YAML's float
+  regex and loads as a string regardless. Purely defensive, not a real
+  need this pass.
+- **`_parse_matrix`'s signature deviates from a simple `Optional[MatrixStrategy]`
+  return** — it returns `(Optional[MatrixStrategy], Dict[str, str])`,
+  generalizing `_parse_job_continue_on_error`'s established "return the
+  unresolvable raw expression alongside the resolved value, let the caller
+  stash it in `raw_extras`" pattern from the continue-on-error pass to
+  matrix's four independent unresolvable sub-values (`fail-fast`,
+  `include`, `exclude`, `max-parallel`) rather than inventing a second
+  mechanism for the same underlying problem.
