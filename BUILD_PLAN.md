@@ -126,6 +126,15 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 - [ ] `generators/text_generator.py`: IR → structured plain-text summary (triggers, jobs in order, secrets required — matching the example format in `PROJECT_PLAN.md`)
 - [ ] `generators/mermaid_generator.py`: IR job dependency graph → Mermaid `flowchart` syntax
 - [ ] Wire both into `tool1/single_pipeline.py`: `YAML file → parser → IR → text output + Mermaid output`, written to a `.md` file in `docs/`
+- [ ] `tool1/single_pipeline.py`: add a `--check` flag — generate the
+  doc in-memory and diff it against whatever `.md` file is already
+  committed for that pipeline, exiting non-zero on mismatch. Inspired
+  by `terraform-docs` (industry-standard Terraform documentation
+  generator), which runs the same way in CI to catch documentation
+  that has drifted out of sync with the underlying config. This also
+  directly implements the "documentation drift" evaluation method
+  already listed in Phase 7 / EVALUATION_PLAN.md — no separate script
+  needed later, Phase 7 can reuse this flag as-is.
 - [ ] Run against all fixtures, visually check the Mermaid renders correctly in a Markdown viewer (GitHub itself renders Mermaid — good sanity check)
 - [ ] Show Suzanne this non-LLM output — good moment for her to sanity-check the whole approach before more layers sit on top
 
@@ -161,6 +170,12 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 - [ ] `tool2/multi_pipeline.py`: discover all workflow files in a folder, parse each into IR, build a combined view
 - [ ] Cross-pipeline relationships: which pipelines fire on which events, any explicit dependencies between workflows (e.g. one workflow triggering another via `workflow_run`)
 - [ ] Unified Mermaid diagram covering all pipelines' triggers and jobs
+- [ ] Support injecting the generated unified doc between
+  `<!-- ci-docs:start -->` / `<!-- ci-docs:end -->` marker comments in
+  an existing file (e.g. an existing README.md), instead of only
+  writing a fresh standalone file. Inspired by `terraform-docs`, which
+  uses the same marker-based injection so it can update a doc section
+  without overwriting the rest of the file.
 - [ ] Reuse the Phase 4/5 generators and LLM layer — Tool 2 should not need its own separate text/Mermaid/LLM code, just a layer that merges multiple IR objects before handing off to the same generators
 - [ ] Test against 2–3 real multi-workflow repos (not just single-file fixtures — pull whole `.github/workflows/` folders)
 
@@ -275,3 +290,4 @@ Carried over from `PROJECT_PLAN.md` — resolve before they block a phase above:
 - *[Add a dated line here each time this document is materially edited, so it's easy to see how the plan actually evolved — useful for the report's process narrative too.]*
 - 2026-07-06: Phase 1 skeleton created, IR (schema.py/validate.py) integrated as ir/ package, Phase 2 ground-truth fixtures added.
 - 2026-07-09: Phase 3 parser progressed through 8 merged PRs (#3–#10) — `on:` triggers, `jobs:`/`runs-on`, `steps:`, `needs:` dependencies, `env:`/secret references/`continue-on-error:`, `if:` conditions, and `strategy.matrix` are all implemented and tested against every fixture; only reusable workflows remain before Phase 3 is complete. `LIMITATIONS.md` has been updated alongside every pass and now serves as the living limitations log.
+- 2026-07-09: Added two additive tasks after researching `terraform-docs` (industry-standard Terraform documentation generator) as a prior-art reference: a Phase 4 `--check` drift-detection flag for `tool1/single_pipeline.py`, and Phase 6 marker-comment (`<!-- ci-docs:start/end -->`) injection support for Tool 2's unified doc.
