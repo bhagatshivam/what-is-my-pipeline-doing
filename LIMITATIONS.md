@@ -549,3 +549,36 @@ no-raise check) for the complex ground-truth fixture and the 14-job
   "never silently drop content" rule intact while staying valid Mermaid
   syntax — confirmed by actually rendering this fixture's diagram through
   `mermaid-cli` rather than just checking it doesn't raise.
+
+## Tool 1 (`tool1/single_pipeline.py`)
+
+`generate_documentation()`/`document_pipeline()`/`check_pipeline()` are a
+purely structural layer on top of `text_generator`/`mermaid_generator` —
+both generators' output is embedded verbatim, never reformatted or
+reinterpreted, and neither generator module was modified to build this.
+Verified against all 10 real fixtures (written via `document_pipeline()`,
+each embedded diagram actually rendered through `mermaid-cli` to a real
+SVG, not just checked for no-raise) plus a ground-truth fixture for exact
+fence-content assertions.
+
+- **The "Pipeline Diagram" section is an `## ` (H2) Markdown heading**, a
+  small resolved ambiguity: no other part of the spec this was built
+  against says so explicitly, but nothing else about the file (a `#`
+  top-level heading, fenced code blocks) makes sense as anything other
+  than real Markdown, so treating it as a heading rather than a bare line
+  is the consistent reading.
+- **`check_pipeline()`'s comparison is exact string equality**, not
+  whitespace-tolerant or fuzzy — deliberate, since both generators are
+  fully deterministic pure functions with no LLM in the loop yet (Phase
+  5). This will need revisiting once Phase 5 puts non-deterministic LLM
+  prose into the document; exact-match drift detection stops being the
+  right check at that point.
+- **Only `GitHubActionsParser` is wired in** — `document_pipeline()`/
+  `check_pipeline()` have no platform-dispatch logic, matching every other
+  module's current GitHub-Actions-only scope (Phase 9 is where multi-platform
+  dispatch would be added, not here).
+- **Parse/generation failures surface as a single one-line `stderr`
+  message via `cli.py`'s `except Exception`**, not a typed error hierarchy
+  — deliberately minimal per this slice's scope; a missing file, a YAML
+  syntax error, and a validation failure are all reported the same
+  generic way for now.
