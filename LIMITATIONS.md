@@ -493,3 +493,59 @@ generated output, not just checking it doesn't raise.
   `f"{job_key}.{step_index}"` format (a parser-side convention documented
   above under `## Environment variables and secrets`), it only ever
   displays it as-is.
+
+## Mermaid generator
+
+`generators/mermaid_generator.py`'s `generate_mermaid()` shares its
+topological-order, matrix-summary, and condition-phrase logic with
+`text_generator.py` via a new `generators/common.py` (a pure relocation of
+`_topological_job_order`/`_matrix_summary`/`_condition_phrase`, no logic
+changes — both generators' existing tests pass unmodified). Verified
+against all 10 real fixtures plus the 3 Phase 2 ground-truth fixtures,
+including an actual render through `@mermaid-js/mermaid-cli` (not just a
+no-raise check) for the complex ground-truth fixture and the 14-job
+`pytorch_lint.yml` fan-out/fan-in graph.
+
+- **Matrix jobs render as a single annotated node, never fanned out into
+  one node per combination** — the same approximation `text_generator`
+  makes (reusing `_matrix_summary` directly), for the same reason:
+  resolving concrete matrix combinations is a deferred downstream concern
+  (see `## Matrix strategy` above), not something either generator
+  attempts.
+- **`Pipeline.secrets`, `Pipeline.environment_variables`, and
+  `Pipeline.linked_workflows` are out of scope for this diagram**, by
+  design — it's specifically the job dependency graph.
+  `LinkedWorkflow` in particular has no per-job attribution after the
+  parser's `(target, relationship)` dedup (`pytorch_lint.yml`'s 10 calling
+  jobs collapse to 4 entries), so it couldn't be placed accurately on the
+  graph even if it were in scope. All three stay `text_generator`-only.
+- **Node labels carry only name + compact annotations** (matrix/condition/
+  `allow_failure`) — no step count, runner, or artifact detail, unlike
+  `text_generator`'s job lines. Kept deliberately terse so larger graphs
+  (e.g. `pytorch_lint.yml`'s 14 jobs) stay readable.
+- **Trigger nodes use `trigger_<index>` IDs** (0-based position in
+  `pipeline.triggers`), not a `TriggerType`-derived ID — a pipeline can
+  have multiple triggers of the same type (e.g. several `schedule:`
+  entries, one per cron string), which would otherwise collide on a
+  type-derived ID. This makes a collision with any `Job.name` structurally
+  impossible rather than merely unlikely, since no real job key in any
+  fixture takes this form.
+- **An "entry" job** (one that gets an edge from every trigger node) is
+  defined as a job with no dependency that resolves to a real job in this
+  pipeline — either `dependencies` is empty, or every listed dependency is
+  dangling. This mirrors `_topological_job_order`'s own dangling-dependency
+  skip, so a job whose only `needs:` reference doesn't exist still gets at
+  least one incoming edge instead of floating disconnected in the diagram.
+  Verified with a hand-written case, since no real fixture has a dangling
+  dependency.
+- **Label escaping is a new concern this generator has that
+  `text_generator` doesn't** (plain text has no equivalent syntax risk):
+  literal `"` becomes `#quot;`, and literal newlines become `<br/>`. The
+  newline case is real, not hypothetical — `pytorch_lint.yml`'s
+  `lintrunner-clang`/`lintrunner-pyrefly` jobs have the same ~10-line
+  block-scalar `if: |` condition noted above under `## Text generator`,
+  and it falls through to `_condition_phrase`'s verbatim-expression
+  fallback here too. Converting (not stripping) the newlines keeps the
+  "never silently drop content" rule intact while staying valid Mermaid
+  syntax — confirmed by actually rendering this fixture's diagram through
+  `mermaid-cli` rather than just checking it doesn't raise.

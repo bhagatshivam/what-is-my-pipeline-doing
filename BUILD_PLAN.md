@@ -123,8 +123,8 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 **Goal:** IR → human-readable structured text, and IR → Mermaid diagram, both pure Python, no LLM. This is a real milestone: **Tool 1 technically exists** end-to-end after this phase, even before the LLM polish pass.
 
 **Tasks**
-- [ ] `generators/text_generator.py`: IR → structured plain-text summary (triggers, jobs in order, secrets required — matching the example format in `PROJECT_PLAN.md`)
-- [ ] `generators/mermaid_generator.py`: IR job dependency graph → Mermaid `flowchart` syntax
+- [x] `generators/text_generator.py`: IR → structured plain-text summary (triggers, jobs in order, secrets required — matching the example format in `PROJECT_PLAN.md`)
+- [x] `generators/mermaid_generator.py`: IR job dependency graph → Mermaid `flowchart` syntax
 - [ ] Wire both into `tool1/single_pipeline.py`: `YAML file → parser → IR → text output + Mermaid output`, written to a `.md` file in `docs/`
 - [ ] `tool1/single_pipeline.py`: add a `--check` flag — generate the
   doc in-memory and diff it against whatever `.md` file is already
@@ -292,3 +292,4 @@ Carried over from `PROJECT_PLAN.md` — resolve before they block a phase above:
 - 2026-07-09: Phase 3 parser progressed through 8 merged PRs (#3–#10) — `on:` triggers, `jobs:`/`runs-on`, `steps:`, `needs:` dependencies, `env:`/secret references/`continue-on-error:`, `if:` conditions, and `strategy.matrix` are all implemented and tested against every fixture; only reusable workflows remain before Phase 3 is complete. `LIMITATIONS.md` has been updated alongside every pass and now serves as the living limitations log.
 - 2026-07-09: Added two additive tasks after researching `terraform-docs` (industry-standard Terraform documentation generator) as a prior-art reference: a Phase 4 `--check` drift-detection flag for `tool1/single_pipeline.py`, and Phase 6 marker-comment (`<!-- ci-docs:start/end -->`) injection support for Tool 2's unified doc.
 - 2026-07-09: Phase 3 is now fully complete — PR #11 merged reusable-workflow relationships (`uses:`/`workflow_run` → `Pipeline.linked_workflows`), the last outstanding sub-item. All Phase 3 checklist boxes are checked off.
+- 2026-07-14: Phase 4's first slice merged (PR #12) — `generators/text_generator.py`'s `generate_text()`, a structured plain-text summary generator with topological job ordering. Phase 4's second slice — `generators/mermaid_generator.py`'s `generate_mermaid()`, IR job graph → Mermaid `flowchart` syntax — is now implemented too, sharing its topological-order/matrix-summary/condition-phrase logic with `text_generator.py` via a new `generators/common.py`. Both checklist items are checked off; remaining Phase 4 tasks (wiring both generators into `tool1/single_pipeline.py`, the `--check` drift flag) are still open.
