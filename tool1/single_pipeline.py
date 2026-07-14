@@ -24,8 +24,12 @@ from parsers.github_actions import GitHubActionsParser
 
 def generate_documentation(pipeline: Pipeline) -> str:
     """Combine generate_text()'s and generate_mermaid()'s output, verbatim, into one Markdown document."""
-    text_output = generate_text(pipeline)
-    mermaid_output = generate_mermaid(pipeline)
+    # Defensive normalization: both generators currently guarantee exactly
+    # one trailing "\n" by construction, but this protects the fence
+    # structure below if that ever drifts, without touching either
+    # generator module.
+    text_output = generate_text(pipeline).rstrip("\n") + "\n"
+    mermaid_output = generate_mermaid(pipeline).rstrip("\n") + "\n"
     return (
         f"# {pipeline.name}\n\n"
         f"```text\n{text_output}```\n\n"

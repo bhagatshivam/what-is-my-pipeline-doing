@@ -125,6 +125,7 @@ def _extract_mermaid_block(doc: str) -> str:
 _MMDC_AVAILABLE = shutil.which("npx") is not None
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(not _MMDC_AVAILABLE, reason="npx not available for mermaid-cli rendering")
 @pytest.mark.parametrize("filename", REAL_FIXTURE_FILES)
 def test_document_pipeline_diagram_renders_via_mermaid_cli(tmp_path, filename):
