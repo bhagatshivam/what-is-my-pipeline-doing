@@ -187,12 +187,13 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 
 ### Phase 7 — Evaluation
 
-**Goal:** run the evaluation methods from `EVALUATION_PLAN.md` against the now-complete GitHub Actions prototype of Tool 1 and Tool 2. Full method detail lives in that document — this phase just sequences it.
+**Goal:** run the evaluation methods from `EVALUATION_PLAN.md` against the now-complete GitHub Actions prototype of Tool 1 and Tool 2. Full method detail lives in that document — this phase just sequences it. Per Supervisor guidance, recruiting developer evaluators is off the table for this project — every task below is self-conducted, zero participants.
 
-**Tasks (Tier 1 & 2 — start these as soon as Phase 5/6 land, don't wait)**
+**Tasks (Tier 1 & 2 — start as soon as Phase 3/4 land, don't wait for Phase 5/6)**
+- [ ] Golden-file regression testing: commit expected `.md` output for all 10 fixtures, regenerate + diff in CI on every PR (reuses the `--check` flag already implemented in Phase 4)
 - [ ] Coverage check (every IR field appears in output)
 - [ ] Diagram-structure check (Mermaid graph matches IR dependency graph exactly)
-- [ ] Determinism/variance check (same pipeline, multiple LLM runs, measure drift)
+- [ ] Determinism/variance check (LLM layer only, once Phase 5 lands — golden-file testing above already covers the non-LLM layers)
 - [ ] Readability metrics (Flesch-Kincaid or similar)
 - [ ] Error injection (broken dependency, malformed `if`, undefined secret — does the tool flag it or silently hallucinate?)
 
@@ -200,14 +201,14 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 - [ ] Correctness check: trigger real pipelines on 4–5 real repos, compare GitHub's actual job/status output to the tool's documentation
 - [ ] Natural-pairs comparison: find repos with existing human-written CI docs (README/CONTRIBUTING/wiki), compare tool output directly against them
 
-**Tasks (Tier 4 — needs recruitment lead time, start early)**
-- [ ] Recruit 6–8 evaluators
-- [ ] Blind three-way comparison (Tool 1): plain structured text vs. full LLM-polished output vs. naive "dump raw YAML into an LLM" baseline
-- [ ] Task-based comprehension test (Tool 2): comprehension questions answered using the unified doc vs. raw YAML, split-group
+**Tasks (Tier 4 — self-conducted, zero recruitment; must happen in this order)**
+- [ ] Pre-register the fact checklist for each evaluation pipeline — every objectively checkable fact in its YAML (triggers, `needs:` edges, required secrets, gating conditions) — and commit it to the repo *before* generating any of the three conditions' outputs. This is a distinct, ordered prerequisite, not just documentation: the protocol is invalid if the checklist is written after seeing what each condition got right or wrong.
+- [ ] Pre-registered fact-checklist protocol (Tool 1): generate the three conditions (non-LLM structured text / full LLM-polished output / naive raw-YAML-to-LLM baseline), score each fact-by-fact in randomised order against the pre-registered checklist — facts correct, facts missing, hallucinated facts
+- [ ] Answerability audit (Tool 2): write ground-truth questions derived from the YAML, check whether each is answerable from the unified doc alone, report the answerability rate
 
-**Explicitly deferred to stretch (Tier 5–6):** think-aloud sessions, real PR submission to open-source repos, generation-time/cost logging (log automatically now, write up only if there's room later).
+**Explicitly deferred to stretch (Tier 5):** real PR submission to open-source repos (attempt as early as output quality allows — maintainer response time isn't controllable, and this is now the only external human signal available with recruitment off the table), generation-time/cost logging (log automatically now, write up only if there's room later).
 
-**Definition of done:** Tiers 1–3 complete with results recorded; Tier 4 evaluator data collected and analysed. See `EVALUATION_PLAN.md` for full rubric and method detail.
+**Definition of done:** Tiers 1–4 complete with results recorded — Tier 4's fact-checklist and answerability-audit results collected and analysed under the pre-registered protocol (checklist commit predates output generation). Tier 5 (real-PR submission) attempted and reported honestly regardless of outcome. See `EVALUATION_PLAN.md` for full method detail and rubric, including the "Threats to validity — single-author evaluation" section this phase's results should be read alongside.
 
 ---
 
@@ -280,7 +281,7 @@ Carried over from `PROJECT_PLAN.md` — resolve before they block a phase above:
 - [ ] IR field-naming table — final sign-off from Suzanne (blocks nothing in Phase 1, but should land before Phase 3 goes deep)
 - [ ] How to handle dynamic YAML values (`${{ matrix.python-version }}` etc.) in documentation output
 - [ ] Open-source licence + IP formal confirmation
-- [ ] Ethics approval for Tier 4 human evaluation recruitment
+- [ ] Confirm with Suzanne that zero-recruitment, self-conducted evaluation (Phase 7 / `EVALUATION_PLAN.md` Tier 4) requires no ethics paperwork — very likely moot, but to be confirmed rather than assumed
 - [ ] Whether a partial second-platform implementation (Phase 9) is expected to count toward the "platform-agnostic" claim, or whether the architecture argument alone is sufficient
 
 ---
@@ -294,3 +295,4 @@ Carried over from `PROJECT_PLAN.md` — resolve before they block a phase above:
 - 2026-07-09: Phase 3 is now fully complete — PR #11 merged reusable-workflow relationships (`uses:`/`workflow_run` → `Pipeline.linked_workflows`), the last outstanding sub-item. All Phase 3 checklist boxes are checked off.
 - 2026-07-14: Phase 4's first slice merged (PR #12) — `generators/text_generator.py`'s `generate_text()`, a structured plain-text summary generator with topological job ordering. Phase 4's second slice merged (PR #13) — `generators/mermaid_generator.py`'s `generate_mermaid()`, IR job graph → Mermaid `flowchart` syntax — sharing its topological-order/matrix-summary/condition-phrase logic with `text_generator.py` via a new `generators/common.py`. Both checklist items are checked off; remaining Phase 4 tasks (wiring both generators into `tool1/single_pipeline.py`, the `--check` drift flag) are still open.
 - 2026-07-14: `tool1/single_pipeline.py` implemented — `generate_documentation()` combines `generate_text()`/`generate_mermaid()` output verbatim into one Markdown file, `document_pipeline()` writes it to `docs/`, `check_pipeline()` does the `--check` drift comparison (exact string equality, `difflib` unified diff on mismatch). `cli.py`'s `tool1` subcommand is wired up with the new `--check` flag. **Tool 1 technically exists end-to-end** (`python cli.py tool1 <path>` produces a Markdown doc with an embedded Mermaid diagram for every fixture) — the Phase 4 "wire both into `tool1/single_pipeline.py`" and "`--check` flag" tasks are checked off. `generators/text_generator.py`/`generators/mermaid_generator.py` were not modified — treated as a fixed contract. Still open before Phase 4 is fully done: visually eyeballing the Mermaid rendering in a Markdown viewer and Suzanne's non-LLM-output sanity check, both inherently manual/social steps.
+- 2026-07-14: Evaluation strategy changed to entirely self-conducted, zero participant recruitment (confirmed Supervisor guidance: recruiting developers is off the table for this project). `EVALUATION_PLAN.md` rewritten accordingly — golden-file regression testing added to Tier 1 (citing `terraform-docs`/HashiCorp's `terraform-equivalence-testing` precedent), Tier 4's recruited blind three-way comparison and task-based comprehension test replaced with a pre-registered fact-checklist protocol and an answerability audit respectively (both self-conducted, objective, fact-level scoring instead of subjective ratings), Tier 5 (think-aloud sessions) removed with no self-conducted equivalent, and a new "Threats to validity — single-author evaluation" section added covering the recruited study as explicit future work rather than silently dropped. Phase 7 above re-sequenced to match: "Recruit 6–8 evaluators" removed, golden-file testing added to the Tier 1/2 task group, Tier 4 tasks replaced with checklist pre-registration (called out as an ordered prerequisite) plus the two new methods, and Definition of Done rewritten. Section 6's stale "ethics approval for Tier 4 recruitment" line reworded to match. This removes Phase 7's only external lead-time dependency — the Week 5 evaluator-recruitment scheduling constraint no longer drives its start date, since every method is now self-conducted and can start as soon as the relevant tool component is ready.
