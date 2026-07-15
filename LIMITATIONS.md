@@ -582,3 +582,108 @@ fence-content assertions.
   — deliberately minimal per this slice's scope; a missing file, a YAML
   syntax error, and a validation failure are all reported the same
   generic way for now.
+
+## Consciously unmodeled concepts — verified preservation status
+
+Six GitHub Actions concepts with no dedicated IR schema field were audited
+against all 10 real fixtures: for each, whether any fixture actually uses
+it, and — by directly parsing the fixture and inspecting the resulting
+`Pipeline`/`Job` objects, not by assuming — whether it's preserved
+somewhere (`raw_extras`, or a dedicated raw-fallback field like
+`Trigger.raw`) or silently dropped. `parsers/base.py`'s `BaseParser`
+contract requires the latter never happen; this audit found it does.
+
+**Root cause, confirmed by an exhaustive grep of every `raw_extras[...]`/
+`raw_extras.update(...)` write site in `parsers/github_actions.py`:**
+`GitHubActionsParser.parse()`'s final `Pipeline(...)` construction never
+passes a `raw_extras=` argument at all. `Pipeline.raw_extras` is
+therefore unconditionally `{}` on every parse, regardless of what
+workflow-level YAML exists — meaning **no workflow-level concept can
+currently be preserved by this parser**, not just the ones checked here.
+At job level, `_parse_jobs` only ever writes `display_name`,
+`continue_on_error_expression`, the matrix-extras keys, and
+reusable-workflow-call `uses`/`with`/`secrets` into `Job.raw_extras` —
+nothing else. This is a genuine gap against this file's own stated
+"nothing is silently dropped" convention, not a false alarm from a
+grep-based check — every finding below was confirmed by actually running
+`GitHubActionsParser().parse()` and printing the resulting `raw_extras`.
+**Not fixed in this pass** — flagged for discussion (tracked in
+`BUILD_PLAN.md` Section 6), since wiring `Pipeline.raw_extras` up is a
+parser change warranting its own review, not something to do inline
+during a verification pass.
+
+**`permissions:` (workflow-level and job-level `GITHUB_TOKEN` scope
+restrictions) — its own paragraph, deliberately, because it's
+security-relevant.** This project's motivating citation, Bajpai & Lewis
+(2022), is specifically about undocumented CI/CD pipelines creating real
+security risk because developers can't see what their own pipelines are
+doing — token permission scope is exactly that kind of fact. Real usage
+is not rare: **8 of 10 fixtures** declare workflow-level `permissions:`
+(`eslint_ci.yml`, `fastapi_test.yml`, `flask_tests.yml`,
+`node_test_linux.yml`, `pandas_unit_tests.yml`, `pytorch_lint.yml`,
+`rust_ci.yml`, `upload_artifact_test.yml`), in three distinct shapes — a
+mapping (`{contents: read}`), an explicit empty mapping (`{}`, i.e. "no
+permissions granted"), and a bare string (`pytorch_lint.yml`'s
+`permissions: read-all`). Job-level `permissions:` also occurs for real,
+in 2 fixtures (`fastapi_test.yml`'s `changes` job; all 8 jobs in
+`pandas_unit_tests.yml` — 9 job-level occurrences total). Confirmed
+directly: `Pipeline.raw_extras == {}` after parsing every one of these,
+and every affected job's `raw_extras` is likewise empty of any
+`permissions` key. **The honest framing is that this fact is currently
+not preserved anywhere, not merely "unmodeled but safely retained"** —
+this tool does not yet make token-scope information available at all,
+structured or raw. That's a real limitation worth naming plainly rather
+than a claim that the tool "handles" a security-relevant concern; it
+doesn't, yet, even at the raw-preservation level.
+
+- **`Job.outputs`** (a job's `outputs:` block — the producing side of the
+  `needs.<job>.outputs.*` pattern already noted above as unparsed on the
+  consuming/`if:`-condition side). Real in 2 of 10 fixtures:
+  `fastapi_test.yml`'s `changes` job (`outputs: {src: ...}`) and
+  `rust_ci.yml`'s `calculate_matrix` job (`outputs: {jobs: ..., run_type:
+  ...}`). Confirmed dropped: neither job's `raw_extras` contains an
+  `outputs` key.
+- **`concurrency:`** (workflow-level and job-level). Workflow-level is
+  real in 4 of 10 fixtures (`flask_tests.yml`, `node_test_linux.yml`,
+  `pytorch_lint.yml`, `rust_ci.yml`). Job-level is real in 1 fixture
+  (`pandas_unit_tests.yml` — all 8 of its jobs declare their own
+  `concurrency:` group, not just a subset). Confirmed dropped at both
+  levels — same `Pipeline.raw_extras == {}` root cause for the
+  workflow-level case; the affected jobs' `raw_extras` show no
+  `concurrency` key.
+- **Deployment `environment:`** (the GH protection-rules kind on a job,
+  e.g. `environment: production` — a different concept from this
+  schema's `Job.environment`, which maps GH Actions' `env:` key to
+  environment *variables*; not to be confused with each other). Real in
+  exactly 1 of 10 fixtures: `rust_ci.yml`'s `job` and `outcome` jobs, both
+  as a dynamic `${{ ... }}` expression rather than a literal environment
+  name. Confirmed dropped: neither job's `raw_extras` contains an
+  `environment` key. Two false positives worth recording since they
+  looked real on an initial text search: `pandas_unit_tests.yml` has a
+  matrix axis literally *named* `environment` (pixi environment
+  selection, e.g. `py311`/`py312`) and several `with:` action-input
+  parameters named `environment`; `setup_python_test.yml` has an
+  unrelated `update-environment:` action input. None of these are the
+  deployment-`environment:` concept — confirmed by checking each hit's
+  actual YAML structure, not just the matched text.
+- **`defaults:`** (workflow-level and job-level, e.g. `defaults: {run:
+  {shell: bash}}`). Workflow-level is real in 2 of 10 fixtures
+  (`pandas_unit_tests.yml`, `rust_ci.yml`, both a `run.shell` default).
+  Job-level `defaults:` does not appear in any fixture — checked
+  structurally across all 10, zero hits; untested against real data.
+  Workflow-level usage is confirmed dropped (`Pipeline.raw_extras ==
+  {}`).
+- **Trigger `types:` activity filter — the one concept in this audit that
+  actually is preserved**, and the exception to everything above: real in
+  1 of 10 fixtures (`node_test_linux.yml`'s `pull_request: {types:
+  [opened, synchronize, reopened, ready_for_review]}`), and already
+  documented earlier in this file's Triggers section as living in
+  `Trigger.raw` (a dedicated schema fallback field designed for exactly
+  this, distinct from the `raw_extras` catch-all) rather than dropped.
+  Confirmed still accurate, and already covered by a passing regression
+  test — `tests/test_github_actions_triggers.py::test_node_paths_ignore_and_dropped_types_filter_stays_in_raw`
+  — so no new test was needed for this audit. One false positive worth
+  recording: `eslint_ci.yml` matched an initial text search for `types:`
+  but has no trigger-activity-filter usage at all — the hits were a job
+  key named `test_types` and `npm run test:types:5.3`-style script names
+  inside `run:` commands.
