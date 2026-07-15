@@ -612,6 +612,18 @@ grep-based check — every finding below was confirmed by actually running
 parser change warranting its own review, not something to do inline
 during a verification pass.
 
+**Resolved (2026-07-15): `Pipeline.raw_extras` is now wired up.**
+`GitHubActionsParser.parse()` now passes `raw_extras=_parse_pipeline_raw_extras(data)`
+to the `Pipeline(...)` construction, and `_parse_jobs` captures the 4
+job-level keys below alongside its existing `display_name`/
+`continue_on_error_expression`/matrix-extras/`uses`-`with`-`secrets`
+keys — same presence-checked, verbatim-preservation pattern throughout,
+no guessing. Covered by a new dedicated test file,
+`tests/test_github_actions_raw_extras.py`. Confirmed via
+`scripts/update_golden_files.py` that this has zero effect on any
+generated `.md` output (`git diff tests/golden/` is empty) — neither
+generator reads `raw_extras`.
+
 **`permissions:` (workflow-level and job-level `GITHUB_TOKEN` scope
 restrictions) — its own paragraph, deliberately, because it's
 security-relevant.** This project's motivating citation, Bajpai & Lewis
@@ -635,6 +647,16 @@ this tool does not yet make token-scope information available at all,
 structured or raw. That's a real limitation worth naming plainly rather
 than a claim that the tool "handles" a security-relevant concern; it
 doesn't, yet, even at the raw-preservation level.
+**Resolved (2026-07-15):** both workflow- and job-level `permissions:`
+are now preserved verbatim in `raw_extras` (all three shapes — mapping,
+empty mapping, bare string), tested against `rust_ci.yml`,
+`pytorch_lint.yml`, `flask_tests.yml`, and `fastapi_test.yml`'s `changes`
+job in `tests/test_github_actions_raw_extras.py`. Preserved is not the
+same as surfaced — this data still isn't rendered anywhere in
+`generators/text_generator.py`/`generators/mermaid_generator.py`'s
+output, which remains a separate, later decision (do trigger
+permissions/token-scope facts belong in the human-readable summary, and
+if so how) — but the raw fact is no longer lost at the parser layer.
 
 - **`Job.outputs`** (a job's `outputs:` block — the producing side of the
   `needs.<job>.outputs.*` pattern already noted above as unparsed on the
@@ -642,7 +664,9 @@ doesn't, yet, even at the raw-preservation level.
   `fastapi_test.yml`'s `changes` job (`outputs: {src: ...}`) and
   `rust_ci.yml`'s `calculate_matrix` job (`outputs: {jobs: ..., run_type:
   ...}`). Confirmed dropped: neither job's `raw_extras` contains an
-  `outputs` key.
+  `outputs` key. **Resolved (2026-07-15):** now preserved verbatim under
+  `Job.raw_extras["outputs"]` for both jobs, tested in
+  `tests/test_github_actions_raw_extras.py`.
 - **`concurrency:`** (workflow-level and job-level). Workflow-level is
   real in 4 of 10 fixtures (`flask_tests.yml`, `node_test_linux.yml`,
   `pytorch_lint.yml`, `rust_ci.yml`). Job-level is real in 1 fixture
@@ -650,7 +674,10 @@ doesn't, yet, even at the raw-preservation level.
   `concurrency:` group, not just a subset). Confirmed dropped at both
   levels — same `Pipeline.raw_extras == {}` root cause for the
   workflow-level case; the affected jobs' `raw_extras` show no
-  `concurrency` key.
+  `concurrency` key. **Resolved (2026-07-15):** now preserved verbatim at
+  both levels (`Pipeline.raw_extras["concurrency"]` /
+  `Job.raw_extras["concurrency"]`), tested against `flask_tests.yml`
+  (workflow-level) and `pandas_unit_tests.yml` (job-level).
 - **Deployment `environment:`** (the GH protection-rules kind on a job,
   e.g. `environment: production` — a different concept from this
   schema's `Job.environment`, which maps GH Actions' `env:` key to
@@ -665,14 +692,26 @@ doesn't, yet, even at the raw-preservation level.
   parameters named `environment`; `setup_python_test.yml` has an
   unrelated `update-environment:` action input. None of these are the
   deployment-`environment:` concept — confirmed by checking each hit's
-  actual YAML structure, not just the matched text.
+  actual YAML structure, not just the matched text. **Resolved
+  (2026-07-15):** now preserved verbatim under a deliberately
+  distinctly-named `Job.raw_extras["deployment_environment"]` key — never
+  `"environment"`, so it can't be confused with `Job.environment` (env
+  vars) by anyone reading `raw_extras` later. Tested against both
+  `rust_ci.yml` jobs, including an explicit assertion that `job`'s real
+  `Job.environment` env vars (`CI_JOB_NAME` etc.) and its
+  `deployment_environment` raw_extras entry are both present and neither
+  clobbers the other.
 - **`defaults:`** (workflow-level and job-level, e.g. `defaults: {run:
   {shell: bash}}`). Workflow-level is real in 2 of 10 fixtures
   (`pandas_unit_tests.yml`, `rust_ci.yml`, both a `run.shell` default).
   Job-level `defaults:` does not appear in any fixture — checked
   structurally across all 10, zero hits; untested against real data.
   Workflow-level usage is confirmed dropped (`Pipeline.raw_extras ==
-  {}`).
+  {}`). **Resolved (2026-07-15):** workflow-level `defaults:` is now
+  preserved verbatim in `Pipeline.raw_extras["defaults"]`, tested against
+  `rust_ci.yml`. Job-level `defaults:` was deliberately left unhandled —
+  no fixture exercises it, and it wasn't in this fix's concrete scope;
+  still untested against real data, same as before.
 - **Trigger `types:` activity filter — the one concept in this audit that
   actually is preserved**, and the exception to everything above: real in
   1 of 10 fixtures (`node_test_linux.yml`'s `pull_request: {types:
