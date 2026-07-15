@@ -253,10 +253,34 @@ The GLITCH framework (Ferreira et al.) built a platform-agnostic security smell 
 
 ---
 
+## Research Question
+
+**Can CI/CD pipeline documentation be generated automatically with sufficient accuracy and readability to be trustworthy, by constraining a large language model to rewrite only facts extracted and verified by a deterministic parsing layer — and how can such a tool be rigorously evaluated without a large-scale recruited human study?**
+
+**Motivation (why):** CI pipeline YAML is machine-optimized, not human-optimized, and documentation for it is rarely written and never stays current. Bajpai & Lewis (2022) tie this directly to security risk — developers who can't reason about what their own pipelines do can't reason about what those pipelines are exposed to. LLMs are an obvious candidate for closing this gap, but naively summarizing raw YAML risks confidently-wrong output, which is worse than no documentation for a security-adjacent artifact.
+
+**The artifact (what):** A layered, platform-agnostic tool — parser → intermediate representation → generators → constrained LLM rewriting layer — built first for GitHub Actions, producing both single-pipeline documentation (Tool 1) and unified multi-pipeline documentation across a repository (Tool 2), with the LLM never given access to raw YAML, only already-verified structured facts.
+
+**The method (how):** Hu et al. (2022) establish that human judgment outperforms automated text-quality metrics for this kind of evaluation, which creates a real tension with recruitment being off the table for this project. The methodology resolves that tension by confining self-conducted human judgment to objectively checkable claims (pre-registered fact checklists, binary answerability audits) rather than subjective quality ratings, backed by deterministic regression testing (golden files) and stress testing (error injection) for the claims that don't need a human at all.
+
+---
+
+## Objectives
+
+1. Design and implement a platform-agnostic intermediate representation capable of losslessly representing GitHub Actions pipeline semantics (with explicit, documented handling of what isn't structurally modeled).
+2. Implement a GitHub Actions parser and pure-Python, non-LLM documentation/diagram generators that operate correctly and deterministically on real-world pipeline files.
+3. Design and implement an LLM rewriting layer that is architecturally constrained to IR-derived facts only, never raw configuration, to minimize hallucination risk.
+4. Extend single-pipeline documentation (Tool 1) to unified, repository-wide documentation (Tool 2) across multiple related workflow files.
+5. Design and execute a self-conducted evaluation methodology — spanning automated regression/robustness checks, real-pipeline correctness checks, and pre-registered objective human-judgment protocols — that produces defensible evidence of the tool's accuracy and usefulness despite the absence of recruited evaluators.
+6. Critically reflect on the limitations of both the tool (documented, unmodeled concepts; parser/generator edge cases) and the evaluation methodology (single-author bias, what a future recruited study would add).
+
+---
+
 ## Open Questions to Resolve With Suzanne
 
+The evaluation-methodology question below (human survey vs. informal) is resolved — see Objective 5 above and `EVALUATION_PLAN.md`'s self-conducted, zero-recruitment methodology — and has been removed from this list accordingly.
+
 - How to handle dynamic YAML values like `${{ matrix.python-version }}` in documentation
-- Whether to include a small survey as part of human evaluation or keep it informal
 - How many repositories to use in evaluation — enough to be meaningful, not so many it becomes unmanageable
 - Whether partial GitLab CI support counts toward the "platform-agnostic" claim or needs to be more complete
 
