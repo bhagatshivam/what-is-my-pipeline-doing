@@ -225,3 +225,49 @@ def test_escape_label_newlines():
 
 def test_escape_label_leaves_ordinary_text_untouched():
     assert _escape_label("github.ref == 'main'") == "github.ref == 'main'"
+
+
+# ---------------------------------------------------------------------------
+# Gap 2 — long/multiline job conditions are truncated in the diagram only.
+# ---------------------------------------------------------------------------
+
+def test_multiline_condition_truncated_to_first_line_plus_ellipsis():
+    # pytorch_lint.yml's lintrunner-clang/lintrunner-pyrefly jobs have a
+    # ~12-line block-scalar `if:` (786/236 chars once rendered) -- the full
+    # multiline text must not appear verbatim as a wall of <br/>-joined text.
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pytorch_lint.yml"))
+    output = generate_mermaid(pipeline)
+    clang = next(j for j in pipeline.jobs if j.name == "lintrunner-clang")
+    pyrefly = next(j for j in pipeline.jobs if j.name == "lintrunner-pyrefly")
+    assert len(clang.condition.expression) > 100
+    assert len(pyrefly.condition.expression) > 100
+    assert "<br/>" not in output
+    assert (
+        '    lintrunner-clang["lintrunner-clang '
+        "[if: github.repository_owner == 'pytorch' && (...]\"]"
+    ) in output
+    assert (
+        '    lintrunner-pyrefly["lintrunner-pyrefly '
+        "[if: github.repository_owner == 'pytorch' && (...]\"]"
+    ) in output
+
+
+def test_long_single_line_condition_truncated_at_max_len():
+    # pr-sanity-checks' condition is a single line (no embedded newline) but
+    # 161 chars -- too long for a readable node on its own.
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pytorch_lint.yml"))
+    output = generate_mermaid(pipeline)
+    job = next(j for j in pipeline.jobs if j.name == "pr-sanity-checks")
+    assert len(job.condition.expression) > 80
+    assert job.condition.expression not in output
+    assert (
+        "if: ${{ github.event_name == 'pull_request' && "
+        "!contains(github.event.pull_request.l...]"
+    ) in output
+
+
+def test_short_condition_left_untruncated():
+    # medium_pipeline_ir.json's deploy condition (branch == 'main', well
+    # under the threshold) must render exactly as before this change.
+    output = generate_mermaid(_load_ground_truth("medium_pipeline_ir.json"))
+    assert '    deploy["deploy [if: branch == \'main\']"]' in output

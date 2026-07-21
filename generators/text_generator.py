@@ -9,13 +9,16 @@ Contract:
 - Operates ONLY on ir.schema.Pipeline / its nested dataclasses. Never reads
   raw YAML, never re-derives anything the parser already decided; if a fact
   isn't in the IR, it isn't in this output.
-- `raw_extras` (on Pipeline/Job/Step) is NEVER read or surfaced here. It is
-  the IR layer's own escape hatch for unmapped platform fields; promoting it
-  into end-user text would bypass the schema and couple this generator to
-  parser internals. A job whose only real detail lives in raw_extras (e.g. a
-  `uses:`-only reusable-workflow-calling job) is described using only its
-  own non-raw_extras fields (name/runner/steps/dependencies/condition/
-  matrix/environment/allow_failure) — see LIMITATIONS.md.
+- `raw_extras` (on Pipeline/Job/Step) is not read here, with one narrow,
+  deliberate exception: `Job.raw_extras["uses"]` is read to state that a
+  `uses:`-only reusable-workflow-calling job delegates to that workflow,
+  rather than letting its necessarily-zero own step count read as "does
+  nothing" (see `_job_line_body`). This is the parser's own
+  already-established, single-job-scoped convention for exactly this fact
+  (see LIMITATIONS.md's "Reusable workflows" section) — not a general
+  opening of raw_extras into this generator's output. Every other
+  raw_extras key on every dataclass remains unread; promoting the rest
+  would bypass the schema and couple this generator to parser internals.
 - Never guesses at intent. A Condition.structured entry with a type this
   module doesn't specifically recognize (including the parser's own
   "unparsed" marker) always falls back to Condition.expression verbatim.
@@ -31,8 +34,10 @@ Contract:
   semantic isn't literally encoded in the IR's `dependencies` field, so
   asserting it would be guessing. Only an explicit `Job.condition` is ever
   rendered as a gating rule.
-- Only an aggregate step count is shown per job — no step-level detail
-  (per-step conditions/env/with_args are not projected into this format).
+- Each job's aggregate step count is always shown, plus a per-job listing
+  of `Step.name` (capped, with an overflow indicator on long jobs — see
+  `_step_lines`). No other step-level detail is projected into this
+  format (per-step conditions/env/with_args stay out of scope).
 """
 
 from __future__ import annotations
@@ -128,14 +133,55 @@ def _trigger_phrase(trigger: Trigger) -> str:
 # Jobs
 # ---------------------------------------------------------------------------
 
+_STEP_LIST_CAP = 10
+
+
+def _step_lines(job: Job) -> List[str]:
+    """
+    Per-job step name listing — PROJECT_PLAN.md's Tool 1 deliverable list
+    normatively includes "What each step in each job does"; the aggregate
+    count alone (this generator's prior behaviour) didn't satisfy it. Only
+    `Step.name` is surfaced, nothing else (no with_args/env/raw_extras, no
+    step-level Condition) — mechanical and factual, matching this
+    generator's existing never-fabricate-intent principle.
+
+    Capped at `_STEP_LIST_CAP` with an overflow line rather than listed in
+    full: across all 10 real fixtures (58 jobs), the median job has 4-5
+    steps and 53 of 58 have 10 or fewer — a cap of 10 shows the vast
+    majority of jobs in full while still bounding the few outliers
+    (rust_ci.yml's `job` has 33 steps, upload_artifact_test.yml's `build`
+    has 28) so they don't turn into a wall of text. The aggregate count in
+    the job line itself (see `_job_line_body`) is never affected by this
+    cap and always reflects the true total.
+    """
+    if not job.steps:
+        return []
+    shown = job.steps[:_STEP_LIST_CAP]
+    lines = [f"   - {step.name}" for step in shown]
+    remaining = len(job.steps) - len(shown)
+    if remaining > 0:
+        lines.append(f"   - ... and {remaining} more {_plural(remaining, 'step')}")
+    return lines
+
+
 def _job_line_body(job: Job) -> str:
     clauses: List[str] = []
 
     if job.runner:
         clauses.append(f"runs on {job.runner}")
 
-    n = len(job.steps)
-    clauses.append(f"{n} {_plural(n, 'step')}")
+    uses = job.raw_extras.get("uses")
+    if uses:
+        # A job whose own `uses:` makes it a reusable-workflow call has no
+        # `steps:` of its own — GH Actions treats `uses:`/`steps:` as
+        # mutually exclusive at job level. "0 steps" would misleadingly
+        # read as "this job does nothing"; state the delegation instead.
+        # This is the one deliberate raw_extras exception documented in
+        # the module docstring.
+        clauses.append(f"delegates to reusable workflow {uses}")
+    else:
+        n = len(job.steps)
+        clauses.append(f"{n} {_plural(n, 'step')}")
 
     if job.matrix is not None:
         clauses.append(f"matrix: {_matrix_summary(job.matrix)}")
@@ -162,10 +208,34 @@ def _job_line_body(job: Job) -> str:
 # Secrets / linked workflows
 # ---------------------------------------------------------------------------
 
-def _secret_line(secret) -> str:
-    if secret.scope != SecretScope.PIPELINE and secret.scope_ref:
+def _secret_line(secret, jobs_by_name: Dict[str, Job]) -> str:
+    """
+    PIPELINE-scope secrets have no scope_ref at all. JOB-scope's scope_ref
+    is the job key verbatim — already human-readable, shown as-is. STEP-
+    scope's scope_ref is the parser's internal `f"{job_key}.{step_index}"`
+    convention (0-based index) — decoded here into the real step name via
+    `jobs_by_name`, rather than leaking the raw "job.26" form to the
+    reader. Splitting on "." is safe because GH Actions job-key syntax
+    forbids the character (see LIMITATIONS.md). Branches on `secret.scope`
+    directly rather than inferring shape from the string, so PIPELINE/JOB
+    are each handled on their own terms, not just STEP.
+    """
+    if secret.scope == SecretScope.PIPELINE or not secret.scope_ref:
+        return f"- {secret.name}"
+
+    if secret.scope == SecretScope.JOB:
         return f"- {secret.name} (used in job: {secret.scope_ref})"
-    return f"- {secret.name}"
+
+    job_key, _, index_str = secret.scope_ref.partition(".")
+    job = jobs_by_name.get(job_key)
+    step_index = int(index_str) if index_str.isdigit() else None
+    if job is not None and step_index is not None and 0 <= step_index < len(job.steps):
+        return f"- {secret.name} (used in job: {job_key}, step: {job.steps[step_index].name})"
+    # Defensive fallback — shouldn't happen against real parser output,
+    # but a hand-built Secret/Pipeline pairing (e.g. in a test) could have
+    # a scope_ref that doesn't resolve. Degrade to the job-only reference
+    # rather than crash or show a broken index.
+    return f"- {secret.name} (used in job: {job_key})"
 
 
 # ---------------------------------------------------------------------------
@@ -188,10 +258,9 @@ def generate_text(pipeline: Pipeline) -> str:
         lines.append("")
         lines.append("JOBS (in order)")
         ordered = _topological_job_order(pipeline.jobs)
-        lines += [
-            f"{i}. {job.name} — {_job_line_body(job)}"
-            for i, job in enumerate(ordered, start=1)
-        ]
+        for i, job in enumerate(ordered, start=1):
+            lines.append(f"{i}. {job.name} — {_job_line_body(job)}")
+            lines.extend(_step_lines(job))
 
     if pipeline.linked_workflows:
         lines.append("")
@@ -201,6 +270,7 @@ def generate_text(pipeline: Pipeline) -> str:
     if pipeline.secrets:
         lines.append("")
         lines.append("SECRETS REQUIRED")
-        lines += [_secret_line(s) for s in pipeline.secrets]
+        jobs_by_name = {j.name: j for j in pipeline.jobs}
+        lines += [_secret_line(s, jobs_by_name) for s in pipeline.secrets]
 
     return "\n".join(lines) + "\n"
