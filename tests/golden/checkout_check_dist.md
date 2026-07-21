@@ -11,6 +11,12 @@ TRIGGERS
 
 JOBS (in order)
 1. check-dist — runs on ubuntu-latest; 6 steps
+   - actions/checkout@v7
+   - Set Node.js 24.x
+   - Install dependencies
+   - Rebuild the index.js file
+   - Compare the expected and actual dist/ directories
+   - actions/upload-artifact@v7
 ```
 
 ## Pipeline Diagram

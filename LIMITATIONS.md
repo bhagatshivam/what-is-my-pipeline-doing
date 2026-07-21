@@ -448,6 +448,19 @@ generated output, not just checking it doesn't raise.
   calling jobs but only 4 distinct `LinkedWorkflow` entries, so a
   specific job cannot be traced back to a specific entry. Nothing is lost
   between the two sections, they're just organized at different levels.
+  **Resolved (2026-07-16):** the misleading "0 steps" half of this was
+  closed — a job line now reads `job_name — delegates to reusable
+  workflow <target>` (sourced from `Job.raw_extras["uses"]`) in place of
+  the step-count clause, e.g. `eslint_ci.yml`'s `test_package_manager`.
+  This is a deliberate, narrow exception to "raw_extras is never read
+  here": only this one pre-existing parser-established key, scoped to
+  exactly this fact. `Pipeline.linked_workflows` was considered instead
+  but rejected — its `(target, relationship)` dedup has no per-job field
+  at all, so it cannot answer "what does *this specific job* call" once
+  two jobs call different targets, which is already true across these
+  fixtures. The separate `LINKED WORKFLOWS` section and its dedup are
+  otherwise unchanged; a job's own line and that section still aren't
+  literally 1:1, they're just no longer misleading in isolation.
 - **Dependencies never imply success-gating.** `"after X"` in a job line
   states execution order only; it never becomes "only runs if X
   succeeds", even though that's GitHub Actions' real default runtime
@@ -461,6 +474,20 @@ generated output, not just checking it doesn't raise.
   present in the parsed `Pipeline` but not projected into this text
   format; this matches `PROJECT_PLAN.md`'s target shape, which has no
   step-level granularity either.
+  **Resolved (2026-07-16):** this justification didn't hold up under
+  review — `PROJECT_PLAN.md`'s Tool 1 deliverable list normatively
+  includes "What each step in each job does", and the no-step-level-
+  granularity example elsewhere in that document is illustrative prose,
+  not the spec; the deliverable list wins. Each job now also lists its
+  steps' `Step.name` (nothing else — no `with_args`/env/raw_extras, no
+  step-level `Condition`, still out of scope), capped at 10 with an
+  `... and N more steps` overflow line (see `_step_lines`). 10 was chosen
+  from real data: 53 of 58 jobs across all 10 fixtures have 10 or fewer
+  steps, so the cap shows the vast majority in full while still bounding
+  the outliers (`rust_ci.yml`'s `job` has 33, `upload_artifact_test.yml`'s
+  `build` has 28) rather than producing a wall of text. The aggregate
+  step count in the job line itself is untouched and always reflects the
+  true total regardless of the cap.
 - **`Pipeline.environment_variables` has no dedicated section**, and
   job-level `Job.environment` names are not surfaced in job lines either
   — out of scope for this slice, not a data-loss concern (the IR still
@@ -493,6 +520,17 @@ generated output, not just checking it doesn't raise.
   `f"{job_key}.{step_index}"` format (a parser-side convention documented
   above under `## Environment variables and secrets`), it only ever
   displays it as-is.
+  **Resolved (2026-07-16):** `_secret_line` now decodes this — a STEP-
+  scope `scope_ref` is split on `.` into `(job_key, step_index)` (safe
+  per the job-key-can't-contain-`.` guarantee already noted above) and
+  resolved to the real step name via a `jobs_by_name` lookup, e.g.
+  `rust_ci.yml` now reads "`CACHES_AWS_ACCESS_KEY_ID (used in job: job,
+  step: run the build)`". Branches explicitly on `secret.scope` (PIPELINE
+  / JOB / STEP) rather than inferring shape from the string, so PIPELINE
+  (no `scope_ref` at all) and JOB (`scope_ref` is already just the job
+  key) render exactly as before — only the STEP case changed. An
+  unresolvable `scope_ref` (shouldn't occur against real parser output)
+  falls back to the job-only reference rather than crashing.
 
 ## Mermaid generator
 
@@ -549,6 +587,26 @@ no-raise check) for the complex ground-truth fixture and the 14-job
   "never silently drop content" rule intact while staying valid Mermaid
   syntax — confirmed by actually rendering this fixture's diagram through
   `mermaid-cli` rather than just checking it doesn't raise.
+- **A job condition's diagram annotation is truncated past 80 characters
+  (or at its first line, if multi-line), added 2026-07-16.** Before this,
+  a long/multiline `Job.condition` was embedded into the node label
+  verbatim (via `_escape_label`'s newline-to-`<br/>` conversion above),
+  which for `pytorch_lint.yml`'s `lintrunner-clang`/`lintrunner-pyrefly`
+  jobs — a ~12-line block-scalar `if:`, 786/236 chars once rendered —
+  produced an enormous node that dominated the graph. `_condition_annotation`
+  now renders the condition's first line (if multiline) or the first 80
+  chars (if a single long line, real in `pr-sanity-checks`'s 161-char
+  condition), plus an ellipsis, for exactly this diagram annotation. 80
+  was chosen from real data: of 19 real job-level conditions across all
+  10 fixtures, 16 are 75 chars or fewer and single-line, and exactly 3
+  are not (the two above plus `pr-sanity-checks`) — 80 is the natural cut
+  point between the two groups, not an arbitrary round number. This is a
+  diagram-only, deliberately lossy trade-off: `text_generator.generate_text()`
+  is untouched and still renders `Condition.expression` verbatim in the
+  same document's text section (see `## Text generator`'s "A real
+  multi-line `unparsed` condition..." bullet above), so "never silently
+  drop content" holds at the document level even though this one
+  annotation does not show the full expression.
 
 ## Tool 1 (`tool1/single_pipeline.py`)
 

@@ -10,7 +10,16 @@ TRIGGERS
 
 JOBS (in order)
 1. tests — runs on ${{ matrix.os || 'ubuntu-latest' }}; 4 steps; matrix: 11 combinations (via include)
+   - actions/checkout
+   - astral-sh/setup-uv
+   - actions/setup-python
+   - uv run --locked --no-default-groups --group dev tox run
 2. typing — runs on ubuntu-latest; 5 steps
+   - actions/checkout
+   - astral-sh/setup-uv
+   - actions/setup-python
+   - cache mypy
+   - uv run --locked --no-default-groups --group dev tox run -e typing
 ```
 
 ## Pipeline Diagram
