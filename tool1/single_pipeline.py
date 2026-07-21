@@ -14,11 +14,13 @@ Contract:
 from __future__ import annotations
 
 import difflib
+import sys
 from pathlib import Path
 
 from generators.mermaid_generator import generate_mermaid
 from generators.text_generator import generate_text
 from ir.schema import Pipeline
+from ir.validate import IRValidationError, validate_or_raise
 from parsers.github_actions import GitHubActionsParser
 
 
@@ -39,7 +41,15 @@ def generate_documentation(pipeline: Pipeline) -> str:
 
 
 def _build_documentation(source_path: str) -> str:
-    return generate_documentation(GitHubActionsParser().parse(source_path))
+    pipeline = GitHubActionsParser().parse(source_path)
+    try:
+        warnings = validate_or_raise(pipeline)
+    except IRValidationError as exc:
+        print(str(exc), file=sys.stderr)
+        raise
+    for warning in warnings:
+        print(warning, file=sys.stderr)
+    return generate_documentation(pipeline)
 
 
 def document_pipeline(source_path: str, output_dir: str = "docs") -> Path:
@@ -61,12 +71,12 @@ def check_pipeline(source_path: str, output_dir: str = "docs") -> bool:
     """
     stem = Path(source_path).stem
     committed_path = Path(output_dir) / f"{stem}.md"
+    fresh = _build_documentation(source_path)
 
     if not committed_path.exists():
         print(f"no committed doc found for {stem}.md — run without --check to generate it")
         return False
 
-    fresh = _build_documentation(source_path)
     committed = committed_path.read_text(encoding="utf-8")
 
     if committed == fresh:

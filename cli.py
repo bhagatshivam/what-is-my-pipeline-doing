@@ -4,6 +4,13 @@ import argparse
 import sys
 
 from tool1.single_pipeline import check_pipeline, document_pipeline
+from ir.validate import IRValidationError
+
+
+EXIT_SUCCESS = 0
+EXIT_CHECK_FAILED = 1
+EXIT_OPERATIONAL_ERROR = 2
+EXIT_INVALID_IR = 3
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -34,19 +41,21 @@ def main() -> int:
     if args.command == "tool1":
         try:
             if args.check:
-                return 0 if check_pipeline(args.path) else 1
+                return EXIT_SUCCESS if check_pipeline(args.path) else EXIT_CHECK_FAILED
             written = document_pipeline(args.path)
             print(f"Wrote {written}")
-            return 0
+            return EXIT_SUCCESS
+        except IRValidationError:
+            return EXIT_INVALID_IR
         except Exception as exc:
             print(f"error: {exc}", file=sys.stderr)
-            return 2
+            return EXIT_OPERATIONAL_ERROR
     elif args.command == "tool2":
         print(f"tool2 is not implemented yet (Phase 6). Requested: {args.path}")
     else:
         parser.print_help()
 
-    return 0
+    return EXIT_SUCCESS
 
 
 if __name__ == "__main__":

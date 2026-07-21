@@ -77,7 +77,12 @@ _GitHubActionsSafeLoader.add_implicit_resolver(
 def _load_workflow_yaml(file_path: str) -> Dict[str, Any]:
     with open(file_path) as f:
         data = yaml.load(f, Loader=_GitHubActionsSafeLoader)
-    return data or {}
+    if not isinstance(data, dict):
+        raise ValueError(
+            "Workflow YAML root must be a mapping; "
+            f"received {type(data).__name__}."
+        )
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -925,6 +930,8 @@ def _parse_pipeline_raw_extras(data: Dict[str, Any]) -> Dict[str, Any]:
         raw_extras["concurrency"] = data["concurrency"]
     if "defaults" in data:
         raw_extras["defaults"] = data["defaults"]
+    if "jobs" in data and not isinstance(data["jobs"], dict):
+        raw_extras["unrecognized_jobs"] = data["jobs"]
     return raw_extras
 
 
@@ -947,9 +954,12 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
 
     jobs: List[Job] = []
     for job_key, job_body in jobs_block.items():
+        original_job_body = job_body
         job_body = job_body if isinstance(job_body, dict) else {}
 
         raw_extras: Dict[str, Any] = {}
+        if not isinstance(original_job_body, dict):
+            raw_extras["unrecognized_job"] = original_job_body
         display_name = job_body.get("name")
         if display_name and display_name != job_key:
             # Job.name must stay the job key — it's what `needs:`/`dependencies`

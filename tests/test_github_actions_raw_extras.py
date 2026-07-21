@@ -70,6 +70,16 @@ def test_workflow_raw_extras_absent_keys_not_present():
     assert pipeline.raw_extras == {}
 
 
+def test_non_mapping_jobs_value_preserved(tmp_path):
+    workflow = tmp_path / "malformed-jobs.yml"
+    workflow.write_text("name: malformed\non: push\njobs:\n  - build\n", encoding="utf-8")
+
+    pipeline = GitHubActionsParser().parse(str(workflow))
+
+    assert pipeline.raw_extras["unrecognized_jobs"] == ["build"]
+    assert pipeline.jobs == []
+
+
 # ---------------------------------------------------------------------------
 # Job-level: permissions:/outputs:/concurrency:/environment: -> Job.raw_extras
 # ---------------------------------------------------------------------------
@@ -131,3 +141,13 @@ def test_job_deployment_environment_on_second_job_with_no_env_vars():
         "${{ (github.repository == 'rust-lang/rust' && 'bors') || '' }}"
     )
     assert job.environment == {}
+
+
+def test_non_mapping_job_body_preserved(tmp_path):
+    workflow = tmp_path / "malformed-job-body.yml"
+    workflow.write_text("name: malformed\non: push\njobs:\n  build: run-this\n", encoding="utf-8")
+
+    pipeline = GitHubActionsParser().parse(str(workflow))
+
+    assert pipeline.jobs[0].name == "build"
+    assert pipeline.jobs[0].raw_extras["unrecognized_job"] == "run-this"
