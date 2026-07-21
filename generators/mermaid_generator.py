@@ -55,6 +55,13 @@ Contract:
   `text_generator` — no success-gating semantic is implied by the edge
   itself; only an explicit `Job.condition` (rendered as a node annotation)
   represents a gating rule.
+- A job condition's diagram annotation is truncated past
+  `_MERMAID_CONDITION_MAX_LEN` chars (or at its first line, if multi-line)
+  — see `_condition_annotation`. This is a diagram-only readability
+  trade-off: `text_generator.generate_text()` still renders
+  `Condition.expression` verbatim in the same document's text section, so
+  "never silently drop content" holds at the document level even though
+  this one diagram annotation is intentionally lossy.
 """
 
 from __future__ import annotations
@@ -62,7 +69,7 @@ from __future__ import annotations
 from typing import List
 
 from generators.common import _condition_phrase, _matrix_summary, _topological_job_order
-from ir.schema import Job, Pipeline, Trigger, TriggerType
+from ir.schema import Condition, Job, Pipeline, Trigger, TriggerType
 
 _TRIGGER_DISPLAY_NAMES = {
     TriggerType.PUSH: "Push",
@@ -112,6 +119,35 @@ def _entry_jobs(jobs: List[Job]) -> List[Job]:
 # Jobs
 # ---------------------------------------------------------------------------
 
+_MERMAID_CONDITION_MAX_LEN = 80
+
+
+def _condition_annotation(condition: Condition) -> str:
+    """
+    Diagram-only truncation of a job condition's annotation text. Real
+    data across all 10 fixtures' 19 job-level conditions: 16 are 75 chars
+    or fewer and single-line; exactly 3 are not —
+    pytorch_lint.yml's `lintrunner-clang`/`lintrunner-pyrefly` (a ~12-line
+    block-scalar `if:`, 786/236 chars total once rendered, but only 41
+    chars on their first line) and `pr-sanity-checks` (161 chars, single
+    line, no embedded newline for `_escape_label` to convert). 80 is the
+    natural cut point separating the 16 normal conditions from those 3
+    oversized ones, not an arbitrary round number. Untruncated, the
+    block-scalar pair produce enormous nodes that dominate the graph.
+
+    generate_text() renders Condition.expression verbatim regardless — see
+    the module docstring's "never silently drop content" note. This
+    function only ever shortens the diagram's own annotation text.
+    """
+    phrase = _condition_phrase(condition)
+    if len(phrase) <= _MERMAID_CONDITION_MAX_LEN and "\n" not in phrase:
+        return phrase
+    first_line = phrase.split("\n", 1)[0]
+    if len(first_line) > _MERMAID_CONDITION_MAX_LEN:
+        first_line = first_line[:_MERMAID_CONDITION_MAX_LEN].rstrip()
+    return f"{first_line}..."
+
+
 def _job_node_label(job: Job) -> str:
     annotations: List[str] = []
 
@@ -119,7 +155,7 @@ def _job_node_label(job: Job) -> str:
         annotations.append(f"matrix: {_matrix_summary(job.matrix)}")
 
     if job.condition is not None:
-        annotations.append(f"if: {_condition_phrase(job.condition)}")
+        annotations.append(f"if: {_condition_annotation(job.condition)}")
 
     if job.allow_failure:
         annotations.append("allow to fail")
