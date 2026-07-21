@@ -12,19 +12,88 @@ TRIGGERS
 
 JOBS (in order)
 1. setup-versions-from-manifest — runs on ${{ matrix.os }}; 5 steps; matrix: 35 combinations (os, python)
+   - Checkout
+   - setup-python ${{ matrix.python }}
+   - Check python-path
+   - Validate version
+   - Run simple code
 2. setup-versions-from-file — runs on ${{ matrix.os }}; 6 steps; matrix: 35 combinations (os, python)
+   - Checkout
+   - build-version-file ${{ matrix.python }}
+   - setup-python ${{ matrix.python }}
+   - Check python-path
+   - Validate version
+   - Run simple code
 3. setup-versions-from-file-without-parameter — runs on ${{ matrix.os }}; 6 steps; matrix: 35 combinations (os, python)
+   - Checkout
+   - build-version-file ${{ matrix.python }}
+   - setup-python ${{ matrix.python }}
+   - Check python-path
+   - Validate version
+   - Run simple code
 4. setup-versions-from-standard-pyproject-file — runs on ${{ matrix.os }}; 6 steps; matrix: 35 combinations (os, python)
+   - Checkout
+   - build-version-file ${{ matrix.python }}
+   - setup-python ${{ matrix.python }}
+   - Check python-path
+   - Validate version
+   - Run simple code
 5. setup-versions-from-poetry-pyproject-file — runs on ${{ matrix.os }}; 6 steps; matrix: 35 combinations (os, python)
+   - Checkout
+   - build-version-file ${{ matrix.python }}
+   - setup-python ${{ matrix.python }}
+   - Check python-path
+   - Validate version
+   - Run simple code
 6. setup-versions-from-tool-versions-file — runs on ${{ matrix.os }}; 3 steps; matrix: up to 28 combinations (os, python), 1 excluded
+   - Checkout
+   - build-tool-versions-file ${{ matrix.python }}
+   - setup-python using .tool-versions ${{ matrix.python }}
 7. setup-versions-from-pipfile-with-python_version — runs on ${{ matrix.os }}; 6 steps; matrix: 28 combinations (os, python)
+   - Checkout
+   - build-version-file ${{ matrix.python }}
+   - setup-python ${{ matrix.python }}
+   - Check python-path
+   - Validate version
+   - Run simple code
 8. setup-versions-from-pipfile-with-python_full_version — runs on ${{ matrix.os }}; 6 steps; matrix: 28 combinations (os, python)
+   - Checkout
+   - build-version-file ${{ matrix.python }}
+   - setup-python ${{ matrix.python }}
+   - Check python-path
+   - Validate version
+   - Run simple code
 9. setup-pre-release-version-from-manifest — runs on ${{ matrix.os }}; 5 steps; matrix: 7 combinations (os)
+   - Checkout
+   - setup-python 3.14.0-alpha.6
+   - Check python-path
+   - Validate version
+   - Run simple code
 10. setup-dev-version — runs on ${{ matrix.os }}; 5 steps; matrix: 7 combinations (os)
+   - Checkout
+   - setup-python 3.14-dev
+   - Check python-path
+   - Validate version
+   - Run simple code
 11. setup-prerelease-version — runs on ${{ matrix.os }}; 5 steps; matrix: 7 combinations (os)
+   - Checkout
+   - setup-python 3.14
+   - Check python-path
+   - Validate version
+   - Run simple code
 12. setup-versions-noenv — runs on ${{ matrix.os }}; 4 steps; matrix: 35 combinations (os, python)
+   - Checkout
+   - setup-python ${{ matrix.python }}
+   - Python version
+   - Run simple code
 13. check-latest — runs on ${{ matrix.os }}; 3 steps; matrix: 35 combinations (os, python-version)
+   - actions/checkout@v6
+   - Setup Python and check latest
+   - Validate version
 14. setup-python-multiple-python-versions — runs on ${{ matrix.os }}; 3 steps; matrix: 7 combinations (os)
+   - actions/checkout@v6
+   - Setup Python and check latest
+   - Validate version
 ```
 
 ## Pipeline Diagram

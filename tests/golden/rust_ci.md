@@ -10,17 +10,33 @@ TRIGGERS
 
 JOBS (in order)
 1. calculate_matrix — runs on ubuntu-24.04-arm; 3 steps
+   - Checkout the source code
+   - Test citool
+   - Calculate the CI job matrix
 2. job — runs on ${{ matrix.os }}; 33 steps; matrix: combinations determined at runtime; after calculate_matrix
+   - Install cargo in AWS CodeBuild
+   - disable git crlf conversion
+   - checkout the source code
+   - free up disk space
+   - print disk usage
+   - configure the PR in which the error message will be posted
+   - add extra environment variables
+   - ensure the channel matches the target branch
+   - collect CPU statistics
+   - show the current environment
+   - ... and 23 more steps
 3. outcome — runs on ubuntu-24.04; 2 steps; after calculate_matrix, job; condition: ${{ needs.calculate_matrix.outputs.run_type == 'auto' }}
+   - checkout the source code
+   - publish toolstate
 
 SECRETS REQUIRED
 - TOOLSTATE_REPO_ACCESS_TOKEN
 - GITHUB_TOKEN (used in job: job)
-- CACHES_AWS_ACCESS_KEY_ID (used in job: job.26)
-- CACHES_AWS_SECRET_ACCESS_KEY (used in job: job.26)
-- ARTIFACTS_AWS_ACCESS_KEY_ID (used in job: job.30)
-- ARTIFACTS_AWS_SECRET_ACCESS_KEY (used in job: job.30)
-- DATADOG_API_KEY (used in job: job.32)
+- CACHES_AWS_ACCESS_KEY_ID (used in job: job, step: run the build)
+- CACHES_AWS_SECRET_ACCESS_KEY (used in job: job, step: run the build)
+- ARTIFACTS_AWS_ACCESS_KEY_ID (used in job: job, step: upload artifacts to S3)
+- ARTIFACTS_AWS_SECRET_ACCESS_KEY (used in job: job, step: upload artifacts to S3)
+- DATADOG_API_KEY (used in job: job, step: upload job metrics to DataDog)
 ```
 
 ## Pipeline Diagram

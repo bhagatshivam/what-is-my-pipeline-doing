@@ -154,3 +154,91 @@ def test_topological_order_ignores_dangling_dependency():
     jobs = [_job("A", deps=["does-not-exist"])]
     ordered = [j.name for j in _topological_job_order(jobs)]
     assert ordered == ["A"]
+
+
+# ---------------------------------------------------------------------------
+# Gap 1 — per-job step-name listing (PROJECT_PLAN.md's Tool 1 deliverable
+# "what each step in each job does"), against real fixtures.
+# ---------------------------------------------------------------------------
+
+def test_step_names_listed_for_real_fixture():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "checkout_check_dist.yml"))
+    output = generate_text(pipeline)
+    assert "   - actions/checkout@v7" in output
+    assert "   - Set Node.js 24.x" in output
+    assert "   - Install dependencies" in output
+    assert "   - Rebuild the index.js file" in output
+    assert "   - Compare the expected and actual dist/ directories" in output
+    assert "   - actions/upload-artifact@v7" in output
+    # All 6 real steps fit under the cap -- no overflow line.
+    assert "more step" not in output
+
+
+def test_step_list_capped_with_overflow_on_long_job():
+    # rust_ci.yml's `job` has 33 steps -- first 10 shown, then one overflow line.
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "rust_ci.yml"))
+    output = generate_text(pipeline)
+    job = next(j for j in pipeline.jobs if j.name == "job")
+    assert len(job.steps) == 33
+    for step in job.steps[:10]:
+        assert f"   - {step.name}" in output
+    assert "   - ... and 23 more steps" in output
+    # The 11th step onward isn't listed on its own line.
+    assert f"   - {job.steps[10].name}" not in output
+    # The aggregate count in the job line itself is unaffected by the cap.
+    assert "33 steps" in output
+
+
+def test_step_list_capped_with_overflow_on_second_long_job():
+    # upload_artifact_test.yml's `build` has 28 steps -- a second real,
+    # independent case for the cap (not just rust_ci.yml coincidence).
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "upload_artifact_test.yml"))
+    output = generate_text(pipeline)
+    build = next(j for j in pipeline.jobs if j.name == "build")
+    assert len(build.steps) == 28
+    assert "   - ... and 18 more steps" in output
+
+
+# ---------------------------------------------------------------------------
+# Gap 3 — secret scope_ref decoded into a human-readable job/step reference.
+# ---------------------------------------------------------------------------
+
+def test_step_scoped_secret_decoded_to_job_and_step_name():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "rust_ci.yml"))
+    output = generate_text(pipeline)
+    # Raw "job.26" internal convention must not leak into output...
+    assert "job.26" not in output
+    assert "job.30" not in output
+    assert "job.32" not in output
+    # ...decoded into the real step name instead.
+    assert "- CACHES_AWS_ACCESS_KEY_ID (used in job: job, step: run the build)" in output
+    assert "- CACHES_AWS_SECRET_ACCESS_KEY (used in job: job, step: run the build)" in output
+
+
+def test_job_scoped_secret_unchanged_by_scope_ref_decoding():
+    # JOB-scope secrets have no step index to decode -- output is exactly
+    # as before this change.
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "rust_ci.yml"))
+    output = generate_text(pipeline)
+    assert "- GITHUB_TOKEN (used in job: job)" in output
+
+
+def test_pipeline_scoped_secret_has_no_job_reference():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "rust_ci.yml"))
+    output = generate_text(pipeline)
+    assert "- TOOLSTATE_REPO_ACCESS_TOKEN" in output
+    assert "TOOLSTATE_REPO_ACCESS_TOKEN (used in job" not in output
+
+
+# ---------------------------------------------------------------------------
+# Gap 4 — reusable-workflow-calling jobs state their delegation, not "0 steps".
+# ---------------------------------------------------------------------------
+
+def test_reusable_workflow_calling_job_states_delegation():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "eslint_ci.yml"))
+    output = generate_text(pipeline)
+    assert (
+        "test_package_manager — delegates to reusable workflow "
+        "eslint/workflows/.github/workflows/ci-package-manager.yml@main"
+    ) in output
+    assert "test_package_manager — 0 steps" not in output

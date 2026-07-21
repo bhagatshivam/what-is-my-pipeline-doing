@@ -10,9 +10,34 @@ TRIGGERS
 
 JOBS (in order)
 1. build — runs on ${{ matrix.runs-on }}; 28 steps; matrix: 3 combinations (runs-on)
+   - Checkout
+   - Setup Node 24
+   - Install dependencies
+   - Compile
+   - Lint
+   - Format
+   - Test
+   - Create artifact files
+   - Upload artifact #1
+   - Upload artifact #2
+   - ... and 18 more steps
 2. upload-html-report — runs on ubuntu-latest; 6 steps
+   - Checkout
+   - Setup Node 24
+   - Install dependencies
+   - Compile
+   - Create HTML report
+   - Upload HTML report (no archive)
 3. merge — runs on ubuntu-latest; 7 steps; after build
+   - Checkout
+   - Merge all artifacts in run
+   - Download merged artifacts
+   - Check merged artifact has directories for each artifact
+   - Merge all Artifact-A
+   - Download merged artifacts
+   - Verify merged artifacts
 4. cleanup — runs on ubuntu-latest; 1 step; after build, merge
+   - Delete test artifacts
 ```
 
 ## Pipeline Diagram
