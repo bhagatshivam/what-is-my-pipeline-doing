@@ -20,7 +20,9 @@ import pytest
 from generators.mermaid_generator import generate_mermaid
 from generators.text_generator import generate_text
 from ir.schema import Pipeline
+from ir.validate import IRValidationError
 from parsers.github_actions import GitHubActionsParser
+import tool1.single_pipeline as single_pipeline_module
 from tool1.single_pipeline import check_pipeline, document_pipeline, generate_documentation
 
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -48,6 +50,12 @@ def _fixture_path(filename):
 def _load_ground_truth(filename):
     with open(_fixture_path(filename)) as f:
         return Pipeline.from_dict(json.load(f))
+
+
+def _write_workflow(tmp_path, content, filename="workflow.yml"):
+    path = tmp_path / filename
+    path.write_text(content, encoding="utf-8")
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +118,85 @@ def test_document_pipeline_overwrites_cleanly_with_no_duplication(tmp_path):
     assert first == second
     assert first_content == second_content
     assert list(output_dir.glob("*.md")) == [first]
+
+
+@pytest.mark.parametrize(
+    "workflow,expected_message",
+    [
+        (
+            "name: dangling\non: push\njobs:\n  test:\n    needs: missing\n    runs-on: ubuntu-latest\n    steps: []\n",
+            "depends on 'missing'",
+        ),
+        (
+            "name: cycle\non: push\njobs:\n  a:\n    needs: b\n    runs-on: ubuntu-latest\n"
+            "  b:\n    needs: a\n    runs-on: ubuntu-latest\n",
+            "Circular dependency detected",
+        ),
+        (
+            "name: malformed\non: push\njobs:\n  - build\n",
+            "Workflow 'jobs' must be a mapping",
+        ),
+        (
+            "name: malformed\non: push\njobs:\n  build: run-this\n",
+            "Job 'build' must be a mapping",
+        ),
+    ],
+)
+def test_validation_errors_block_generators_and_output(
+    tmp_path, monkeypatch, workflow, expected_message
+):
+    source = _write_workflow(tmp_path, workflow)
+    output_dir = tmp_path / "docs"
+
+    def fail_if_called(_pipeline):
+        pytest.fail("generator called before IR validation completed")
+
+    monkeypatch.setattr(single_pipeline_module, "generate_text", fail_if_called)
+    monkeypatch.setattr(single_pipeline_module, "generate_mermaid", fail_if_called)
+
+    with pytest.raises(IRValidationError, match=expected_message):
+        document_pipeline(str(source), output_dir=str(output_dir))
+
+    assert not output_dir.exists()
+
+
+def test_validation_failure_does_not_modify_existing_output(tmp_path):
+    source = _write_workflow(
+        tmp_path,
+        "name: dangling\non: push\njobs:\n  test:\n    needs: missing\n    runs-on: ubuntu-latest\n",
+    )
+    output_dir = tmp_path / "docs"
+    output_dir.mkdir()
+    existing = output_dir / "workflow.md"
+    existing.write_text("existing documentation\n", encoding="utf-8")
+
+    with pytest.raises(IRValidationError):
+        document_pipeline(str(source), output_dir=str(output_dir))
+
+    assert existing.read_text(encoding="utf-8") == "existing documentation\n"
+
+
+def test_validation_warnings_are_reported_but_do_not_block_generation(tmp_path, capsys):
+    source = _write_workflow(
+        tmp_path,
+        "name: warning-only\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: []\n",
+    )
+    output_dir = tmp_path / "docs"
+
+    written = document_pipeline(str(source), output_dir=str(output_dir))
+
+    assert written.exists()
+    assert "[WARNING] triggers: Pipeline has no triggers at all." in capsys.readouterr().err
+
+
+def test_check_validates_before_missing_document_result(tmp_path):
+    source = _write_workflow(
+        tmp_path,
+        "name: dangling\non: push\njobs:\n  test:\n    needs: missing\n    runs-on: ubuntu-latest\n",
+    )
+
+    with pytest.raises(IRValidationError):
+        check_pipeline(str(source), output_dir=str(tmp_path / "missing-docs"))
 
 
 # ---------------------------------------------------------------------------
@@ -238,3 +325,46 @@ def test_cli_tool1_parse_failure_exit_code(tmp_path):
     result = _run_cli(["tool1", "/nonexistent/path.yml"], cwd=str(tmp_path))
     assert result.returncode == 2
     assert result.stderr.strip() != ""
+
+
+@pytest.mark.parametrize(
+    "workflow",
+    [
+        "name: dangling\non: push\njobs:\n  test:\n    needs: missing\n    runs-on: ubuntu-latest\n",
+        "name: malformed\non: push\njobs:\n  - build\n",
+        "name: malformed\non: push\njobs:\n  build: run-this\n",
+    ],
+)
+def test_cli_tool1_invalid_ir_exit_code_and_no_output(tmp_path, workflow):
+    source = _write_workflow(tmp_path, workflow)
+
+    result = _run_cli(["tool1", str(source)], cwd=str(tmp_path))
+
+    assert result.returncode == 3
+    assert "IR validation failed:" in result.stderr
+    assert "Wrote" not in result.stdout
+    assert not (tmp_path / "docs").exists()
+
+
+def test_cli_tool1_warning_does_not_change_success_exit_code(tmp_path):
+    source = _write_workflow(
+        tmp_path,
+        "name: warning-only\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: []\n",
+    )
+
+    result = _run_cli(["tool1", str(source)], cwd=str(tmp_path))
+
+    assert result.returncode == 0
+    assert "[WARNING] triggers:" in result.stderr
+    assert (tmp_path / "docs" / "workflow.md").exists()
+
+
+@pytest.mark.parametrize("workflow", ["- not-a-mapping\n", "jobs: [unterminated\n"])
+def test_cli_tool1_top_level_or_yaml_parse_failure_stays_exit_code_2(tmp_path, workflow):
+    source = _write_workflow(tmp_path, workflow)
+
+    result = _run_cli(["tool1", str(source)], cwd=str(tmp_path))
+
+    assert result.returncode == 2
+    assert result.stderr.strip() != ""
+    assert not (tmp_path / "docs").exists()

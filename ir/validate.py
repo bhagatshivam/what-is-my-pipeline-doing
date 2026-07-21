@@ -40,6 +40,14 @@ class ValidationIssue:
         return f"[{self.severity.upper()}] {self.field}: {self.message}"
 
 
+class IRValidationError(ValueError):
+    """Raised when error-level findings make an IR unsafe to generate from."""
+
+    def __init__(self, issues: List[ValidationIssue]):
+        self.issues = issues
+        super().__init__("IR validation failed:\n" + "\n".join(str(issue) for issue in issues))
+
+
 def validate_pipeline(pipeline: Pipeline) -> List[ValidationIssue]:
     """
     Run every structural check against a Pipeline and return all issues found.
@@ -58,6 +66,7 @@ def validate_pipeline(pipeline: Pipeline) -> List[ValidationIssue]:
     issues += _check_secret_and_env_scopes(pipeline)
     issues += _check_triggers(pipeline)
     issues += _check_linked_workflows(pipeline)
+    issues += _check_malformed_workflow_structures(pipeline)
     issues += _check_non_empty_pipeline(pipeline)
 
     return issues
@@ -66,6 +75,15 @@ def validate_pipeline(pipeline: Pipeline) -> List[ValidationIssue]:
 def is_valid(pipeline: Pipeline) -> bool:
     """Convenience: True if there are no ERROR-level issues (warnings are fine)."""
     return not any(i.severity == "error" for i in validate_pipeline(pipeline))
+
+
+def validate_or_raise(pipeline: Pipeline) -> List[ValidationIssue]:
+    """Return warnings for a valid IR, or raise with all error-level findings."""
+    issues = validate_pipeline(pipeline)
+    errors = [issue for issue in issues if issue.severity == "error"]
+    if errors:
+        raise IRValidationError(errors)
+    return [issue for issue in issues if issue.severity == "warning"]
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +292,24 @@ def _check_linked_workflows(pipeline: Pipeline) -> List[ValidationIssue]:
             issues.append(ValidationIssue(
                 "warning", f"linked_workflows[{i}].relationship",
                 f"Relationship '{lw.relationship}' is not one of the expected values {allowed}."
+            ))
+    return issues
+
+
+def _check_malformed_workflow_structures(pipeline: Pipeline) -> List[ValidationIssue]:
+    issues = []
+    if "unrecognized_jobs" in pipeline.raw_extras:
+        issues.append(ValidationIssue(
+            "error", "jobs",
+            "Workflow 'jobs' must be a mapping of job names to job definitions; "
+            f"received {type(pipeline.raw_extras['unrecognized_jobs']).__name__}."
+        ))
+    for i, job in enumerate(pipeline.jobs):
+        if "unrecognized_job" in job.raw_extras:
+            issues.append(ValidationIssue(
+                "error", f"jobs[{i}]",
+                f"Job '{job.name}' must be a mapping; received "
+                f"{type(job.raw_extras['unrecognized_job']).__name__}."
             ))
     return issues
 

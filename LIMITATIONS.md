@@ -417,8 +417,8 @@ data: none of the 11 real `uses:`-jobs across all 10 fixtures has a
 
 `generators/text_generator.py`'s `generate_text()` is a purely mechanical,
 non-LLM transform over the IR — it never infers semantic meaning from job
-or step names/commands (that's Layer 4's job on top of these
-Python-verified facts, not this layer's). Verified against all 10 real
+or step names/commands (that's Layer 4's job on top of these deterministically
+extracted and structurally validated facts, not this layer's). Confirmed against all 10 real
 fixtures plus the 3 Phase 2 ground-truth fixtures by reading the actual
 generated output, not just checking it doesn't raise.
 
@@ -635,11 +635,14 @@ fence-content assertions.
   `check_pipeline()` have no platform-dispatch logic, matching every other
   module's current GitHub-Actions-only scope (Phase 9 is where multi-platform
   dispatch would be added, not here).
-- **Parse/generation failures surface as a single one-line `stderr`
-  message via `cli.py`'s `except Exception`**, not a typed error hierarchy
-  — deliberately minimal per this slice's scope; a missing file, a YAML
-  syntax error, and a validation failure are all reported the same
-  generic way for now.
+- **Tool 1 validates the parsed IR before either generator runs.** Error-level
+  findings raise a typed `IRValidationError`, prevent generation, and leave any
+  existing output untouched; warning-level findings are printed distinctly to
+  `stderr` and do not block generation. CLI exit codes are `0` for success,
+  `1` for a failed `--check` drift comparison, `2` for parse/input/operational
+  failures, and `3` for structurally invalid IR. Parseable non-mapping `jobs:`
+  values and individual non-mapping job bodies are preserved in `raw_extras`
+  before being rejected, rather than discarded or rendered plausibly.
 
 ## Consciously unmodeled concepts — verified preservation status
 
