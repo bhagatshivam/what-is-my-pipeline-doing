@@ -819,17 +819,30 @@ in real data (neither a mapping nor a string).
 Phase 4.5 Item 5 (Round 1, 2026-07-22) built the fact-manifest scorer and
 error-injection set that ground the project's zero-recruitment evaluation
 strategy (see `EVALUATION_PLAN.md`'s Tier 3 Method 7 cross-reference).
-Current scope and limits, honestly stated:
+Round 2 (2026-07-22) selected the actual held-out set and ran the scorers
+against it. Current scope and limits, honestly stated:
 
-- **Zero real held-out workflows exist yet.** Round 1 built and proved the
-  scorer (`evaluation/fact_scoring.py`, `evaluation/coverage_check.py`,
-  `evaluation/diagram_diff.py`) against 2 manifests hand-derived from
-  existing development fixtures (`evaluation/scorer_self_test_manifests/rust_ci.manifest.yml`,
-  `pandas_unit_tests.manifest.yml`) — these are explicitly scorer
-  self-tests, not the held-out evaluation set, and are never counted
-  toward it. `BUILD_PLAN.md`'s own target (3-4 held-out workflows, expand
-  to 6 if time permits) is unmet until Round 2 selects real repos outside
-  `tests/fixtures/` and authors their manifests.
+- **Held-out set: 6 real workflows, scored, real results.** Round 1 proved
+  the scorer mechanism (`evaluation/fact_scoring.py`,
+  `evaluation/coverage_check.py`, `evaluation/diagram_diff.py`) against 2
+  manifests hand-derived from existing development fixtures
+  (`evaluation/scorer_self_test_manifests/rust_ci.manifest.yml`,
+  `pandas_unit_tests.manifest.yml`) — self-tests only, never counted
+  toward the held-out set. Round 2 fetched 6 real workflows outside
+  `tests/fixtures/` into `evaluation/held_out_workflows/` (`psf/requests`,
+  `httpie/cli`, `encode/httpx`, `urllib3/urllib3`, `celery/celery`,
+  `scipy/scipy`; provenance and licenses in `SOURCES.md`), hand-authored
+  80 facts across their manifests without ever consulting the parser's
+  own output, committed the manifests before scoring, then ran all three
+  scorers. Results: **E1 80/80 correct, 0 missing, 0 incorrect** — no
+  parser/IR extraction defect found anywhere in the held-out set. **E2 77/80
+  correct, 3 missing, 0 unsupported_claim** — see the environment-variable
+  bullet below; this is the one real gap the held-out run surfaced, and it
+  was already known, not new. **E3 6/6 workflows exact node/edge match** —
+  the graph-diff mechanism held up on real dependency graphs up to 12
+  jobs/11 edges (`scipy`) and on a graph with 2 reusable-workflow-calling
+  jobs (`celery`). `BUILD_PLAN.md`'s target (3-4 held-out workflows, expand
+  to 6 if time permits) is met in full at 6.
 - **E2's LLM-output half is not yet buildable.** `evaluation/coverage_check.py`
   only scores the deterministic text-generator output today; `EVALUATION_PLAN.md`
   Method 9's full 3-condition scoring (plain text / LLM-polished /
@@ -854,10 +867,15 @@ Current scope and limits, honestly stated:
   legitimate-looking job/secret pairing. Documented and tested
   (`evaluation/error_injection/job_key_grammar_violation.yml`), not fixed —
   out of scope for Item 5.
-- **Known limitation, already documented, now independently confirmed: no
-  environment-variable output section.** E2's coverage check
-  (`evaluation/coverage_check.py`) independently reconfirms this file's
-  existing "Text generator" note that `Pipeline.environment_variables` has
-  no dedicated section in generated text (see lines 491-494) — every
-  `environment_variable` manifest fact scores `missing` in the generated
-  text, by design of the current generator, not a scorer defect.
+- **Known limitation, already documented, now independently confirmed twice
+  (Round 1 self-tests and Round 2 held-out): no environment-variable output
+  section.** E2's coverage check (`evaluation/coverage_check.py`)
+  independently reconfirms this file's existing "Text generator" note that
+  `Pipeline.environment_variables` has no dedicated section in generated
+  text (see lines 491-494) — every `environment_variable` manifest fact
+  scores `missing` in the generated text, by design of the current
+  generator, not a scorer defect. Round 2's held-out set adds 3 more
+  real-world confirming instances beyond Round 1's dev fixtures:
+  `urllib3_ci.env_var.1` (`FORCE_COLOR`) and `scipy_linux.env_var.1`/`.2`
+  (`CCACHE_MAXSIZE`, `CCACHE_COMPILERCHECK`) all score `missing` in E2 for
+  the same documented reason.
