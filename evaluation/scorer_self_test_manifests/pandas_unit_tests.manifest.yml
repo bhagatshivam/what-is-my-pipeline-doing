@@ -1,0 +1,167 @@
+# Scorer self-test manifest -- NOT part of the held-out evaluation set.
+# See rust_ci.manifest.yml for the full purpose/discipline note.
+#
+# Facts below were derived by reading tests/fixtures/pandas_unit_tests.yml's
+# raw YAML by hand -- GitHubActionsParser/generate_text/generate_mermaid
+# were never run before writing this file.
+purpose: scorer_self_test
+workflow_id: pandas_unit_tests
+source_repo: pandas-dev/pandas
+source_path: .github/workflows/unit-tests.yml
+local_file: ../../tests/fixtures/pandas_unit_tests.yml
+
+facts:
+  - fact_id: pandas_unit_tests.trigger.1
+    category: trigger
+    description: "Runs on push to main or 3.0.x"
+    expected:
+      type: push
+      branches: [main, 3.0.x]
+
+  - fact_id: pandas_unit_tests.trigger.2
+    category: trigger
+    description: "Runs on pull request targeting main or 3.0.x, excluding doc/** and web/**"
+    expected:
+      type: pull_request
+      branches: [main, 3.0.x]
+      paths_ignore: ["doc/**", "web/**"]
+
+  # Manifest-completeness rule (E3 accuracy): every job in this workflow
+  # needs a `job` fact -- all 8 are listed below, none skipped, even though
+  # E1 doesn't need all 8 to prove the parser extracts jobs correctly.
+  - fact_id: pandas_unit_tests.job.1
+    category: job
+    description: "Job 'ubuntu' exists, runner is a dynamic ${{ matrix.platform }} expression"
+    expected:
+      name: ubuntu
+      runner: "${{ matrix.platform }}"
+
+  - fact_id: pandas_unit_tests.job.2
+    category: job
+    description: "Job 'macos-windows' exists, runner is a dynamic ${{ matrix.os }} expression"
+    expected:
+      name: macos-windows
+      runner: "${{ matrix.os }}"
+
+  - fact_id: pandas_unit_tests.job.3
+    category: job
+    description: "Job 'Linux-32-bit' exists, runs on ubuntu-24.04"
+    expected:
+      name: Linux-32-bit
+      runner: ubuntu-24.04
+
+  - fact_id: pandas_unit_tests.job.4
+    category: job
+    description: "Job 'Linux-Musl' exists, runs on ubuntu-24.04"
+    expected:
+      name: Linux-Musl
+      runner: ubuntu-24.04
+
+  - fact_id: pandas_unit_tests.job.5
+    category: job
+    description: "Job 'Windows-MinGW' exists, runs on windows-2025"
+    expected:
+      name: Windows-MinGW
+      runner: windows-2025
+
+  - fact_id: pandas_unit_tests.job.6
+    category: job
+    description: "Job 'Linux-Sanitizers' exists, runs on ubuntu-24.04"
+    expected:
+      name: Linux-Sanitizers
+      runner: ubuntu-24.04
+
+  - fact_id: pandas_unit_tests.job.7
+    category: job
+    description: "Job 'python-dev' exists, runner is a dynamic ${{ matrix.os }} expression"
+    expected:
+      name: python-dev
+      runner: "${{ matrix.os }}"
+
+  - fact_id: pandas_unit_tests.job.8
+    category: job
+    description: "Job 'emscripten' exists, runs on ubuntu-24.04"
+    expected:
+      name: emscripten
+      runner: ubuntu-24.04
+
+  # No `dependency` facts: no job in this workflow uses `needs:` -- all 8
+  # jobs are independent, so an empty dependency-fact set here is itself
+  # the correct, complete manifest per the completeness rule (there are no
+  # real edges to omit).
+
+  - fact_id: pandas_unit_tests.step.1
+    category: step
+    description: "Job 'ubuntu' has a step named 'Checkout'"
+    expected:
+      job: ubuntu
+      step_name: "Checkout"
+
+  - fact_id: pandas_unit_tests.condition.1
+    category: condition
+    description: "Job 'python-dev' is gated on a literal false condition (frozen job)"
+    expected:
+      job: python-dev
+      expression_substring: "false"
+
+  - fact_id: pandas_unit_tests.matrix.1
+    category: matrix
+    description: "Job 'ubuntu' has a matrix with 5 axes, including a 10-entry 'include' list"
+    expected:
+      job: ubuntu
+      axis: platform
+      value_count: 2
+
+  - fact_id: pandas_unit_tests.matrix.2
+    category: matrix
+    description: "Job 'macos-windows' has a matrix with axis 'os' (3 values) and 'environment' (4 values)"
+    expected:
+      job: macos-windows
+      axis: os
+      value_count: 3
+
+  - fact_id: pandas_unit_tests.secret.1
+    category: secret
+    description: "Secret CODECOV_TOKEN required, used in job 'ubuntu', step 'Upload test coverage to Codecov'"
+    expected:
+      name: CODECOV_TOKEN
+      scope: step
+      scope_job: ubuntu
+      scope_step: "Upload test coverage to Codecov"
+
+  - fact_id: pandas_unit_tests.env_var.1
+    category: environment_variable
+    description: "Job 'python-dev' has a literal env var PYTEST_TARGET=pandas"
+    expected:
+      name: PYTEST_TARGET
+      value: pandas
+      scope: job
+      scope_job: python-dev
+
+  - fact_id: pandas_unit_tests.permissions.1
+    category: permissions
+    description: "Workflow-level permissions is an explicit empty mapping (no permissions granted)"
+    expected:
+      scope: workflow
+      value: {}
+
+  - fact_id: pandas_unit_tests.permissions.2
+    category: permissions
+    description: "Job 'ubuntu' has job-level permissions: contents: read"
+    expected:
+      scope: job
+      job: ubuntu
+      value: {contents: read}
+
+  - fact_id: pandas_unit_tests.concurrency.1
+    category: concurrency
+    description: "Job 'ubuntu' has job-level concurrency that cancels in-progress runs"
+    expected:
+      scope: job
+      job: ubuntu
+      has_cancel_in_progress: true
+
+  # No `deployment_environment` facts: no job in this workflow has a
+  # deployment `environment:` key (its matrix axis literally named
+  # "environment" is a different, unrelated concept -- confirmed by reading
+  # the raw YAML structure, not just text-matching "environment").

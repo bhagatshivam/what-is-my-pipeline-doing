@@ -1,0 +1,4 @@
+name: non-mapping job body
+on: push
+jobs:
+  build: run-this

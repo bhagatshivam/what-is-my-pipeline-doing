@@ -1,0 +1,4 @@
+name: non-mapping jobs
+on: push
+jobs:
+  - build

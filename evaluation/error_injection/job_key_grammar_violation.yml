@@ -1,0 +1,7 @@
+name: job key grammar violation
+on: push
+jobs:
+  "build.test":
+    runs-on: ubuntu-latest
+    env:
+      FOO: ${{ secrets.BAR }}

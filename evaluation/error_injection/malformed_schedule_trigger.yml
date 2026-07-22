@@ -1,0 +1,7 @@
+name: malformed schedule trigger
+on:
+  schedule:
+    - not_cron: "0 0 * * *"
+jobs:
+  test:
+    runs-on: ubuntu-latest
