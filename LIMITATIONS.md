@@ -642,7 +642,14 @@ fence-content assertions.
   `1` for a failed `--check` drift comparison, `2` for parse/input/operational
   failures, and `3` for structurally invalid IR. Parseable non-mapping `jobs:`
   values and individual non-mapping job bodies are preserved in `raw_extras`
-  before being rejected, rather than discarded or rendered plausibly.
+  before being rejected, rather than discarded or rendered plausibly. An
+  empty or comment-only YAML file (which parses to a `None` root) is also
+  rejected via that same non-mapping-root check, but as a `ValueError` at
+  exit code 2 (parse/input failure) rather than exit code 3 (invalid IR),
+  since there's no IR to validate in the first place — this was an
+  unintentional side effect of the non-mapping-root check added in
+  `a7ecac9`, not a separately designed feature, and is now given explicit
+  test coverage.
 
 ## Consciously unmodeled concepts — verified preservation status
 
