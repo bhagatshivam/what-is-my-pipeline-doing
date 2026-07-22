@@ -173,7 +173,7 @@ Takes the structured text output from Layer 3 and converts it into natural, read
 - Uses Ollama running locally on the user's machine
 - Nothing leaves the user's system
 - Suitable for companies with private repositories
-- Slightly less polished output but factually accurate (Python verified the facts)
+- Slightly less polished output but factually accurate (facts were deterministically extracted and structurally validated by Python, not model-generated)
 - Models: Llama 3.1 8B or Mistral 7B
 
 **Mode 2 — Gemini API (enhanced, optional)**
@@ -196,7 +196,7 @@ This is an important distinction. If the tool just sent raw YAML to an LLM and a
 4. Would not work across multiple files together
 5. Company's private pipeline details sent to external API with no choice
 
-This tool's value is in the Python extraction layer — systematic, reliable, consistent, private by default. The LLM only handles natural language beautification from already-verified structured data. That is a fundamentally different and more valuable product.
+This tool's value is in the Python extraction layer — systematic, reliable, consistent, private by default. The LLM only handles natural language beautification from deterministically extracted and structurally validated data. That is a fundamentally different and more valuable product.
 
 ---
 
@@ -255,11 +255,11 @@ The GLITCH framework (Ferreira et al.) built a platform-agnostic security smell 
 
 ## Research Question
 
-**Can CI/CD pipeline documentation be generated automatically with sufficient accuracy and readability to be trustworthy, by constraining a large language model to rewrite only facts extracted and verified by a deterministic parsing layer — and how can such a tool be rigorously evaluated without a large-scale recruited human study?**
+**Can CI/CD pipeline documentation be generated automatically with sufficient accuracy and readability to be trustworthy, by constraining a large language model to rewrite only facts deterministically extracted and structurally validated by a parsing layer — and how can such a tool be rigorously evaluated without a large-scale recruited human study?**
 
 **Motivation (why):** CI pipeline YAML is machine-optimized, not human-optimized, and documentation for it is rarely written and never stays current. Bajpai & Lewis (2022) tie this directly to security risk — developers who can't reason about what their own pipelines do can't reason about what those pipelines are exposed to. LLMs are an obvious candidate for closing this gap, but naively summarizing raw YAML risks confidently-wrong output, which is worse than no documentation for a security-adjacent artifact.
 
-**The artifact (what):** A layered, platform-agnostic tool — parser → intermediate representation → generators → constrained LLM rewriting layer — built first for GitHub Actions, producing both single-pipeline documentation (Tool 1) and unified multi-pipeline documentation across a repository (Tool 2), with the LLM never given access to raw YAML, only already-verified structured facts.
+**The artifact (what):** A layered, platform-agnostic tool — parser → intermediate representation → generators → constrained LLM rewriting layer — built first for GitHub Actions, producing both single-pipeline documentation (Tool 1) and unified multi-pipeline documentation across a repository (Tool 2), with the LLM never given access to raw YAML, only deterministically extracted and structurally validated facts.
 
 **The method (how):** Hu et al. (2022) establish that human judgment outperforms automated text-quality metrics for this kind of evaluation, which creates a real tension with recruitment being off the table for this project. The methodology resolves that tension by confining self-conducted human judgment to objectively checkable claims (pre-registered fact checklists, binary answerability audits) rather than subjective quality ratings, backed by deterministic regression testing (golden files) and stress testing (error injection) for the claims that don't need a human at all.
 
