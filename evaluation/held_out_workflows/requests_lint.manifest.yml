@@ -1,0 +1,54 @@
+# Held-out evaluation manifest -- authored by reading requests_lint.yml's
+# raw YAML directly. GitHubActionsParser/generate_text/generate_mermaid
+# were never run before writing this file.
+purpose: held_out_evaluation
+workflow_id: requests_lint
+source_repo: psf/requests
+source_path: .github/workflows/lint.yml
+source_commit: 4c800e9aea2059660b8306b0fc8f9e9a4232cb3e
+date_pulled: 2026-07-22
+local_file: requests_lint.yml
+
+facts:
+  - fact_id: requests_lint.trigger.1
+    category: trigger
+    description: "Runs on every push (bare `on: [push, pull_request]` form, no branch filter)"
+    expected:
+      type: push
+
+  - fact_id: requests_lint.trigger.2
+    category: trigger
+    description: "Runs on every pull request (bare `on: [push, pull_request]` form, no branch filter)"
+    expected:
+      type: pull_request
+
+  - fact_id: requests_lint.job.1
+    category: job
+    description: "Job 'lint' exists, runs on ubuntu-24.04"
+    expected:
+      name: lint
+      runner: ubuntu-24.04
+
+  # No `dependency` facts: only 1 job, no needs: anywhere -- correct per
+  # the E3 completeness rule (no real edges exist to omit).
+
+  - fact_id: requests_lint.step.1
+    category: step
+    description: "Job 'lint' has a step named 'Set up Python'"
+    expected:
+      job: lint
+      step_name: "Set up Python"
+
+  - fact_id: requests_lint.step.2
+    category: step
+    description: "Job 'lint' has a step named 'Run pre-commit'"
+    expected:
+      job: lint
+      step_name: "Run pre-commit"
+
+  - fact_id: requests_lint.permissions.1
+    category: permissions
+    description: "Workflow-level permissions: contents: read"
+    expected:
+      scope: workflow
+      value: {contents: read}

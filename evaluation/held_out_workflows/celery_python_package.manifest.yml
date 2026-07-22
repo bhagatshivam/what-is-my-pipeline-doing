@@ -1,0 +1,167 @@
+# Held-out evaluation manifest -- authored by reading
+# celery_python_package.yml's raw YAML directly. GitHubActionsParser/
+# generate_text/generate_mermaid were never run before writing this file.
+#
+# CORRECTION applied per review: job/dependency enumeration was verified
+# programmatically via `yaml.safe_load` reading `job.get("needs")` directly
+# for every job, not by eye -- a visual skim of this file initially
+# undercounted `Integration-tests`/`Smoke-tests`'s dependencies as just
+# `Unit`, missing that both jobs actually declare
+# `needs: [Unit, Discover-test-modules]` (2 each, 4 total). All 4 real
+# edges are captured below per the E3 completeness rule.
+purpose: held_out_evaluation
+workflow_id: celery_python_package
+source_repo: celery/celery
+source_path: .github/workflows/python-package.yml
+source_commit: e1c419a0cc4b9b3ace211eb5ed1e11b493470cf2
+date_pulled: 2026-07-22
+local_file: celery_python_package.yml
+
+facts:
+  - fact_id: celery_python_package.trigger.1
+    category: trigger
+    description: "Runs on push to main, path-filtered to source/config/workflow files"
+    expected:
+      type: push
+      branches: [main]
+
+  - fact_id: celery_python_package.trigger.2
+    category: trigger
+    description: "Runs on pull request targeting main, path-filtered"
+    expected:
+      type: pull_request
+      branches: [main]
+
+  - fact_id: celery_python_package.trigger.3
+    category: trigger
+    description: "Can be triggered manually via workflow_dispatch"
+    expected:
+      type: manual
+
+  # Manifest-completeness rule (E3 accuracy): all 4 jobs actually present,
+  # all listed below, none skipped.
+  - fact_id: celery_python_package.job.1
+    category: job
+    description: "Job 'Unit' exists, runner is a dynamic ${{ matrix.os }} expression"
+    expected:
+      name: Unit
+      runner: "${{ matrix.os }}"
+
+  - fact_id: celery_python_package.job.2
+    category: job
+    description: "Job 'Discover-test-modules' exists, runs on blacksmith-4vcpu-ubuntu-2404"
+    expected:
+      name: Discover-test-modules
+      runner: blacksmith-4vcpu-ubuntu-2404
+
+  - fact_id: celery_python_package.job.3
+    category: job
+    description: "Job 'Integration-tests' exists (a reusable-workflow-calling job, no runs-on of its own)"
+    expected:
+      name: Integration-tests
+      runner: null
+
+  - fact_id: celery_python_package.job.4
+    category: job
+    description: "Job 'Smoke-tests' exists (a reusable-workflow-calling job, no runs-on of its own)"
+    expected:
+      name: Smoke-tests
+      runner: null
+
+  # All 4 real dependency edges (corrected -- see header note above),
+  # programmatically confirmed via yaml.safe_load:
+  - fact_id: celery_python_package.dependency.1
+    category: dependency
+    description: "'Integration-tests' runs after 'Unit'"
+    expected:
+      job: Integration-tests
+      depends_on: Unit
+
+  - fact_id: celery_python_package.dependency.2
+    category: dependency
+    description: "'Integration-tests' runs after 'Discover-test-modules'"
+    expected:
+      job: Integration-tests
+      depends_on: Discover-test-modules
+
+  - fact_id: celery_python_package.dependency.3
+    category: dependency
+    description: "'Smoke-tests' runs after 'Unit'"
+    expected:
+      job: Smoke-tests
+      depends_on: Unit
+
+  - fact_id: celery_python_package.dependency.4
+    category: dependency
+    description: "'Smoke-tests' runs after 'Discover-test-modules'"
+    expected:
+      job: Smoke-tests
+      depends_on: Discover-test-modules
+
+  - fact_id: celery_python_package.step.1
+    category: step
+    description: "Job 'Unit' has a step named 'Upload test results to Codecov' (step index 6, 0-based)"
+    expected:
+      job: Unit
+      step_name: "Upload test results to Codecov"
+
+  - fact_id: celery_python_package.step.2
+    category: step
+    description: "Job 'Discover-test-modules' has a step named 'Discover test module paths'"
+    expected:
+      job: Discover-test-modules
+      step_name: "Discover test module paths"
+
+  - fact_id: celery_python_package.condition.1
+    category: condition
+    description: "Job 'Integration-tests' is gated on Unit's result being success"
+    expected:
+      job: Integration-tests
+      expression_substring: "needs.Unit.result == 'success'"
+
+  - fact_id: celery_python_package.condition.2
+    category: condition
+    description: "Job 'Smoke-tests' is gated on Unit's result being success"
+    expected:
+      job: Smoke-tests
+      expression_substring: "needs.Unit.result == 'success'"
+
+  - fact_id: celery_python_package.matrix.1
+    category: matrix
+    description: "Job 'Unit' has a matrix: python-version (6 values) x os (2 values), with 6 exclude entries pruning Windows combos"
+    expected:
+      job: Unit
+      axis: python-version
+      value_count: 6
+
+  - fact_id: celery_python_package.secret.1
+    category: secret
+    description: "Secret CODECOV_TOKEN required, used in job 'Unit', step 'Upload test results to Codecov' (in a with: block, not env:)"
+    expected:
+      name: CODECOV_TOKEN
+      scope: step
+      scope_job: Unit
+      scope_step: "Upload test results to Codecov"
+
+  - fact_id: celery_python_package.linked_workflow.1
+    category: linked_workflow
+    description: "'Integration-tests' calls the reusable workflow ./.github/workflows/integration-tests.yml"
+    expected:
+      target: ./.github/workflows/integration-tests.yml
+      relationship: calls
+
+  - fact_id: celery_python_package.linked_workflow.2
+    category: linked_workflow
+    description: "'Smoke-tests' calls the reusable workflow ./.github/workflows/smoke-tests.yml"
+    expected:
+      target: ./.github/workflows/smoke-tests.yml
+      relationship: calls
+
+  - fact_id: celery_python_package.permissions.1
+    category: permissions
+    description: "Workflow-level permissions: contents: read"
+    expected:
+      scope: workflow
+      value: {contents: read}
+
+  # No concurrency block, no deployment_environment anywhere in this file.
