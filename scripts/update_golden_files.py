@@ -22,8 +22,8 @@ GOLDEN_DIR = os.path.join(REPO_ROOT, "tests", "golden")
 
 sys.path.insert(0, REPO_ROOT)
 
-from parsers.github_actions import GitHubActionsParser
-from tool1.single_pipeline import generate_documentation
+from parsers.github_actions import GitHubActionsParser  # noqa: E402
+from tool1.single_pipeline import generate_documentation  # noqa: E402
 
 REAL_FIXTURE_FILES = [
     "checkout_check_dist.yml",
