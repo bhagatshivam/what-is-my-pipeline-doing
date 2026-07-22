@@ -1,0 +1,7 @@
+name: dangling dependency
+on: push
+jobs:
+  test:
+    needs: missing-job
+    runs-on: ubuntu-latest
+    steps: []

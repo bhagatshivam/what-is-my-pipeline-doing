@@ -1,0 +1,7 @@
+name: unrecognized trigger type
+on: totally_made_up_event
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
