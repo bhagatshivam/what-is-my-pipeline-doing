@@ -1,0 +1,219 @@
+# Held-out evaluation manifest -- authored by reading scipy_linux.yml's raw
+# YAML directly. GitHubActionsParser/generate_text/generate_mermaid were
+# never run before writing this file. Job/dependency enumeration was
+# verified programmatically via `yaml.safe_load` reading `job.get("needs")`
+# for every one of the 12 jobs, not by eye, per the corrected process.
+purpose: held_out_evaluation
+workflow_id: scipy_linux
+source_repo: scipy/scipy
+source_path: .github/workflows/linux.yml
+source_commit: 932080fcf6768e32724edba1afa1887cfe6b64f3
+date_pulled: 2026-07-22
+local_file: scipy_linux.yml
+
+facts:
+  - fact_id: scipy_linux.trigger.1
+    category: trigger
+    description: "Runs on push to main or maintenance/** branches"
+    expected:
+      type: push
+      branches: [main, "maintenance/**"]
+
+  - fact_id: scipy_linux.trigger.2
+    category: trigger
+    description: "Runs on pull request targeting main or maintenance/** branches"
+    expected:
+      type: pull_request
+      branches: [main, "maintenance/**"]
+
+  # Manifest-completeness rule (E3 accuracy): all 12 jobs actually present
+  # in this workflow, all listed below, none skipped -- programmatically
+  # enumerated via yaml.safe_load(data["jobs"]).keys().
+  - fact_id: scipy_linux.job.1
+    category: job
+    description: "Job 'get_commit_message' exists (a reusable-workflow-calling job, no runs-on of its own)"
+    expected:
+      name: get_commit_message
+      runner: null
+
+  - fact_id: scipy_linux.job.2
+    category: job
+    description: "Job 'test_meson' exists, runs on ubuntu-22.04"
+    expected:
+      name: test_meson
+      runner: ubuntu-22.04
+
+  - fact_id: scipy_linux.job.3
+    category: job
+    description: "Job 'test_venv_install' exists, runs on ubuntu-24.04"
+    expected:
+      name: test_venv_install
+      runner: ubuntu-24.04
+
+  - fact_id: scipy_linux.job.4
+    category: job
+    description: "Job 'python_debug' exists"
+    expected:
+      name: python_debug
+
+  - fact_id: scipy_linux.job.5
+    category: job
+    description: "Job 'gcc10' exists"
+    expected:
+      name: gcc10
+
+  - fact_id: scipy_linux.job.6
+    category: job
+    description: "Job 'prerelease_deps_coverage_64bit_blas' exists"
+    expected:
+      name: prerelease_deps_coverage_64bit_blas
+
+  - fact_id: scipy_linux.job.7
+    category: job
+    description: "Job 'linux_32bit' exists"
+    expected:
+      name: linux_32bit
+
+  - fact_id: scipy_linux.job.8
+    category: job
+    description: "Job 'distro_multiple_pythons' exists"
+    expected:
+      name: distro_multiple_pythons
+
+  - fact_id: scipy_linux.job.9
+    category: job
+    description: "Job 'meson_global_install' exists"
+    expected:
+      name: meson_global_install
+
+  - fact_id: scipy_linux.job.10
+    category: job
+    description: "Job 'free-threaded' exists"
+    expected:
+      name: free-threaded
+
+  - fact_id: scipy_linux.job.11
+    category: job
+    description: "Job 'clang-22-build-only' exists"
+    expected:
+      name: clang-22-build-only
+
+  - fact_id: scipy_linux.job.12
+    category: job
+    description: "Job 'test_aarch64' exists"
+    expected:
+      name: test_aarch64
+
+  # All 11 real dependency edges (every job except get_commit_message
+  # itself needs get_commit_message) -- programmatically confirmed via
+  # yaml.safe_load, per the E3 completeness rule.
+  - fact_id: scipy_linux.dependency.1
+    category: dependency
+    expected: {job: test_meson, depends_on: get_commit_message}
+  - fact_id: scipy_linux.dependency.2
+    category: dependency
+    expected: {job: test_venv_install, depends_on: get_commit_message}
+  - fact_id: scipy_linux.dependency.3
+    category: dependency
+    expected: {job: python_debug, depends_on: get_commit_message}
+  - fact_id: scipy_linux.dependency.4
+    category: dependency
+    expected: {job: gcc10, depends_on: get_commit_message}
+  - fact_id: scipy_linux.dependency.5
+    category: dependency
+    expected: {job: prerelease_deps_coverage_64bit_blas, depends_on: get_commit_message}
+  - fact_id: scipy_linux.dependency.6
+    category: dependency
+    expected: {job: linux_32bit, depends_on: get_commit_message}
+  - fact_id: scipy_linux.dependency.7
+    category: dependency
+    expected: {job: distro_multiple_pythons, depends_on: get_commit_message}
+  - fact_id: scipy_linux.dependency.8
+    category: dependency
+    expected: {job: meson_global_install, depends_on: get_commit_message}
+  - fact_id: scipy_linux.dependency.9
+    category: dependency
+    expected: {job: free-threaded, depends_on: get_commit_message}
+  - fact_id: scipy_linux.dependency.10
+    category: dependency
+    expected: {job: clang-22-build-only, depends_on: get_commit_message}
+  - fact_id: scipy_linux.dependency.11
+    category: dependency
+    expected: {job: test_aarch64, depends_on: get_commit_message}
+
+  - fact_id: scipy_linux.step.1
+    category: step
+    description: "Job 'test_meson' has a step named 'Setup Python'"
+    expected:
+      job: test_meson
+      step_name: "Setup Python"
+
+  - fact_id: scipy_linux.step.2
+    category: step
+    description: "Job 'test_venv_install' has a step named 'Create venv, install SciPy'"
+    expected:
+      job: test_venv_install
+      step_name: "Create venv, install SciPy"
+
+  - fact_id: scipy_linux.condition.1
+    category: condition
+    description: "Job 'test_meson' is gated on get_commit_message's output being 1, and the repo being scipy/scipy or empty"
+    expected:
+      job: test_meson
+      expression_substring: "needs.get_commit_message.outputs.message == 1"
+
+  - fact_id: scipy_linux.matrix.1
+    category: matrix
+    description: "Job 'test_meson' has a matrix: python-version (2 values) x maintenance-branch (1 value), with 1 exclude entry"
+    expected:
+      job: test_meson
+      axis: python-version
+      value_count: 2
+
+  - fact_id: scipy_linux.matrix.2
+    category: matrix
+    description: "Job 'free-threaded' has a single-axis matrix: parallel with 2 values"
+    expected:
+      job: free-threaded
+      axis: parallel
+      value_count: 2
+
+  - fact_id: scipy_linux.linked_workflow.1
+    category: linked_workflow
+    description: "'get_commit_message' calls the reusable workflow ./.github/workflows/commit_message.yml"
+    expected:
+      target: ./.github/workflows/commit_message.yml
+      relationship: calls
+
+  - fact_id: scipy_linux.permissions.1
+    category: permissions
+    description: "Workflow-level permissions: contents: read"
+    expected:
+      scope: workflow
+      value: {contents: read}
+
+  - fact_id: scipy_linux.concurrency.1
+    category: concurrency
+    description: "Workflow-level concurrency cancels in-progress runs"
+    expected:
+      scope: workflow
+      has_cancel_in_progress: true
+
+  - fact_id: scipy_linux.env_var.1
+    category: environment_variable
+    description: "Pipeline-level literal env var CCACHE_MAXSIZE=250M"
+    expected:
+      name: CCACHE_MAXSIZE
+      value: "250M"
+      scope: pipeline
+
+  - fact_id: scipy_linux.env_var.2
+    category: environment_variable
+    description: "Pipeline-level literal env var CCACHE_COMPILERCHECK=content"
+    expected:
+      name: CCACHE_COMPILERCHECK
+      value: content
+      scope: pipeline
+
+  # No secrets: no secrets. reference anywhere in this file (confirmed via
+  # text scan). No deployment_environment anywhere.

@@ -1,0 +1,37 @@
+# Held-out evaluation manifest -- authored by reading httpie_code_style.yml's
+# raw YAML directly. GitHubActionsParser/generate_text/generate_mermaid
+# were never run before writing this file.
+purpose: held_out_evaluation
+workflow_id: httpie_code_style
+source_repo: httpie/cli
+source_path: .github/workflows/code-style.yml
+source_commit: c995fd9b24840657387f2f4bfb33a2efde85afcc
+date_pulled: 2026-07-22
+local_file: httpie_code_style.yml
+
+facts:
+  - fact_id: httpie_code_style.trigger.1
+    category: trigger
+    description: "Runs only on pull request, path-filtered to workflow/source/test files (no push trigger at all)"
+    expected:
+      type: pull_request
+      paths: [".github/workflows/code-style.yml", "extras/*.py", "httpie/**/*.py", "setup.py", "tests/**/*.py"]
+
+  - fact_id: httpie_code_style.job.1
+    category: job
+    description: "Job 'code-style' exists, runs on ubuntu-latest"
+    expected:
+      name: code-style
+      runner: ubuntu-latest
+
+  # No `dependency` facts: only 1 job, no needs: anywhere.
+  #
+  # No `step` facts: every step in this file is a bare `uses:`/`run:` entry
+  # with no explicit `name:` key -- deliberately not guessing at the
+  # parser's step-name fallback behavior for unnamed steps (that would be
+  # exactly the kind of parser-derived expectation this process exists to
+  # avoid). This workflow simply doesn't exercise a cleanly-predictable
+  # `step` fact, which is an honest fact about this file, not a manifest
+  # gap to force.
+  #
+  # No permissions/concurrency: neither block present in this file at all.
