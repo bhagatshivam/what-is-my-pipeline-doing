@@ -1,0 +1,60 @@
+# Pre-registered expected outcomes for evaluation/error_injection/*.yml --
+# written BEFORE running run_checks.py, based on reading ir/validate.py's
+# and parsers/github_actions.py's actual code, not retrofitted after seeing
+# what actually happened. Mirrors EVALUATION_PLAN.md line 82's "commit
+# timestamp is the evidence it was pre-registered" discipline.
+#
+# outcome: one of accepts_correctly / rejects_correctly / warns_explicitly /
+# silently_misrepresents. exit_code: expected CLI exit code (0/1/2/3).
+
+dangling_dependency.yml:
+  outcome: rejects_correctly
+  exit_code: 3
+  reason: "_check_job_dependencies_exist -- needs: references a job that doesn't exist"
+
+dependency_cycle.yml:
+  outcome: rejects_correctly
+  exit_code: 3
+  reason: "_check_no_circular_dependencies -- a needs b, b needs a"
+
+non_mapping_jobs.yml:
+  outcome: rejects_correctly
+  exit_code: 3
+  reason: "_check_malformed_workflow_structures -- jobs: is a list, not a mapping"
+
+non_mapping_job_body.yml:
+  outcome: rejects_correctly
+  exit_code: 3
+  reason: "_check_malformed_workflow_structures -- job 'build' body is a bare string, not a mapping"
+
+malformed_schedule_trigger.yml:
+  outcome: rejects_correctly
+  exit_code: 3
+  reason: "_check_triggers -- schedule list entry missing cron: yields Trigger(schedule=None)"
+
+malformed_workflow_run_trigger.yml:
+  outcome: rejects_correctly
+  exit_code: 3
+  reason: "_check_triggers -- workflow_run missing workflows: yields Trigger(source_workflow=None)"
+
+job_key_grammar_violation.yml:
+  outcome: rejects_correctly
+  exit_code: 3
+  reason: >
+    _check_secret_and_env_scopes -- job key "build.test" contains a literal
+    '.', so a step/job-scoped secret's scope_ref.split(".")[0] ("build")
+    doesn't match the real job name ("build.test"). This is a genuine
+    latent gap in parsers/github_actions.py (it doesn't validate GH
+    Actions' real job-id grammar, [A-Za-z_][A-Za-z0-9_-]*), discovered
+    during this item's design review -- documented and tested here, not
+    fixed (out of scope for this item, per confirmed decision).
+
+unrecognized_trigger_type.yml:
+  outcome: accepts_correctly
+  exit_code: 0
+  reason: >
+    TriggerType.OTHER handles any unrecognized `on:` value gracefully --
+    rendered as "Runs on trigger: <raw>" in text_generator.py, not rejected
+    or fabricated. No _check_triggers rule applies to OTHER beyond the
+    general "raw not empty" warning, which doesn't fire here since raw is
+    non-empty.

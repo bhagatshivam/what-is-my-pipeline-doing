@@ -1,0 +1,7 @@
+name: malformed workflow_run trigger
+on:
+  workflow_run:
+    types: [completed]
+jobs:
+  test:
+    runs-on: ubuntu-latest

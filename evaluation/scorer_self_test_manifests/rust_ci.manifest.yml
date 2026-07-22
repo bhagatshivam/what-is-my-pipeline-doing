@@ -1,0 +1,164 @@
+# Scorer self-test manifest -- NOT part of the held-out evaluation set.
+#
+# Purpose: prove evaluation/fact_scoring.py, coverage_check.py, and
+# diagram_diff.py work correctly, using a workflow this project already has
+# on hand. This is a software-testing concern (does the scorer code itself
+# work?), distinct from the held-out evaluation set's purpose (external,
+# non-circular ground truth for scoring the TOOL). Never counted toward the
+# 5-6 held-out workflows in evaluation/held_out_workflows/.
+#
+# Facts below were derived by reading tests/fixtures/rust_ci.yml's raw YAML
+# by hand -- GitHubActionsParser/generate_text/generate_mermaid were never
+# run before writing this file.
+purpose: scorer_self_test
+workflow_id: rust_ci
+source_repo: rust-lang/rust
+source_path: .github/workflows/ci.yml
+local_file: ../../tests/fixtures/rust_ci.yml
+
+facts:
+  - fact_id: rust_ci.trigger.1
+    category: trigger
+    description: "Runs on push to automation/bors/auto, automation/bors/try, or try-perf"
+    expected:
+      type: push
+      branches: [automation/bors/auto, automation/bors/try, try-perf]
+
+  - fact_id: rust_ci.trigger.2
+    category: trigger
+    description: "Runs on pull request targeting any branch (**)"
+    expected:
+      type: pull_request
+      branches: ["**"]
+
+  - fact_id: rust_ci.job.1
+    category: job
+    description: "Job 'calculate_matrix' exists, runs on ubuntu-24.04-arm"
+    expected:
+      name: calculate_matrix
+      runner: ubuntu-24.04-arm
+
+  - fact_id: rust_ci.job.2
+    category: job
+    description: "Job 'job' exists, runner is a dynamic ${{ matrix.os }} expression"
+    expected:
+      name: job
+      runner: "${{ matrix.os }}"
+
+  - fact_id: rust_ci.job.3
+    category: job
+    description: "Job 'outcome' exists, runs on ubuntu-24.04"
+    expected:
+      name: outcome
+      runner: ubuntu-24.04
+
+  - fact_id: rust_ci.dependency.1
+    category: dependency
+    description: "'job' runs after 'calculate_matrix'"
+    expected:
+      job: job
+      depends_on: calculate_matrix
+
+  - fact_id: rust_ci.dependency.2
+    category: dependency
+    description: "'outcome' runs after 'calculate_matrix'"
+    expected:
+      job: outcome
+      depends_on: calculate_matrix
+
+  - fact_id: rust_ci.dependency.3
+    category: dependency
+    description: "'outcome' runs after 'job'"
+    expected:
+      job: outcome
+      depends_on: job
+
+  - fact_id: rust_ci.step.1
+    category: step
+    description: "Job 'calculate_matrix' has a step named 'Checkout the source code'"
+    expected:
+      job: calculate_matrix
+      step_name: "Checkout the source code"
+
+  - fact_id: rust_ci.condition.1
+    category: condition
+    description: "Job 'outcome' is gated on calculate_matrix's run_type output being 'auto'"
+    expected:
+      job: outcome
+      expression_substring: "needs.calculate_matrix.outputs.run_type == 'auto'"
+
+  - fact_id: rust_ci.matrix.1
+    category: matrix
+    description: "Job 'job' has a matrix whose combinations are computed at runtime (dynamic include, no static axes)"
+    expected:
+      job: job
+      axes: []
+
+  - fact_id: rust_ci.secret.1
+    category: secret
+    description: "Secret TOOLSTATE_REPO_ACCESS_TOKEN required at pipeline scope"
+    expected:
+      name: TOOLSTATE_REPO_ACCESS_TOKEN
+      scope: pipeline
+
+  - fact_id: rust_ci.secret.2
+    category: secret
+    description: "Secret GITHUB_TOKEN required, used in job 'job'"
+    expected:
+      name: GITHUB_TOKEN
+      scope: job
+      scope_job: job
+
+  - fact_id: rust_ci.secret.3
+    category: secret
+    description: "Secret DATADOG_API_KEY required, used in job 'job', step 'upload job metrics to DataDog'"
+    expected:
+      name: DATADOG_API_KEY
+      scope: step
+      scope_job: job
+      scope_step: "upload job metrics to DataDog"
+
+  - fact_id: rust_ci.env_var.1
+    category: environment_variable
+    description: "Pipeline-level env var TOOLSTATE_REPO with a literal URL value"
+    expected:
+      name: TOOLSTATE_REPO
+      value: "https://github.com/rust-lang-nursery/rust-toolstate"
+      scope: pipeline
+
+  - fact_id: rust_ci.env_var.2
+    category: environment_variable
+    description: "Job 'job' has a literal env var CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse"
+    expected:
+      name: CARGO_REGISTRIES_CRATES_IO_PROTOCOL
+      value: sparse
+      scope: job
+      scope_job: job
+
+  - fact_id: rust_ci.permissions.1
+    category: permissions
+    description: "Workflow-level permissions: contents: read, packages: write"
+    expected:
+      scope: workflow
+      value: {contents: read, packages: write}
+
+  - fact_id: rust_ci.concurrency.1
+    category: concurrency
+    description: "Workflow-level concurrency cancels in-progress runs"
+    expected:
+      scope: workflow
+      has_cancel_in_progress: true
+
+  - fact_id: rust_ci.deployment_environment.1
+    category: deployment_environment
+    description: "Job 'job' has a deployment environment set (dynamic bors expression)"
+    expected:
+      job: job
+      is_set: true
+
+  - fact_id: rust_ci.deployment_environment.2
+    category: deployment_environment
+    description: "Job 'outcome' has a deployment environment set (dynamic bors expression)"
+    expected:
+      job: outcome
+      is_set: true

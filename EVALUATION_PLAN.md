@@ -58,6 +58,8 @@ Deliberately break test pipelines — a dangling dependency, a malformed `if` co
 ### 7. Correctness check (already in original plan)
 Trigger real pipelines on 4-5 real repos, compare GitHub's actual job/status output against what the tool documented. Validates the parsing + IR layer specifically.
 
+A related but distinct check, closer to this method's spirit than the golden-file testing in Tier 1: the held-out fact-manifest scoring built for `BUILD_PLAN.md`'s Phase 4.5 Item 5 — hand-authored, never-parser-derived ground truth for a small set of held-out workflows, scored against the actual parsed IR and generated output. The manifest schema, held-out workflow count, and scorer implementation are specified in `BUILD_PLAN.md`'s Phase 4.5 Item 5 and `evaluation/held_out_workflows/`/`evaluation/fact_scoring.py`, not repeated here.
+
 ### 8. Natural-pairs comparison (upgrade to "vs. human-written docs")
 Instead of asking recruited people to write fresh documentation for the study, find repos that **already have** human-written pipeline documentation — READMEs, CONTRIBUTING.md, wiki pages describing the CI setup — and compare the tool's output against those directly.
 

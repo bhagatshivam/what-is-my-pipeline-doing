@@ -1,0 +1,9 @@
+name: dependency cycle
+on: push
+jobs:
+  a:
+    needs: b
+    runs-on: ubuntu-latest
+  b:
+    needs: a
+    runs-on: ubuntu-latest
