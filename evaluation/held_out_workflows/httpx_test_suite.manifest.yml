@@ -1,0 +1,58 @@
+# Held-out evaluation manifest -- authored by reading httpx_test_suite.yml's
+# raw YAML directly. GitHubActionsParser/generate_text/generate_mermaid
+# were never run before writing this file.
+purpose: held_out_evaluation
+workflow_id: httpx_test_suite
+source_repo: encode/httpx
+source_path: .github/workflows/test-suite.yml
+source_commit: 435e1dac899adeb0c156c00721ecbb1124d75842
+date_pulled: 2026-07-22
+local_file: httpx_test_suite.yml
+
+facts:
+  - fact_id: httpx_test_suite.trigger.1
+    category: trigger
+    description: "Runs on push to master"
+    expected:
+      type: push
+      branches: [master]
+
+  - fact_id: httpx_test_suite.trigger.2
+    category: trigger
+    description: "Runs on pull request targeting master or version-* branches"
+    expected:
+      type: pull_request
+      branches: [master, "version-*"]
+
+  - fact_id: httpx_test_suite.job.1
+    category: job
+    description: "Job 'tests' exists, runs on ubuntu-latest"
+    expected:
+      name: tests
+      runner: ubuntu-latest
+
+  # No `dependency` facts: only 1 job, no needs: anywhere.
+
+  - fact_id: httpx_test_suite.step.1
+    category: step
+    description: "Job 'tests' has a step named 'Install dependencies'"
+    expected:
+      job: tests
+      step_name: "Install dependencies"
+
+  - fact_id: httpx_test_suite.step.2
+    category: step
+    description: "Job 'tests' has a step named 'Run tests'"
+    expected:
+      job: tests
+      step_name: "Run tests"
+
+  - fact_id: httpx_test_suite.matrix.1
+    category: matrix
+    description: "Job 'tests' has a single-axis matrix: python-version with 5 values"
+    expected:
+      job: tests
+      axis: python-version
+      value_count: 5
+
+  # No permissions/concurrency/secrets/conditions: none present in this file.

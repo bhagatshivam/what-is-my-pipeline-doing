@@ -1,0 +1,105 @@
+# Held-out evaluation manifest -- authored by reading urllib3_ci.yml's raw
+# YAML directly. GitHubActionsParser/generate_text/generate_mermaid were
+# never run before writing this file. Job/dependency enumeration was cross-
+# checked with `yaml.safe_load` (job.get("needs")) to avoid undercounting
+# by eye, per the corrected process.
+purpose: held_out_evaluation
+workflow_id: urllib3_ci
+source_repo: urllib3/urllib3
+source_path: .github/workflows/ci.yml
+source_commit: 24954df928e412065e76cbe5eaf4d6a2e8f413fb
+date_pulled: 2026-07-22
+local_file: urllib3_ci.yml
+
+facts:
+  - fact_id: urllib3_ci.trigger.1
+    category: trigger
+    description: "Runs on every push (bare `on: [push, pull_request, workflow_dispatch]` form, no branch filter)"
+    expected:
+      type: push
+
+  - fact_id: urllib3_ci.trigger.2
+    category: trigger
+    description: "Runs on every pull request (same bare on: list form)"
+    expected:
+      type: pull_request
+
+  # Manifest-completeness rule (E3 accuracy): all 3 jobs actually present
+  # in this workflow, all listed below, none skipped.
+  - fact_id: urllib3_ci.job.1
+    category: job
+    description: "Job 'package' exists, runs on ubuntu-latest"
+    expected:
+      name: package
+      runner: ubuntu-latest
+
+  - fact_id: urllib3_ci.job.2
+    category: job
+    description: "Job 'test' exists, runner is a dynamic ${{ matrix.os }} expression"
+    expected:
+      name: test
+      runner: "${{ matrix.os }}"
+
+  - fact_id: urllib3_ci.job.3
+    category: job
+    description: "Job 'coverage' exists, runs on ubuntu-24.04"
+    expected:
+      name: coverage
+      runner: ubuntu-24.04
+
+  # Programmatically confirmed via yaml.safe_load(job.get("needs")): the
+  # ONLY dependency edge in this file is coverage -> test. 'package' and
+  # 'test' have no needs: at all.
+  - fact_id: urllib3_ci.dependency.1
+    category: dependency
+    description: "'coverage' runs after 'test'"
+    expected:
+      job: coverage
+      depends_on: test
+
+  - fact_id: urllib3_ci.step.1
+    category: step
+    description: "Job 'package' has a step named 'Check packages'"
+    expected:
+      job: package
+      step_name: "Check packages"
+
+  - fact_id: urllib3_ci.condition.1
+    category: condition
+    description: "Job 'coverage' is gated on always() (runs even if 'test' failed, to still report coverage)"
+    expected:
+      job: coverage
+      expression_substring: "always()"
+
+  - fact_id: urllib3_ci.matrix.1
+    category: matrix
+    description: "Job 'test' has a multi-axis matrix: python-version (7 values) x os (3 values), plus include entries"
+    expected:
+      job: test
+      axis: python-version
+      value_count: 7
+
+  - fact_id: urllib3_ci.permissions.1
+    category: permissions
+    description: "Workflow-level permissions: contents: read"
+    expected:
+      scope: workflow
+      value: {contents: read}
+
+  - fact_id: urllib3_ci.env_var.1
+    category: environment_variable
+    description: >
+      Pipeline-level literal env var FORCE_COLOR -- written as the YAML
+      integer `1` in the raw file (`env: {FORCE_COLOR: 1}`), but expected
+      as the string "1" here: GH Actions env vars are always strings at
+      the point they reach a real process environment, and the IR's
+      EnvironmentVariable.value field is typed str for exactly that reason
+      -- this is a GH Actions semantics judgment call, not a parser-derived
+      expectation.
+    expected:
+      name: FORCE_COLOR
+      value: "1"
+      scope: pipeline
+
+  # No secrets: no secrets. reference anywhere in this file (confirmed via
+  # text scan). No concurrency block. No deployment_environment anywhere.
