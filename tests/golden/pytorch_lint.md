@@ -3,6 +3,8 @@
 ```text
 Pipeline: Lint
 Source: tests/fixtures/pytorch_lint.yml (GitHub Actions)
+Permissions: read-all
+Concurrency: group ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' && github.run_id }}; cancels in-progress runs
 
 TRIGGERS
 - Runs on every pull request except branch nightly

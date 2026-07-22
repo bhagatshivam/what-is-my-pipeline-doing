@@ -39,11 +39,16 @@ Contract:
   of `Step.name` (capped, with an overflow indicator on long jobs — see
   `_step_lines`). No other step-level detail is projected into this
   format (per-step conditions/env/with_args stay out of scope).
+- `permissions`/`concurrency`/`deployment_environment` are read directly
+  (not via raw_extras) as of 2026-07-22 — these are now dedicated typed IR
+  fields, not an opening of the raw_extras exception above. See
+  BUILD_PLAN.md's 2026-07-22 changelog entry for the promotion this
+  followed.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from generators.common import _condition_phrase, _matrix_summary, _topological_job_order
 from ir.schema import (
@@ -165,6 +170,21 @@ def _step_lines(job: Job) -> List[str]:
     return lines
 
 
+def _permissions_phrase(value: Union[Dict[str, str], str]) -> str:
+    if isinstance(value, str):
+        return value
+    if not value:
+        return "none (all permissions explicitly disabled)"
+    return ", ".join(f"{k}: {v}" for k, v in value.items())
+
+
+def _concurrency_phrase(value: Dict[str, Any]) -> str:
+    phrase = f"group {value.get('group', '?')}"
+    if value.get("cancel-in-progress"):
+        phrase += "; cancels in-progress runs"
+    return phrase
+
+
 def _job_line_body(job: Job) -> str:
     clauses: List[str] = []
 
@@ -201,6 +221,15 @@ def _job_line_body(job: Job) -> str:
 
     if job.allow_failure:
         clauses.append("allowed to fail")
+
+    if job.permissions is not None:
+        clauses.append(f"permissions: {_permissions_phrase(job.permissions)}")
+
+    if job.concurrency is not None:
+        clauses.append(f"concurrency: {_concurrency_phrase(job.concurrency)}")
+
+    if job.deployment_environment is not None:
+        clauses.append(f"deployment environment: {job.deployment_environment}")
 
     return "; ".join(clauses)
 
@@ -249,6 +278,12 @@ def generate_text(pipeline: Pipeline) -> str:
         f"Pipeline: {pipeline.name}",
         f"Source: {pipeline.source_file} ({_platform_display_name(pipeline.source_platform)})",
     ]
+
+    if pipeline.permissions is not None:
+        lines.append(f"Permissions: {_permissions_phrase(pipeline.permissions)}")
+
+    if pipeline.concurrency is not None:
+        lines.append(f"Concurrency: {_concurrency_phrase(pipeline.concurrency)}")
 
     if pipeline.triggers:
         lines.append("")

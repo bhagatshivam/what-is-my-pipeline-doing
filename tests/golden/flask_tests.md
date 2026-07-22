@@ -3,6 +3,8 @@
 ```text
 Pipeline: Tests
 Source: tests/fixtures/flask_tests.yml (GitHub Actions)
+Permissions: none (all permissions explicitly disabled)
+Concurrency: group ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}; cancels in-progress runs
 
 TRIGGERS
 - Runs on every pull request excluding paths docs/** or README.md
