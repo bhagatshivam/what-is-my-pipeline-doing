@@ -725,6 +725,12 @@ same as surfaced — this data still isn't rendered anywhere in
 output, which remains a separate, later decision (do trigger
 permissions/token-scope facts belong in the human-readable summary, and
 if so how) — but the raw fact is no longer lost at the parser layer.
+**Further resolved (2026-07-22):** promoted to typed
+`Pipeline.permissions`/`Job.permissions` fields and now surfaced in
+`generators/text_generator.py`'s output (a pipeline-level header line and
+a per-job clause) — no longer merely preserved but rendered in Tool 1's
+documentation. `raw_extras` retains a fallback only for a shape not seen
+in real data (neither a mapping nor a string).
 
 - **`Job.outputs`** (a job's `outputs:` block — the producing side of the
   `needs.<job>.outputs.*` pattern already noted above as unparsed on the
@@ -745,7 +751,13 @@ if so how) — but the raw fact is no longer lost at the parser layer.
   `concurrency` key. **Resolved (2026-07-15):** now preserved verbatim at
   both levels (`Pipeline.raw_extras["concurrency"]` /
   `Job.raw_extras["concurrency"]`), tested against `flask_tests.yml`
-  (workflow-level) and `pandas_unit_tests.yml` (job-level).
+  (workflow-level) and `pandas_unit_tests.yml` (job-level). **Further
+  resolved (2026-07-22):** promoted to typed `Pipeline.concurrency`/
+  `Job.concurrency` fields (always a mapping in real data) and now
+  surfaced the same way. `raw_extras` fallback retained only for a
+  non-mapping shape (e.g. GH Actions' bare-string `concurrency:
+  group-name` shorthand — valid syntax, but unseen in any of the 10 real
+  fixtures, so left untyped rather than guessed at).
 - **Deployment `environment:`** (the GH protection-rules kind on a job,
   e.g. `environment: production` — a different concept from this
   schema's `Job.environment`, which maps GH Actions' `env:` key to
@@ -768,7 +780,14 @@ if so how) — but the raw fact is no longer lost at the parser layer.
   `rust_ci.yml` jobs, including an explicit assertion that `job`'s real
   `Job.environment` env vars (`CI_JOB_NAME` etc.) and its
   `deployment_environment` raw_extras entry are both present and neither
-  clobbers the other.
+  clobbers the other. **Further resolved (2026-07-22):** promoted to a
+  typed `Job.deployment_environment: Optional[str]` field for the
+  string/dynamic-expression form (the only form seen in real data, both
+  `rust_ci.yml` occurrences) and now surfaced as a per-job clause. The
+  extended `{name, url}` mapping form of `environment:` — valid GH Actions
+  syntax, not exercised by any fixture — still falls back to
+  `raw_extras["deployment_environment"]`, since collapsing it to a single
+  string would mean arbitrarily picking `name` over `url`.
 - **`defaults:`** (workflow-level and job-level, e.g. `defaults: {run:
   {shell: bash}}`). Workflow-level is real in 2 of 10 fixtures
   (`pandas_unit_tests.yml`, `rust_ci.yml`, both a `run.shell` default).
