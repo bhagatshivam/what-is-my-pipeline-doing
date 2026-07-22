@@ -25,7 +25,8 @@ Contract:
   This generator does not infer semantic meaning from job/step names either
   (e.g. it will not claim a job "checks code style" just because it's named
   "lint") — that kind of natural-language elaboration is Layer 4's job
-  (LLM rewriting of already Python-verified facts), not this layer's.
+  (LLM rewriting of facts this layer already deterministically extracted
+  and structurally validated), not this layer's.
 - Jobs are listed in dependency (topological) order, not YAML declaration
   order, via Kahn's algorithm with declaration-order tie-breaking. See
   `_topological_job_order` below for the cycle-fallback behaviour.

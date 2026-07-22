@@ -1,6 +1,29 @@
 # CI Pipeline Documentation Tool
 
-> **Status: temporary README.** This is a placeholder description written before the build starts — it will be rewritten once Tool 1 and Tool 2 actually exist, with real usage examples, setup instructions, and sample output. Treat this as a project pitch, not user documentation.
+## Current status
+
+Tool 1 (single-pipeline documentation) is implemented end-to-end for GitHub Actions: YAML → parser → intermediate representation → structural validation → Markdown + Mermaid generation, with no LLM in the loop yet. Tool 2 (multi-pipeline) and the LLM rewriting layer described later in this document are architecture, not yet built — see "Not yet implemented" below.
+
+### Using Tool 1
+
+    python cli.py tool1 path/to/workflow.yml
+
+Parses the workflow, validates the resulting intermediate representation, and writes `docs/<workflow-name>.md` (Markdown text plus a Mermaid diagram). Add `--check` to compare freshly generated output against the committed doc instead of writing it, without touching the file — useful in CI to catch documentation drift:
+
+    python cli.py tool1 path/to/workflow.yml --check
+
+Exit codes:
+- `0` — success, or `--check` found no drift
+- `1` — `--check` found the committed doc has drifted from the source YAML
+- `2` — parse/input/operational failure (bad path, unparseable or empty YAML, etc.)
+- `3` — the YAML parsed, but the resulting IR is structurally invalid (e.g. a job depends on a job that doesn't exist) — nothing is written
+
+### Not yet implemented
+
+- The LLM rewriting layer (Phase 5) — today's output is the deterministic text/Mermaid generators' output directly, not LLM-rewritten prose.
+- Tool 2 / multi-pipeline documentation (Phase 6).
+
+See `LIMITATIONS.md` for the full list of known gaps and unmodeled GitHub Actions concepts.
 
 ## What is my CI pipeline doing?
 
@@ -26,7 +49,7 @@ Bajpai & Lewis (2022) make the case that this isn't just an inconvenience — un
 
 Pipeline YAML is machine-optimized, not human-optimized. Nobody sits down and writes prose documentation for their `.github/workflows/` folder, and even if they do, it goes stale the moment the YAML changes. This project investigates whether that documentation can instead be *generated automatically and kept honest*, by extracting facts systematically from the config itself rather than relying on a human to write (and maintain) a separate description by hand.
 
-The architecture is deliberately built so the LLM never sees raw YAML — a Python layer extracts and verifies the facts first (triggers, jobs, dependencies, secrets), and the LLM's only job is turning already-verified structured facts into readable prose and diagrams. This keeps the tool's output grounded in what the pipeline actually specifies, rather than an LLM's best guess at interpreting YAML directly.
+The architecture is deliberately built so the LLM never sees raw YAML — a Python layer deterministically extracts and structurally validates the facts first (triggers, jobs, dependencies, secrets), and the LLM's only job is turning those already-extracted, validated facts into readable prose and diagrams. This keeps the tool's output grounded in what the pipeline actually specifies, rather than an LLM's best guess at interpreting YAML directly.
 
 ## How this differs from what already exists
 

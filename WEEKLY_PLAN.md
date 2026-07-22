@@ -10,6 +10,8 @@
 
 This plan sits alongside `PROJECT_PLAN.md` (the architecture reference). This document is the *schedule* — it doesn't repeat design decisions, it maps them onto weeks.
 
+> **Staleness note (22 July 2026):** This week-by-week schedule predates two decisions: the actual 10 August 2026 software/evaluation freeze (see `BUILD_PLAN.md`'s Phase 4.5 entries) and `EVALUATION_PLAN.md`'s pivot to a zero-recruitment, self-conducted evaluation strategy. This edit only removes the now-contradicted evaluator-recruitment tasks below; the rest of the week-by-week mapping has not been re-sequenced against the real freeze date and needs a fuller pass later.
+
 ---
 
 ## Ground rules
@@ -17,7 +19,6 @@ This plan sits alongside `PROJECT_PLAN.md` (the architecture reference). This do
 - Every week ends with a short update to Suzanne: what was completed, what's blocked, what's planned next, and any decision that needs her input.
 - Every week is split into **Must-complete / Should-complete / Explicit out-of-scope**, matching the pattern already used for supervision prep.
 - Literature review and the open-source documentation survey (deliverables 1 and 2) are **not** parked until report-writing — they're threaded through the build weeks so they don't become a 15-day panic in August.
-- Human evaluation requires other people's time (evaluators). This has a lead time, so recruitment starts in Week 5, not Week 6.
 
 ---
 
@@ -104,17 +105,13 @@ This plan sits alongside `PROJECT_PLAN.md` (the architecture reference). This do
 **Must-complete**
 - Tool 2: multi-pipeline documentation — reads a folder of workflow files, produces a unified doc + unified Mermaid diagram
 - Handles cross-pipeline relationships (which pipelines fire on which events, how they relate)
-- **Start recruiting human evaluators now** — this has lead time. Identify 5-10 people (fellow students, developers) willing to rate documentation samples in Week 6
 
 **Should-complete**
-- Draft the evaluation rubric (accuracy, clarity, completeness, usefulness — as already planned) so it's ready to send to evaluators
 - Pick the 5-10 real repositories that will be used for both evaluation methods
 
 **Explicit out-of-scope**
 - Any new features beyond Tool 1 + Tool 2
 - Report writing
-
-**To ask Suzanne:** Sign off on the evaluation rubric and the repo selection before you commit evaluator time to it.
 
 ---
 
@@ -122,7 +119,6 @@ This plan sits alongside `PROJECT_PLAN.md` (the architecture reference). This do
 
 **Must-complete**
 - **Method 1 (correctness check):** trigger real pipelines on the 5-10 selected repos, compare GitHub's actual job/status output against the tool's documentation
-- **Method 2 (human evaluation):** send materials to recruited evaluators, collect ratings against the rubric
 - Begin compiling evaluation results into tables/charts usable in the report
 
 **Should-complete**
@@ -139,8 +135,7 @@ This plan sits alongside `PROJECT_PLAN.md` (the architecture reference). This do
 ## Week 6.5 — 12 August to 14 August: Buffer + wrap-up
 
 **Must-complete**
-- Finish collecting all evaluator responses (chase stragglers)
-- Finalize evaluation analysis — numbers, any statistical summary, key quotes/observations from evaluators
+- Finalize evaluation analysis — numbers, any statistical summary, key findings
 - Freeze the codebase for reporting purposes (tag a release on GitHub)
 - Assemble a folder of report assets: architecture diagram, example outputs, evaluation charts
 
@@ -187,7 +182,6 @@ All five deliverables from the original project proposal are accounted for befor
 
 ## Risks worth flagging to Suzanne now
 
-- **Evaluator recruitment (Week 5-6)** is the piece most dependent on other people's availability — starting it a week early (Week 5) is a deliberate buffer against people being slow to respond.
 - **45 build days assumes close to full-time hours.** If a week slips, the buffer at the end (Aug 30 - Sep 3) is the safety net, not extra build time — protect it.
 - GitLab CI and local LLM (Ollama) remain explicitly out of scope for the build, staying as documented future work — this was already agreed and keeps the 45 days realistic.
 
