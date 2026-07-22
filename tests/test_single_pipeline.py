@@ -359,7 +359,7 @@ def test_cli_tool1_warning_does_not_change_success_exit_code(tmp_path):
     assert (tmp_path / "docs" / "workflow.md").exists()
 
 
-@pytest.mark.parametrize("workflow", ["- not-a-mapping\n", "jobs: [unterminated\n"])
+@pytest.mark.parametrize("workflow", ["- not-a-mapping\n", "jobs: [unterminated\n", ""])
 def test_cli_tool1_top_level_or_yaml_parse_failure_stays_exit_code_2(tmp_path, workflow):
     source = _write_workflow(tmp_path, workflow)
 
