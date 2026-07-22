@@ -3,6 +3,7 @@
 ```text
 Pipeline: CI
 Source: tests/fixtures/eslint_ci.yml (GitHub Actions)
+Permissions: contents: read
 
 TRIGGERS
 - Runs on every push to main branch

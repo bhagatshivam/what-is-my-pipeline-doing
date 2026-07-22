@@ -3,6 +3,8 @@
 ```text
 Pipeline: Test Linux
 Source: tests/fixtures/node_test_linux.yml (GitHub Actions)
+Permissions: contents: read
+Concurrency: group ${{ github.workflow }}-${{ github.head_ref || github.run_id }}; cancels in-progress runs
 
 TRIGGERS
 - Runs on every pull request excluding paths .mailmap or README.md or vcbuild.bat or tools/actions/** or tools/clang-format/** or tools/dep_updaters/** or test/internet/** or **.nix or .github/** or !.github/workflows/test-linux.yml

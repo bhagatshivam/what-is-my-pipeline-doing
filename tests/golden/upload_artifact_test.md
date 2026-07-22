@@ -3,6 +3,7 @@
 ```text
 Pipeline: Test
 Source: tests/fixtures/upload_artifact_test.yml (GitHub Actions)
+Permissions: contents: read, actions: write
 
 TRIGGERS
 - Runs on every push to main branch; excluding paths **.md
