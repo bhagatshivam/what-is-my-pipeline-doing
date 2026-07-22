@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - run: ruff check ir/ parsers/ tests/
+      - run: ruff check ir/ parsers/ tests/ generators/ tool1/ tool2/ llm/ evaluation/ cli.py scripts/
 
   test:
     runs-on: ubuntu-latest
