@@ -813,3 +813,51 @@ in real data (neither a mapping nor a string).
   but has no trigger-activity-filter usage at all — the hits were a job
   key named `test_types` and `npm run test:types:5.3`-style script names
   inside `run:` commands.
+
+## Evaluation foundations (Item 5)
+
+Phase 4.5 Item 5 (Round 1, 2026-07-22) built the fact-manifest scorer and
+error-injection set that ground the project's zero-recruitment evaluation
+strategy (see `EVALUATION_PLAN.md`'s Tier 3 Method 7 cross-reference).
+Current scope and limits, honestly stated:
+
+- **Zero real held-out workflows exist yet.** Round 1 built and proved the
+  scorer (`evaluation/fact_scoring.py`, `evaluation/coverage_check.py`,
+  `evaluation/diagram_diff.py`) against 2 manifests hand-derived from
+  existing development fixtures (`evaluation/scorer_self_test_manifests/rust_ci.manifest.yml`,
+  `pandas_unit_tests.manifest.yml`) — these are explicitly scorer
+  self-tests, not the held-out evaluation set, and are never counted
+  toward it. `BUILD_PLAN.md`'s own target (3-4 held-out workflows, expand
+  to 6 if time permits) is unmet until Round 2 selects real repos outside
+  `tests/fixtures/` and authors their manifests.
+- **E2's LLM-output half is not yet buildable.** `evaluation/coverage_check.py`
+  only scores the deterministic text-generator output today; `EVALUATION_PLAN.md`
+  Method 9's full 3-condition scoring (plain text / LLM-polished /
+  naive-raw-YAML baseline) waits for Phase 5 to exist. The reusable
+  manifest-driven plumbing is already in place (`score_llm_conditions`
+  raises `NotImplementedError` deliberately, not silently omitted).
+- **E1 scores the raw, pre-validation IR, deliberately** —
+  `evaluation/fact_scoring.py`'s `score_workflow()` runs before
+  `ir.validate.validate_or_raise()`, on purpose: E1 tests parser/extraction
+  fidelity against held-out workflows expected to be structurally valid;
+  E4 (`evaluation/error_injection/`) is the dedicated, separate check for
+  validation/rejection behavior on deliberately malformed input. Conflating
+  the two would just add a redundant no-op validation step to every
+  held-out workflow.
+- **Known limitation, surfaced not fixed: job keys aren't grammar-validated.**
+  The error-injection set's job-key-grammar-violation case confirmed that a
+  job key containing a literal `.` or an empty string isn't rejected by the
+  parser, even though this defeats the job-id-can't-contain-`.` guarantee
+  this file already documents under "Environment variables and secrets"
+  (see lines 185-191's `scope_ref` safety argument) — a job key violating
+  that assumption makes `_check_secret_and_env_scopes` misfire on a
+  legitimate-looking job/secret pairing. Documented and tested
+  (`evaluation/error_injection/job_key_grammar_violation.yml`), not fixed —
+  out of scope for Item 5.
+- **Known limitation, already documented, now independently confirmed: no
+  environment-variable output section.** E2's coverage check
+  (`evaluation/coverage_check.py`) independently reconfirms this file's
+  existing "Text generator" note that `Pipeline.environment_variables` has
+  no dedicated section in generated text (see lines 491-494) — every
+  `environment_variable` manifest fact scores `missing` in the generated
+  text, by design of the current generator, not a scorer defect.
