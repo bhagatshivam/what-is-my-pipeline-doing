@@ -10,9 +10,12 @@ trigger block (see `_parse_triggers`), `jobs:` name/runs-on (see
 `strategy.matrix` (see `_parse_matrix`), pipeline-wide secret references
 (see `_parse_secret_references`), reusable-workflow relationships
 (job-level `uses:` and `workflow_run` triggers, see
-`_parse_linked_workflows`), and workflow-/job-level `permissions:`/
-`concurrency:`/`defaults:`/`outputs:`/deployment `environment:` preserved
-verbatim in `Pipeline.raw_extras`/`Job.raw_extras` (see
+`_parse_linked_workflows`), workflow-/job-level `permissions:`/
+`concurrency:` and job-level deployment `environment:` as typed
+`Pipeline`/`Job` fields (see `_parse_permissions`/`_parse_concurrency`,
+with `Pipeline.raw_extras`/`Job.raw_extras` retained only as a fallback for
+shapes not seen in real data), and workflow-level `defaults:`/job-level
+`outputs:` still preserved verbatim in `raw_extras` only (see
 `_parse_pipeline_raw_extras` and the job-level block in `_parse_jobs`).
 See LIMITATIONS.md for what's known-unhandled so far.
 """
@@ -21,7 +24,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import yaml
 
@@ -618,6 +621,32 @@ def _parse_condition(if_value: Any) -> Optional[Condition]:
     return Condition(expression=expression, structured=structured)
 
 
+def _parse_permissions(value: Any) -> Tuple[Optional[Union[Dict[str, str], str]], bool]:
+    """
+    `permissions:` (workflow- or job-level) -> (typed_value, is_recognized).
+    Real GH Actions syntax is only ever a mapping or a bare string; anything
+    else is unrecognized and the caller should fall back to raw_extras
+    rather than guess.
+    """
+    if isinstance(value, (dict, str)):
+        return value, True
+    return None, False
+
+
+def _parse_concurrency(value: Any) -> Tuple[Optional[Dict[str, Any]], bool]:
+    """
+    `concurrency:` (workflow- or job-level) -> (typed_value, is_recognized).
+    Only the mapping form is typed here — GH Actions also allows a bare
+    `concurrency: group-name` shorthand string, but it's untested against
+    real data (no fixture uses it), so it falls back to raw_extras rather
+    than being guessed at, same convention as _parse_runner's unrecognized-
+    runner-shape handling.
+    """
+    if isinstance(value, dict):
+        return value, True
+    return None, False
+
+
 # ---------------------------------------------------------------------------
 # Matrix strategy parsing
 # ---------------------------------------------------------------------------
@@ -912,7 +941,9 @@ def _parse_runner(runs_on: Any) -> Optional[str]:
     return str(runs_on)
 
 
-def _parse_pipeline_raw_extras(data: Dict[str, Any]) -> Dict[str, Any]:
+def _parse_pipeline_raw_extras(
+    data: Dict[str, Any], permissions_recognized: bool, concurrency_recognized: bool
+) -> Dict[str, Any]:
     """
     `Pipeline.raw_extras` from workflow-level keys with no dedicated IR
     field, mirroring `_parse_jobs`'s per-job `raw_extras` pattern at
@@ -922,11 +953,17 @@ def _parse_pipeline_raw_extras(data: Dict[str, Any]) -> Dict[str, Any]:
     other top-level key (`on:`/`jobs:`/`env:`/`name:`) already has a
     dedicated `_parse_*` function elsewhere and must not be double-stored
     here.
+
+    `permissions`/`concurrency` are now typed `Pipeline` fields (see
+    `_parse_permissions`/`_parse_concurrency` and `parse()`) — they only
+    land here as a defensive fallback when the caller reports the parsed
+    shape wasn't recognized, so this function no longer duplicates them
+    for every fixture that uses the common, recognized shapes.
     """
     raw_extras: Dict[str, Any] = {}
-    if "permissions" in data:
+    if "permissions" in data and not permissions_recognized:
         raw_extras["permissions"] = data["permissions"]
-    if "concurrency" in data:
+    if "concurrency" in data and not concurrency_recognized:
         raw_extras["concurrency"] = data["concurrency"]
     if "defaults" in data:
         raw_extras["defaults"] = data["defaults"]
@@ -944,10 +981,12 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
     _parse_env_vars), each job's `continue-on-error:` (-> Job.allow_failure,
     see _parse_job_continue_on_error), each job's `if:` (-> Job.condition,
     see _parse_condition), each job's `strategy:` (-> Job.matrix, see
-    _parse_matrix), and a reusable-workflow-call job's `uses:`/`with:`/
+    _parse_matrix), a reusable-workflow-call job's `uses:`/`with:`/
     `secrets:` (preserved on that job's own raw_extras; see
     _parse_linked_workflows for the pipeline-level `Pipeline.linked_workflows`
-    entry this also produces).
+    entry this also produces), and each job's `permissions:`/`concurrency:`/
+    deployment `environment:` (-> Job.permissions/Job.concurrency/
+    Job.deployment_environment, see _parse_permissions/_parse_concurrency).
     """
     if not isinstance(jobs_block, dict):
         return []
@@ -974,21 +1013,43 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
             # pass doesn't touch it either; stored verbatim, unresolved.
             raw_extras["display_name"] = display_name
 
-        # `permissions:`/`outputs:`/`concurrency:` have no dedicated Job
-        # field — preserved verbatim rather than dropped, same
-        # presence-checked pattern as display_name above. `environment:`
-        # here is GH Actions' deployment-protection-rules concept, a
-        # different thing from Job.environment (env vars, from `env:`) —
-        # stored under a distinctly named key so the two can never be
-        # confused by anyone reading raw_extras later.
+        # `permissions:`/`concurrency:`/`environment:` are now typed Job
+        # fields (see _parse_permissions/_parse_concurrency and the
+        # Job(...) construction below) — raw_extras only gets a fallback
+        # entry when the parsed shape isn't one seen in real data.
+        # `outputs:` has no dedicated Job field — preserved verbatim rather
+        # than dropped, same presence-checked pattern as display_name
+        # above. `environment:` here is GH Actions' deployment-protection-
+        # rules concept, a different thing from Job.environment (env vars,
+        # from `env:`) — its raw_extras fallback key is distinctly named
+        # so the two can never be confused by anyone reading raw_extras
+        # later.
+        permissions = None
         if "permissions" in job_body:
-            raw_extras["permissions"] = job_body["permissions"]
+            permissions, recognized = _parse_permissions(job_body["permissions"])
+            if not recognized:
+                raw_extras["permissions"] = job_body["permissions"]
+
         if "outputs" in job_body:
             raw_extras["outputs"] = job_body["outputs"]
+
+        concurrency = None
         if "concurrency" in job_body:
-            raw_extras["concurrency"] = job_body["concurrency"]
+            concurrency, recognized = _parse_concurrency(job_body["concurrency"])
+            if not recognized:
+                raw_extras["concurrency"] = job_body["concurrency"]
+
+        deployment_environment = None
         if "environment" in job_body:
-            raw_extras["deployment_environment"] = job_body["environment"]
+            env_value = job_body["environment"]
+            if isinstance(env_value, str):
+                deployment_environment = env_value
+            else:
+                # Extended {name, url} mapping form — valid syntax, no
+                # fixture exercises it. Collapsing to one string would mean
+                # arbitrarily picking name over url; preserve verbatim
+                # instead of guessing.
+                raw_extras["deployment_environment"] = env_value
 
         allow_failure, coe_expr = _parse_job_continue_on_error(job_body.get("continue-on-error"))
         if coe_expr is not None:
@@ -1027,6 +1088,9 @@ def _parse_jobs(jobs_block: Any) -> List[Job]:
             environment={e.name: e.value if e.value is not None else "" for e in env_entries},
             steps=_parse_steps(job_body.get("steps")),
             matrix=matrix,
+            permissions=permissions,
+            concurrency=concurrency,
+            deployment_environment=deployment_environment,
             raw_extras=raw_extras,
         ))
     return jobs
@@ -1045,14 +1109,19 @@ class GitHubActionsParser(BaseParser):
     name/type/value/with_args/env/continue-on-error/if (see module
     docstring), pipeline-wide secret references, reusable-workflow
     relationships (job-level `uses:` and `workflow_run` triggers, see
-    _parse_linked_workflows), and workflow-/job-level `permissions:`/
-    `concurrency:`/`defaults:`/`outputs:`/deployment `environment:`
-    preserved verbatim in `raw_extras` (see _parse_pipeline_raw_extras).
-    `parse()` returns a Pipeline with accurate `triggers`, `jobs` (incl.
-    steps, dependencies, environment, allow_failure, condition, matrix),
-    `secrets`, `environment_variables`, `linked_workflows`, and
-    `raw_extras`. This completes every field BUILD_PLAN.md's Phase 3
-    originally scoped for this parser.
+    _parse_linked_workflows), workflow-/job-level `permissions:`/
+    `concurrency:` and job-level deployment `environment:` as typed
+    `Pipeline`/`Job` fields (`raw_extras` retained only as a fallback for
+    shapes not seen in real data — see `_parse_permissions`/
+    `_parse_concurrency`), and workflow-level `defaults:`/job-level
+    `outputs:` still preserved verbatim in `raw_extras` only (see
+    _parse_pipeline_raw_extras). `parse()` returns a Pipeline with accurate
+    `triggers`, `jobs` (incl. steps, dependencies, environment,
+    allow_failure, condition, matrix, permissions, concurrency,
+    deployment_environment), `secrets`, `environment_variables`,
+    `linked_workflows`, `permissions`, `concurrency`, and `raw_extras`.
+    This completes every field BUILD_PLAN.md's Phase 3 originally scoped
+    for this parser.
     """
 
     def parse(self, file_path: str) -> Pipeline:
@@ -1064,7 +1133,14 @@ class GitHubActionsParser(BaseParser):
         secrets = _parse_secret_references(data)
         environment_variables = _parse_pipeline_env_vars(data)
         linked_workflows = _parse_linked_workflows(data, triggers)
-        raw_extras = _parse_pipeline_raw_extras(data)
+
+        permissions, permissions_recognized = (
+            _parse_permissions(data["permissions"]) if "permissions" in data else (None, True)
+        )
+        concurrency, concurrency_recognized = (
+            _parse_concurrency(data["concurrency"]) if "concurrency" in data else (None, True)
+        )
+        raw_extras = _parse_pipeline_raw_extras(data, permissions_recognized, concurrency_recognized)
 
         return Pipeline(
             name=name,
@@ -1075,5 +1151,7 @@ class GitHubActionsParser(BaseParser):
             secrets=secrets,
             environment_variables=environment_variables,
             linked_workflows=linked_workflows,
+            permissions=permissions,
+            concurrency=concurrency,
             raw_extras=raw_extras,
         )

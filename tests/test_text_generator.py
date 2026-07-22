@@ -14,7 +14,12 @@ import os
 
 import pytest
 
-from generators.text_generator import _topological_job_order, generate_text
+from generators.text_generator import (
+    _concurrency_phrase,
+    _permissions_phrase,
+    _topological_job_order,
+    generate_text,
+)
 from ir.schema import Job, Pipeline
 from parsers.github_actions import GitHubActionsParser
 
@@ -242,3 +247,82 @@ def test_reusable_workflow_calling_job_states_delegation():
         "eslint/workflows/.github/workflows/ci-package-manager.yml@main"
     ) in output
     assert "test_package_manager — 0 steps" not in output
+
+
+# ---------------------------------------------------------------------------
+# Item 4 — permissions/concurrency/deployment_environment: pipeline-level
+# header lines, per-job clauses, and the two phrase helpers.
+# ---------------------------------------------------------------------------
+
+def test_permissions_phrase_bare_string():
+    assert _permissions_phrase("read-all") == "read-all"
+
+
+def test_permissions_phrase_empty_mapping():
+    assert _permissions_phrase({}) == "none (all permissions explicitly disabled)"
+
+
+def test_permissions_phrase_populated_mapping():
+    assert _permissions_phrase({"contents": "read", "packages": "write"}) == "contents: read, packages: write"
+
+
+def test_concurrency_phrase_with_cancel_in_progress():
+    value = {"group": "my-group", "cancel-in-progress": True}
+    assert _concurrency_phrase(value) == "group my-group; cancels in-progress runs"
+
+
+def test_concurrency_phrase_without_cancel_in_progress():
+    assert _concurrency_phrase({"group": "my-group"}) == "group my-group"
+
+
+def test_pipeline_level_permissions_and_concurrency_rendered_after_source_line():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "rust_ci.yml"))
+    output = generate_text(pipeline)
+    assert "Permissions: contents: read, packages: write" in output
+    assert "Concurrency: group ${{ github.workflow }}-" in output
+    assert "cancels in-progress runs" in output
+    # Right after Source:, before the blank-line+TRIGGERS block.
+    lines = output.splitlines()
+    source_index = next(i for i, line in enumerate(lines) if line.startswith("Source:"))
+    assert lines[source_index + 1].startswith("Permissions:")
+    assert lines[source_index + 2].startswith("Concurrency:")
+
+
+def test_pipeline_level_permissions_empty_mapping_rendered():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pandas_unit_tests.yml"))
+    output = generate_text(pipeline)
+    assert "Permissions: none (all permissions explicitly disabled)" in output
+
+
+def test_pipeline_level_permissions_and_concurrency_omitted_when_absent():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "checkout_check_dist.yml"))
+    output = generate_text(pipeline)
+    assert "Permissions:" not in output
+    assert "Concurrency:" not in output
+
+
+def test_job_level_permissions_and_concurrency_clauses():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pandas_unit_tests.yml"))
+    output = generate_text(pipeline)
+    assert "permissions: contents: read" in output
+    assert "concurrency: group ${{ github.event_name == 'push'" in output
+
+
+def test_job_level_deployment_environment_clause():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "rust_ci.yml"))
+    output = generate_text(pipeline)
+    assert (
+        "deployment environment: ${{ ((github.repository == 'rust-lang/rust' && "
+        "(github.ref == 'refs/heads/try-perf' || "
+        "github.ref == 'refs/heads/automation/bors/try' || "
+        "github.ref == 'refs/heads/automation/bors/auto')) && 'bors') || '' }}"
+    ) in output
+    assert "deployment environment: ${{ (github.repository == 'rust-lang/rust' && 'bors') || '' }}" in output
+
+
+def test_job_level_facts_omitted_when_absent():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "checkout_check_dist.yml"))
+    output = generate_text(pipeline)
+    assert "permissions:" not in output
+    assert "concurrency:" not in output
+    assert "deployment environment:" not in output

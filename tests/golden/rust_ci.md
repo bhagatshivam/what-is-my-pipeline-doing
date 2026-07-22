@@ -3,6 +3,8 @@
 ```text
 Pipeline: CI
 Source: tests/fixtures/rust_ci.yml (GitHub Actions)
+Permissions: contents: read, packages: write
+Concurrency: group ${{ github.workflow }}-${{ ((github.ref == 'refs/heads/try-perf' || github.ref == 'refs/heads/automation/bors/try') && github.sha) || github.ref }}; cancels in-progress runs
 
 TRIGGERS
 - Runs on every push to automation/bors/auto or automation/bors/try or try-perf branches
@@ -13,7 +15,7 @@ JOBS (in order)
    - Checkout the source code
    - Test citool
    - Calculate the CI job matrix
-2. job — runs on ${{ matrix.os }}; 33 steps; matrix: combinations determined at runtime; after calculate_matrix
+2. job — runs on ${{ matrix.os }}; 33 steps; matrix: combinations determined at runtime; after calculate_matrix; deployment environment: ${{ ((github.repository == 'rust-lang/rust' && (github.ref == 'refs/heads/try-perf' || github.ref == 'refs/heads/automation/bors/try' || github.ref == 'refs/heads/automation/bors/auto')) && 'bors') || '' }}
    - Install cargo in AWS CodeBuild
    - disable git crlf conversion
    - checkout the source code
@@ -25,7 +27,7 @@ JOBS (in order)
    - collect CPU statistics
    - show the current environment
    - ... and 23 more steps
-3. outcome — runs on ubuntu-24.04; 2 steps; after calculate_matrix, job; condition: ${{ needs.calculate_matrix.outputs.run_type == 'auto' }}
+3. outcome — runs on ubuntu-24.04; 2 steps; after calculate_matrix, job; condition: ${{ needs.calculate_matrix.outputs.run_type == 'auto' }}; deployment environment: ${{ (github.repository == 'rust-lang/rust' && 'bors') || '' }}
    - checkout the source code
    - publish toolstate
 

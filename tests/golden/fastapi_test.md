@@ -3,6 +3,7 @@
 ```text
 Pipeline: Test
 Source: tests/fixtures/fastapi_test.yml (GitHub Actions)
+Permissions: none (all permissions explicitly disabled)
 
 TRIGGERS
 - Runs on every push to master branch
@@ -10,7 +11,7 @@ TRIGGERS
 - Runs on a schedule (0 0 * * 1)
 
 JOBS (in order)
-1. changes — runs on ubuntu-latest; 2 steps
+1. changes — runs on ubuntu-latest; 2 steps; permissions: pull-requests: read
    - actions/checkout
    - dorny/paths-filter
 2. test — runs on ${{ matrix.os }}; 13 steps; matrix: 8 base combinations (os, python-version, deprecated-tests, uv-resolution, starlette-src) + 7 via include; after changes; condition: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/master'

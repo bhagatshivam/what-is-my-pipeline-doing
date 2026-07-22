@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
 from enum import Enum
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +147,15 @@ class Job:
     environment: Dict[str, str] = field(default_factory=dict)     # job-level env vars
     steps: List[Step] = field(default_factory=list)
     timeout_minutes: Optional[int] = None
+    permissions: Optional[Union[Dict[str, str], str]] = None
+    concurrency: Optional[Dict[str, Any]] = None
+    deployment_environment: Optional[str] = None
+    # GH Actions' job-level `environment:` (protection-rules concept) —
+    # distinct from Job.environment (env VARS, from `env:`). Typed only for
+    # the string/dynamic-${{ }}-expression form, the only one seen in real
+    # data. The extended `{name, url}` mapping form is valid GH Actions
+    # syntax but untested here — falls back to
+    # raw_extras["deployment_environment"] (see parser).
     raw_extras: Dict[str, Any] = field(default_factory=dict)      # unmapped job-level fields, preserved
 
 
@@ -190,6 +199,18 @@ class Pipeline:
     secrets: List[Secret] = field(default_factory=list)
     environment_variables: List[EnvironmentVariable] = field(default_factory=list)
     linked_workflows: List[LinkedWorkflow] = field(default_factory=list)
+    permissions: Optional[Union[Dict[str, str], str]] = None
+    # GH Actions' `permissions:` — either a mapping of scope name -> "read"/
+    # "write"/"none" (its fixed permission-level vocabulary, unlike the
+    # free-form Job.environment dict) or a bare shorthand string like
+    # "read-all". Both are fully-structured facts once you know which shape
+    # you have — no raw/structured duality the way Condition has, so no
+    # wrapper dataclass.
+    concurrency: Optional[Dict[str, Any]] = None
+    # GH Actions' `concurrency:` — always a mapping (`group` + usually
+    # `cancel-in-progress`) in every real fixture. GH also allows a bare
+    # `concurrency: group-name` shorthand string, but no fixture exercises
+    # it, so it's untyped here — falls back to raw_extras (see parser).
     raw_extras: Dict[str, Any] = field(default_factory=dict)   # unmapped pipeline-level fields, preserved
 
     # -- Serialization helpers ------------------------------------------------
@@ -255,5 +276,7 @@ class Pipeline:
             secrets=secrets,
             environment_variables=env_vars,
             linked_workflows=linked,
+            permissions=data.get("permissions"),
+            concurrency=data.get("concurrency"),
             raw_extras=data.get("raw_extras", {}),
         )
