@@ -607,6 +607,15 @@ no-raise check) for the complex ground-truth fixture and the 14-job
   multi-line `unparsed` condition..." bullet above), so "never silently
   drop content" holds at the document level even though this one
   annotation does not show the full expression.
+- **Trigger-to-job wiring is origin-scoped, added 2026-07-23 (Phase 6,
+  third documented deliberate exception).** `Trigger`/`Job` gained an
+  additive `origin: Optional[str] = None` field; the trigger-wiring loop
+  now skips an edge when both a trigger's and a job's `origin` are set and
+  differ. `None` for every Tool 1 single-file call, so this is a no-op
+  there. See the new `## Tool 2` section below for why this was needed —
+  in short, without it, Tool 2's unified diagram would draw an edge
+  implying one workflow file's trigger fires another, unrelated workflow
+  file's jobs.
 
 ## LLM layer (`llm/`)
 
@@ -729,6 +738,78 @@ fence-content assertions.
   unintentional side effect of the non-mapping-root check added in
   `a7ecac9`, not a separately designed feature, and is now given explicit
   test coverage.
+
+## Tool 2 (`tool2/multi_pipeline.py`)
+
+Phase 6 (2026-07-23). `discover_workflow_files()`/`_merge_pipelines()`/
+`document_repository()`/`check_repository()` are a merge layer on top of
+the same, unmodified `GitHubActionsParser`, `generate_text()`,
+`generate_mermaid()`, and `tool1.single_pipeline.generate_documentation()`
+Tool 1 uses — this module's only job is building one combined `Pipeline`
+from N real per-file ones before handing off to those unchanged functions.
+
+- **Job names are visibly prefixed in the generated output.**
+  `generate_text()` renders `Job.name` directly, so the combined doc's
+  JOBS section reads e.g. `1. ci_yml__lint — ...`, not `1. lint — ...`.
+  This is the accepted cost of reusing `generate_text()` completely
+  unmodified: the `{origin}__{job_name}` prefix is the only mechanism
+  available for a reader to tell which source workflow file a job in the
+  combined document came from. The separator is `__` (double underscore).
+  GitHub Actions job keys may themselves legally contain `_`/`-`
+  (`[A-Za-z_][A-Za-z0-9_-]*`), so no separator drawn from that charset is
+  provably collision-free by construction — e.g. origin `"a"` + job
+  `"_b"` and origin `"a_"` + job `"b"` both concatenate to the literal
+  string `"a___b"`. This is accepted rather than engineered away (e.g.
+  with a non-human-readable numeric-index prefix, which would sacrifice
+  the entire readability point of prefixing by name), because correctness
+  of the diagram fix below never depends on parsing a combined name back
+  apart — only on the separate `origin` field — and
+  `_build_documentation()` runs `ir.validate.validate_or_raise()` on the
+  **combined** `Pipeline` (in addition to each per-file `Pipeline`,
+  individually, before merging), so a pathological same-run collision
+  surfaces as a loud, correctly-typed `IRValidationError` ("Duplicate job
+  name"), never as a silently corrupted diagram. See
+  `tests/test_multi_pipeline.py::test_merge_pipelines_collision_raises_on_defensive_revalidation`
+  for a deliberately-constructed reproduction of this case.
+- **Workflow-level `permissions:`/`concurrency:` are not surfaced in the
+  combined document.** Job-level `permissions`/`concurrency`/
+  `deployment_environment` survive merging fine, since they already have a
+  per-job textual home (`generate_text()`'s per-job clause list). The
+  combined `Pipeline`'s single `permissions`/`concurrency` slot has no
+  sensible per-file value once multiple source files are merged (each
+  file may set its own, different, workflow-level block), so both are
+  left `None` on the combined `Pipeline` and the corresponding header
+  lines simply don't appear — a real per-file fact that doesn't make it
+  into the unified doc, stated here rather than silently dropped.
+  Surfacing it would need a `text_generator.py` change (e.g. a per-file
+  breakdown), out of Phase 6 scope.
+- **`Pipeline.linked_workflows` targets are not resolved against sibling
+  files discovered in the same run.** Entries from every file are unioned
+  and deduped by `(target, relationship)` (the same key the parser already
+  dedupes on per-file), so the combined `LINKED WORKFLOWS` section lists
+  every relationship from every file — but a `uses:`/`workflow_run` target
+  string is never matched against another parsed `Pipeline` in this run to
+  say "this points at the sibling file two lines up". That resolution
+  would be new interpretive logic on top of the merge layer; a reader can
+  already match a target string against another job's `Source:` line by
+  eye, given job names are prefixed by origin.
+- **`generators/mermaid_generator.py`'s trigger-wiring is now origin-scoped**
+  (third documented deliberate exception to that module's fixed-contract
+  status, alongside the two below). A trigger only wires to an entry job
+  when `Trigger.origin`/`Job.origin` are either not both set, or set and
+  equal — both fields are `None` for every Tool 1 single-file call
+  (`GitHubActionsParser` never sets them), so this is a no-op there,
+  proven byte-identical by the existing golden-file suite. Only
+  `_merge_pipelines()` ever sets `origin`. Without this, naively
+  concatenating triggers/jobs from N real `Pipeline`s into one combined
+  `Pipeline` and calling `generate_mermaid()` unchanged would wire *every*
+  trigger to *every* job with no unresolved dependency — correct for one
+  workflow file (any of its own triggers can fire any of its own root
+  jobs) but wrong across files, drawing an edge implying e.g. one
+  workflow's `schedule:` trigger fires another, unrelated workflow's jobs,
+  which never happens in real GitHub Actions.
+  `tests/test_multi_pipeline.py::test_generate_mermaid_scopes_triggers_to_their_own_origin`
+  is the regression proof.
 
 ## Consciously unmodeled concepts — verified preservation status
 

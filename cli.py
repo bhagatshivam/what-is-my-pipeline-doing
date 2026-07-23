@@ -4,6 +4,7 @@ import argparse
 import sys
 
 from tool1.single_pipeline import check_pipeline, document_pipeline
+from tool2.multi_pipeline import check_repository, document_repository
 from ir.validate import IRValidationError
 
 
@@ -34,7 +35,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     tool2 = subparsers.add_parser("tool2", help="Document a whole repository's pipelines.")
-    tool2.add_argument("path", help="Path to a repository (or its workflows folder)")
+    tool2.add_argument("path", help="Path to a repository (or its .github/workflows folder)")
+    tool2.add_argument(
+        "--check",
+        action="store_true",
+        help="Check the committed doc for drift instead of writing it.",
+    )
+    tool2.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="Skip Layer 4 LLM beautification; write deterministic output only (no API key needed).",
+    )
+    tool2.add_argument(
+        "--inject",
+        metavar="FILE",
+        help="Inject the unified doc between <!-- ci-docs:start/end --> markers in FILE, "
+             "instead of writing a standalone docs/<repo>.md file.",
+    )
 
     return parser
 
@@ -56,7 +73,17 @@ def main() -> int:
             print(f"error: {exc}", file=sys.stderr)
             return EXIT_OPERATIONAL_ERROR
     elif args.command == "tool2":
-        print(f"tool2 is not implemented yet (Phase 6). Requested: {args.path}")
+        try:
+            if args.check:
+                return EXIT_SUCCESS if check_repository(args.path, inject_into=args.inject) else EXIT_CHECK_FAILED
+            written = document_repository(args.path, use_llm=not args.no_llm, inject_into=args.inject)
+            print(f"Wrote {written}")
+            return EXIT_SUCCESS
+        except IRValidationError:
+            return EXIT_INVALID_IR
+        except Exception as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return EXIT_OPERATIONAL_ERROR
     else:
         parser.print_help()
 

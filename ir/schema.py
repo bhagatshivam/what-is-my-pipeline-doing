@@ -119,6 +119,10 @@ class Trigger:
     # each input dict: {"name": ..., "required": bool, "default": ..., "type": ...}
     source_workflow: Optional[str] = None    # for WORKFLOW_RUN: name/path of the upstream workflow
     raw: str = ""                            # original trigger fragment, for traceability/debugging
+    origin: Optional[str] = None
+    # Set only by tool2's merge layer (see tool2/multi_pipeline.py) to scope
+    # unified-diagram trigger wiring to the workflow file this trigger came
+    # from. Always None for a single-file Tool 1 parse.
 
 
 @dataclass
@@ -156,6 +160,9 @@ class Job:
     # data. The extended `{name, url}` mapping form is valid GH Actions
     # syntax but untested here — falls back to
     # raw_extras["deployment_environment"] (see parser).
+    origin: Optional[str] = None
+    # Same meaning as Trigger.origin: set only by tool2's merge layer,
+    # always None for a single-file Tool 1 parse.
     raw_extras: Dict[str, Any] = field(default_factory=dict)      # unmapped job-level fields, preserved
 
 

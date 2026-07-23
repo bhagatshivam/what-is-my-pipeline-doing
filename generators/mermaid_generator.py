@@ -62,6 +62,17 @@ Contract:
   `Condition.expression` verbatim in the same document's text section, so
   "never silently drop content" holds at the document level even though
   this one diagram annotation is intentionally lossy.
+- Trigger-to-job wiring is scoped by `origin` (2026-07-23, Phase 6, third
+  documented deliberate exception to this module's fixed-contract status):
+  a trigger only wires to an entry job when `Trigger.origin`/`Job.origin`
+  are either not both set, or set and equal. Both fields are `None` for
+  every Tool 1 single-file call (`GitHubActionsParser` never sets them),
+  so this is a no-op there — every trigger still wires to every entry job,
+  exactly as before, proven byte-identical by the existing golden-file
+  suite. Only `tool2/multi_pipeline.py`'s merge layer ever sets `origin`,
+  to stop one workflow file's triggers from wiring to another, unrelated
+  workflow file's jobs once multiple pipelines share one combined
+  `Pipeline` object — see `LIMITATIONS.md`'s "Tool 2" section.
 """
 
 from __future__ import annotations
@@ -186,8 +197,10 @@ def generate_mermaid(pipeline: Pipeline) -> str:
     for job in ordered_jobs:
         lines.append(f'    {job.name}["{_escape_label(_job_node_label(job))}"]')
 
-    for i in range(len(pipeline.triggers)):
+    for i, trigger in enumerate(pipeline.triggers):
         for job in entry_jobs:
+            if trigger.origin is not None and job.origin is not None and trigger.origin != job.origin:
+                continue  # Phase 6: different source workflow, see module docstring.
             lines.append(f"    trigger_{i} --> {job.name}")
 
     for job in ordered_jobs:
