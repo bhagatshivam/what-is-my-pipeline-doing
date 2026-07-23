@@ -27,6 +27,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Check the committed doc for drift instead of writing it.",
     )
+    tool1.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="Skip Layer 4 LLM beautification; write deterministic output only (no API key needed).",
+    )
 
     tool2 = subparsers.add_parser("tool2", help="Document a whole repository's pipelines.")
     tool2.add_argument("path", help="Path to a repository (or its workflows folder)")
@@ -42,7 +47,7 @@ def main() -> int:
         try:
             if args.check:
                 return EXIT_SUCCESS if check_pipeline(args.path) else EXIT_CHECK_FAILED
-            written = document_pipeline(args.path)
+            written = document_pipeline(args.path, use_llm=not args.no_llm)
             print(f"Wrote {written}")
             return EXIT_SUCCESS
         except IRValidationError:
