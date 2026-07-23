@@ -9,19 +9,16 @@ Phase 6 follow-up changelog entries).
 
 Each license below was confirmed by fetching the source repository's
 actual `LICENSE`/`LICENSE.md` file directly (not assumed from reputation).
-Commit SHAs are the exact `HEAD` of each repo's default branch at fetch
-time, captured via `git ls-remote <repo> HEAD` in the same session the
-files were pulled with `curl` from `raw.githubusercontent.com/.../<branch>/...`
-— since that raw-content path always serves whatever the branch currently
-points at, the two were captured together and the SHA is exact for the
-content actually fetched, not an estimate. This is more precise than the
-"best-effort, read from a commit-history page" caveat
-`evaluation/held_out_workflows/SOURCES.md` carries (added there because
-`api.github.com` was blocked in-session) — that same block reproduced
-during this fixture's sourcing too (`api.github.com` returned HTTP 403 on
-every request tried), but `git ls-remote` over the plain git protocol was
-not blocked and gives an exact answer, so no "best-effort" hedge is needed
-here.
+
+Commit SHAs were captured via `git ls-remote <repo> HEAD`, run moments
+after each repo's files were fetched from the branch-tip path
+`raw.githubusercontent.com/<repo>/<branch>/...` (not a SHA-pinned path).
+The two calls were not atomic, so each SHA should be read as "the branch
+tip at fetch time," not as a guarantee that the SHA's tree byte-for-byte
+matches the fetched content. All three were re-verified unchanged during
+PR review. This is stronger than `evaluation/held_out_workflows/SOURCES.md`'s
+SHAs, which have no fetch-time correlation at all, but "exact" overstated
+it.
 
 ## `black/` — psf/black
 
