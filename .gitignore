@@ -4,3 +4,4 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+evaluation/llm_call_log.jsonl
