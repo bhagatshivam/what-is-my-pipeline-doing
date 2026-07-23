@@ -608,6 +608,74 @@ no-raise check) for the complex ground-truth fixture and the 14-job
   drop content" holds at the document level even though this one
   annotation does not show the full expression.
 
+## LLM layer (`llm/`)
+
+- **The fallback contract, precisely.** `llm.base.LLMProvider.beautify()` is
+  the only public entrypoint and never raises. On any failure — a raised
+  exception from `_call_once` (network error, timeout, SDK error), an
+  empty/whitespace-only response, or a provider-flagged unparseable
+  response (`llm/gemini_provider.py`'s `NO_OVERVIEW` escape hatch) — the
+  returned `LLMResult.text` is the input `structured_text` **byte-identical
+  to what was passed in**, with `used_fallback=True`. "Unchanged" means
+  exactly that: not re-rendered, not truncated, not summarized — the same
+  string `generate_text()` produced. `is_available()` (default `True`,
+  `False` when a provider has no usable configuration, e.g.
+  `GeminiProvider` with no API key) short-circuits the retry loop entirely
+  rather than retrying a call that cannot succeed, so a misconfigured
+  provider fails fast with `retry_count=0`.
+- **The `<!-- llm-overview:start -->`/`<!-- llm-overview:end -->` marker
+  convention.** `tool1.single_pipeline.generate_documentation()` wraps a
+  successful LLM result's prose in these HTML comment markers, inserted
+  between the title and the deterministic ```text``` fact block. This
+  echoes the project's existing `<!-- ci-docs:start/end -->` marker-comment
+  precedent (planned for Tool 2's README injection, see `BUILD_PLAN.md`
+  Phase 6) rather than inventing a new convention. The markers exist
+  specifically so `check_pipeline()` can strip the block reliably (see the
+  amended note below) without fragile heading-text matching.
+- **Single-provider scope.** Only `llm/gemini_provider.py` is a real
+  implementation. `llm/ollama_provider.py` is an interface-only stub
+  (`is_available()` always `False`) that proves `LLMProvider` is genuinely
+  swappable, not a functional local-LLM mode — local LLM support stays
+  documented future work, unchanged from the existing scope decision.
+- **No fact-ID tagging, no per-sentence provenance.** As decided before
+  this phase began: the LLM's prose is not required to trace back to
+  individual IR facts at runtime. Unsupported-claim/hallucination scoring
+  stays entirely post-hoc (`evaluation/coverage_check.py`'s
+  `score_llm_conditions()`, still `NotImplementedError` — Phase 7 scope).
+- **`pipeline` is never a second fact source.** `llm/base.py`'s
+  `LLMProvider._call_once(self, structured_text, pipeline)` docstring
+  states this as a hard architectural boundary: `pipeline` exists for
+  logging/framing metadata only (e.g. a provider reading `pipeline.name`
+  for a log line). No current or future `_call_once` implementation may
+  read prompt content from it — only `structured_text` (already
+  deterministically extracted and structurally validated by
+  `generators/text_generator.py`) may reach the prompt. This is what keeps
+  the "never sees raw YAML" claim (`PROJECT_PLAN.md`'s "Why This Is Not
+  Just 'Ask Claude/Gemini to Read the YAML'") true at the code level, not
+  just in prose — nothing downstream of `generate_text()`'s output is ever
+  handed to `GeminiProvider._call_once`.
+- **Developer-controlled free text reaches the prompt unfiltered — a
+  documented limitation, not a runtime hallucination-detection mechanism.**
+  `structured_text` embeds job/step names verbatim
+  (`generators/text_generator.py`'s output), and those names come from the
+  workflow author's own YAML. A job or step deliberately named to look
+  like an instruction (e.g. attempting a prompt-injection string) would
+  reach `GeminiProvider`'s prompt as part of the fact sheet, same as any
+  other job/step name. The blast radius is bounded: `GeminiProvider` makes
+  no tool calls and executes nothing, the Overview section's only
+  consumer is a human reader of the resulting Markdown, and the
+  deterministic fact block / Mermaid diagram below it are never touched
+  regardless of what the Overview prose says. This is noted here as an
+  honest limitation, not mitigated with a detection system — consistent
+  with this phase's explicit scope decision against building a runtime
+  hallucination gate.
+- **`google-genai`'s `HttpOptions.timeout` is not always reliably
+  honored** by the SDK in every version (see upstream
+  `googleapis/python-genai#911`/`#1330`) — `GeminiProvider` sets it via
+  `timeout_s` regardless, but a hang past the configured timeout is a
+  known upstream SDK limitation, not a sign the base class's retry/fallback
+  logic has stopped working.
+
 ## Tool 1 (`tool1/single_pipeline.py`)
 
 `generate_documentation()`/`document_pipeline()`/`check_pipeline()` are a
@@ -631,6 +699,17 @@ fence-content assertions.
   5). This will need revisiting once Phase 5 puts non-deterministic LLM
   prose into the document; exact-match drift detection stops being the
   right check at that point.
+  **Resolved (Phase 5):** `check_pipeline()` now always regenerates with
+  `use_llm=False` and strips any `<!-- llm-overview:start -->`...
+  `<!-- llm-overview:end -->` block from the committed doc before
+  comparing (a no-op on a doc with no such block) — exact-string equality
+  is kept, but scoped to the deterministic sections only. A committed
+  "golden" LLM output was deliberately not adopted: Gemini output isn't
+  guaranteed bit-reproducible even at low temperature, CI has no
+  `GEMINI_API_KEY` to regenerate one, and `EVALUATION_PLAN.md` already
+  treats LLM output drift as a review concern (Tier 1 Method 4, Tier 4
+  Method 9), not something a binary CLI exit code should gate. See the new
+  "`## LLM layer (\`llm/\`)`" section above for the full contract.
 - **Only `GitHubActionsParser` is wired in** — `document_pipeline()`/
   `check_pipeline()` have no platform-dispatch logic, matching every other
   module's current GitHub-Actions-only scope (Phase 9 is where multi-platform
