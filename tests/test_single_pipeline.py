@@ -21,6 +21,7 @@ from generators.mermaid_generator import generate_mermaid
 from generators.text_generator import generate_text
 from ir.schema import Pipeline
 from ir.validate import IRValidationError
+from llm.base import LLMProvider, LLMResult, ProviderResponse
 from parsers.github_actions import GitHubActionsParser
 import tool1.single_pipeline as single_pipeline_module
 from tool1.single_pipeline import check_pipeline, document_pipeline, generate_documentation
@@ -368,3 +369,254 @@ def test_cli_tool1_top_level_or_yaml_parse_failure_stays_exit_code_2(tmp_path, w
     assert result.returncode == 2
     assert result.stderr.strip() != ""
     assert not (tmp_path / "docs").exists()
+
+
+# ---------------------------------------------------------------------------
+# 6. Phase 5 — LLM Overview section, fallback byte-identity, check_pipeline()
+#    deterministic-only scope, --no-llm.
+#
+# tests/conftest.py's autouse fixture clears GEMINI_API_KEY/GEMINI_MODEL for
+# every test, so document_pipeline()/_build_documentation()'s use_llm=True
+# default resolves llm.get_default_provider() to None here unless a test
+# explicitly injects a provider or sets the env var itself — this is what
+# keeps every test above this section (written before Phase 5 existed)
+# passing unmodified.
+# ---------------------------------------------------------------------------
+
+def _llm_result(text, used_fallback=False, **overrides):
+    defaults = dict(
+        text=text,
+        used_fallback=used_fallback,
+        provider_name="fake",
+        model="fake-model",
+        temperature=0.0,
+        prompt_version="v1",
+        latency_ms=1.0,
+        retry_count=0,
+    )
+    defaults.update(overrides)
+    return LLMResult(**defaults)
+
+
+class _FixedProseProvider(LLMProvider):
+    """Always returns the same fixed prose — for integration tests that
+    need a real (non-fallback) LLMResult flowing through document_pipeline()/
+    _build_documentation(), without any network or SDK dependency."""
+
+    def __init__(self, prose="Fixed prose overview."):
+        self._prose = prose
+
+    @property
+    def provider_name(self):
+        return "fixed"
+
+    @property
+    def model_name(self):
+        return "fixed-model"
+
+    @property
+    def temperature(self):
+        return 0.0
+
+    def _call_once(self, structured_text, pipeline):
+        return ProviderResponse(text=self._prose)
+
+
+def test_generate_documentation_with_successful_llm_result_inserts_overview():
+    pipeline = _load_ground_truth("simple_pipeline_ir.json")
+    result = _llm_result("This pipeline builds and tests the project on every push.")
+
+    doc = generate_documentation(pipeline, llm_result=result)
+
+    assert "<!-- llm-overview:start -->" in doc
+    assert "<!-- llm-overview:end -->" in doc
+    assert "## Overview" in doc
+    assert "This pipeline builds and tests the project on every push." in doc
+    # Overview sits between the title and the deterministic fact block.
+    assert doc.index("# " + pipeline.name) < doc.index("## Overview") < doc.index("```text")
+
+    # Everything from the fact block onward is untouched by the LLM result.
+    no_llm_doc = generate_documentation(pipeline)
+    assert doc[doc.index("```text\n"):] == no_llm_doc[no_llm_doc.index("```text\n"):]
+
+
+@pytest.mark.parametrize("llm_result", [None, "fallback"])
+def test_generate_documentation_fallback_is_byte_identical_to_no_llm_result(llm_result):
+    pipeline = _load_ground_truth("simple_pipeline_ir.json")
+    result = None if llm_result is None else _llm_result("irrelevant, discarded on fallback", used_fallback=True)
+
+    assert generate_documentation(pipeline, llm_result=result) == generate_documentation(pipeline)
+
+
+def test_document_pipeline_with_provider_includes_overview(tmp_path):
+    source = _fixture_path("checkout_check_dist.yml")
+    output_dir = tmp_path / "docs"
+
+    written = document_pipeline(source, output_dir=str(output_dir), provider=_FixedProseProvider("Prose here."))
+    content = written.read_text(encoding="utf-8")
+
+    assert "<!-- llm-overview:start -->" in content
+    assert "Prose here." in content
+
+
+@pytest.mark.parametrize(
+    "filename",
+    ["checkout_check_dist.yml", "eslint_ci.yml", "flask_tests.yml", "rust_ci.yml", "setup_python_test.yml"],
+)
+def test_document_pipeline_with_llm_across_complexity_range(tmp_path, filename):
+    # Spans: a minimal single-job pipeline, a reusable-workflow-delegating
+    # job, matrix-with-no-axes, matrix + deployment environment, and a
+    # 14-job/35-combination matrix pipeline — proving Overview insertion
+    # and the untouched deterministic sections both hold across the real
+    # fixture complexity range, not just the simplest case.
+    source = _fixture_path(filename)
+    output_dir = tmp_path / "docs"
+
+    written = document_pipeline(
+        source, output_dir=str(output_dir), provider=_FixedProseProvider(f"Overview for {filename}."),
+    )
+    content = written.read_text(encoding="utf-8")
+
+    assert "<!-- llm-overview:start -->" in content
+    assert f"Overview for {filename}." in content
+    assert "## Pipeline Diagram" in content
+    assert "```mermaid" in content
+
+
+def test_document_pipeline_use_llm_false_omits_overview_even_with_provider_passed(tmp_path):
+    source = _fixture_path("checkout_check_dist.yml")
+    output_dir = tmp_path / "docs"
+
+    written = document_pipeline(
+        source, output_dir=str(output_dir), use_llm=False, provider=_FixedProseProvider("Prose here."),
+    )
+    content = written.read_text(encoding="utf-8")
+
+    assert "<!-- llm-overview:start -->" not in content
+    assert content == generate_documentation(GitHubActionsParser().parse(source))
+
+
+def test_document_pipeline_default_without_configured_provider_matches_deterministic_output(tmp_path):
+    # use_llm defaults to True, but GEMINI_API_KEY is unset (conftest.py),
+    # so get_default_provider() returns None and this stays deterministic-only.
+    source = _fixture_path("checkout_check_dist.yml")
+    output_dir = tmp_path / "docs"
+
+    written = document_pipeline(source, output_dir=str(output_dir))
+    content = written.read_text(encoding="utf-8")
+
+    assert "<!-- llm-overview:start -->" not in content
+    assert content == generate_documentation(GitHubActionsParser().parse(source))
+
+
+def test_check_pipeline_ignores_llm_overview_prose_drift(tmp_path):
+    source = _fixture_path("checkout_check_dist.yml")
+    output_dir = tmp_path / "docs"
+
+    document_pipeline(source, output_dir=str(output_dir), provider=_FixedProseProvider("Original prose."))
+    assert check_pipeline(source, output_dir=str(output_dir)) is True
+
+    committed_path = output_dir / "checkout_check_dist.md"
+    committed = committed_path.read_text(encoding="utf-8")
+    mutated = committed.replace(
+        "Original prose.",
+        "Completely different prose that a fresh deterministic-only build would never produce.",
+    )
+    committed_path.write_text(mutated, encoding="utf-8")
+
+    # Still passes: check_pipeline() never compares LLM prose.
+    assert check_pipeline(source, output_dir=str(output_dir)) is True
+
+    # A deterministic-section change is still caught.
+    committed_path.write_text(mutated.replace("check-dist", "check-dist-RENAMED", 1), encoding="utf-8")
+    assert check_pipeline(source, output_dir=str(output_dir)) is False
+
+
+def test_check_pipeline_still_works_when_committed_doc_has_no_overview_block(tmp_path):
+    # Backward compatibility: every doc committed before Phase 5 has no
+    # Overview block at all — _strip_llm_overview must be a no-op on those.
+    source = _fixture_path("checkout_check_dist.yml")
+    output_dir = tmp_path / "docs"
+
+    document_pipeline(source, output_dir=str(output_dir), use_llm=False)
+    assert check_pipeline(source, output_dir=str(output_dir)) is True
+
+
+def test_build_documentation_logs_llm_call(tmp_path, monkeypatch):
+    log_path = tmp_path / "llm_call_log.jsonl"
+    monkeypatch.setattr(single_pipeline_module, "DEFAULT_LLM_LOG_PATH", str(log_path))
+    source = _fixture_path("checkout_check_dist.yml")
+
+    single_pipeline_module._build_documentation(source, use_llm=True, provider=_FixedProseProvider("Prose."))
+
+    lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 1
+    record = json.loads(lines[0])
+    assert record["provider"] == "fixed"
+    assert record["model"] == "fixed-model"
+    assert record["used_fallback"] is False
+    assert record["pipeline_name"] == "Check dist"
+    assert record["source_file"] == source
+
+
+def test_build_documentation_does_not_log_when_use_llm_false(tmp_path, monkeypatch):
+    log_path = tmp_path / "llm_call_log.jsonl"
+    monkeypatch.setattr(single_pipeline_module, "DEFAULT_LLM_LOG_PATH", str(log_path))
+    source = _fixture_path("checkout_check_dist.yml")
+
+    single_pipeline_module._build_documentation(source, use_llm=False)
+
+    assert not log_path.exists()
+
+
+def test_log_llm_call_swallows_oserror():
+    # Logging must never break doc generation, even if the log path is unwritable.
+    source = _fixture_path("checkout_check_dist.yml")
+    result = _llm_result("prose", used_fallback=False)
+
+    single_pipeline_module._log_llm_call(
+        source, "Check dist", result, log_path="/nonexistent-dir/definitely-not-writable/log.jsonl",
+    )  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# 7. CLI --no-llm.
+# ---------------------------------------------------------------------------
+
+def test_cli_tool1_no_llm_flag_skips_provider_resolution(tmp_path, monkeypatch):
+    # In-process (not via subprocess/_run_cli) so the monkeypatch below is
+    # actually visible to the code under test — a subprocess would run in
+    # a fresh interpreter that never sees this process's monkeypatching.
+    import cli
+
+    def fail_if_called():
+        pytest.fail("get_default_provider() must not be called when --no-llm is passed")
+
+    monkeypatch.setattr(single_pipeline_module, "get_default_provider", fail_if_called)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        sys, "argv",
+        ["cli.py", "tool1", os.path.abspath(_fixture_path("checkout_check_dist.yml")), "--no-llm"],
+    )
+
+    exit_code = cli.main()
+
+    assert exit_code == 0
+    written = tmp_path / "docs" / "checkout_check_dist.md"
+    assert written.exists()
+    assert "<!-- llm-overview:start -->" not in written.read_text(encoding="utf-8")
+
+
+def test_cli_tool1_no_llm_output_matches_use_llm_false(tmp_path):
+    source = os.path.abspath(_fixture_path("checkout_check_dist.yml"))
+
+    result_a_dir = tmp_path / "a"
+    result_a_dir.mkdir()
+    result_a = _run_cli(["tool1", source, "--no-llm"], cwd=str(result_a_dir))
+    result_b_dir = tmp_path / "b"
+    result_b_dir.mkdir()
+    written_b = document_pipeline(source, output_dir=str(result_b_dir / "docs"), use_llm=False)
+
+    assert result_a.returncode == 0
+    written_a = tmp_path / "a" / "docs" / "checkout_check_dist.md"
+    assert written_a.read_text(encoding="utf-8") == written_b.read_text(encoding="utf-8")

@@ -167,19 +167,19 @@ This renders as an actual visual flowchart in any Markdown viewer.
 
 Takes the structured text output from Layer 3 and converts it into natural, readable prose. The LLM is doing a simple task here — rewriting structured bullet points into flowing sentences. It is not doing analysis. Python already did the analysis.
 
-**This layer is swappable — the rest of the system does not care which LLM is used.**
+**This layer is swappable — the rest of the system does not care which LLM is used.** `llm/base.py`'s `LLMProvider` ABC is the authoritative reference for the interface and its fallback contract (what happens on API failure/timeout/unparseable response) — not repeated here to avoid the two documents drifting out of sync.
 
-**Mode 1 — Local LLM (default, private)**
-- Uses Ollama running locally on the user's machine
-- Nothing leaves the user's system
+**Mode 1 — Local LLM (documented future work, not yet implemented)**
+- `llm/ollama_provider.py` is an interface-only stub as of Phase 5 — proves the interface is swappable, does not run anything
+- Would use Ollama running locally on the user's machine; nothing would leave the user's system
 - Suitable for companies with private repositories
 - Slightly less polished output but factually accurate (facts were deterministically extracted and structurally validated by Python, not model-generated)
 - Models: Llama 3.1 8B or Mistral 7B
 
-**Mode 2 — Gemini API (enhanced, optional)**
-- User explicitly opts in knowing data leaves their system
+**Mode 2 — Gemini API (implemented, Phase 5)**
+- `llm/gemini_provider.py`, via the `google-genai` SDK
+- User explicitly opts in knowing data leaves their system (the LLM only ever receives Layer 3a's already-extracted, already-validated structured text — never raw YAML)
 - Better natural language quality
-- Used for more complex diagram generation if needed
 - Free tier via Google AI Studio
 
 **Adding a new LLM provider later = adding one new option in this layer. Nothing else changes.**
