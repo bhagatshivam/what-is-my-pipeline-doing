@@ -1,3 +1,4 @@
 PyYAML
 pytest
 ruff
+google-genai
