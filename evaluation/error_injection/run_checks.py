@@ -18,6 +18,8 @@ from typing import Any, Dict, List
 
 import yaml
 
+from evaluation._path_guard import assert_not_held_out
+
 _DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_DIR))
 _CLI_PATH = os.path.join(_REPO_ROOT, "cli.py")
@@ -32,6 +34,7 @@ def _classify(returncode: int, stderr: str) -> str:
 
 
 def run_one(workflow_path: str, tmp_dir: str) -> Dict[str, Any]:
+    assert_not_held_out(workflow_path)
     result = subprocess.run(
         [sys.executable, _CLI_PATH, "tool1", workflow_path],
         cwd=tmp_dir,
