@@ -242,12 +242,12 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 **Goal:** run the evaluation methods from `EVALUATION_PLAN.md` against the now-complete GitHub Actions prototype of Tool 1 and Tool 2. Full method detail lives in that document — this phase just sequences it. Per Supervisor guidance, recruiting developer evaluators is off the table for this project — every task below is self-conducted, zero participants.
 
 **Tasks (Tier 1 & 2 — start as soon as Phase 3/4 land, don't wait for Phase 5/6)**
-- [ ] Golden-file regression testing: commit expected `.md` output for all 10 fixtures, regenerate + diff in CI on every PR (reuses the `--check` flag already implemented in Phase 4)
-- [ ] Coverage check (every IR field appears in output)
-- [ ] Diagram-structure check (Mermaid graph matches IR dependency graph exactly)
-- [ ] Determinism/variance check (LLM layer only, once Phase 5 lands — golden-file testing above already covers the non-LLM layers)
-- [ ] Readability metrics (Flesch-Kincaid or similar)
-- [ ] Error injection (broken dependency, malformed `if`, undefined secret — does the tool flag it or silently hallucinate?)
+- [x] Golden-file regression testing: commit expected `.md` output for all 10 fixtures, regenerate + diff in CI on every PR (reuses the `--check` flag already implemented in Phase 4) — `tests/test_golden_files.py` + `tests/test_golden_files_multi.py`, all fixture sets, done prior to Phase 7 Step 1
+- [ ] Coverage check — IR-to-output coverage: does every job/trigger/secret/etc. present in the IR appear in the generated output? This tests whether Layer 3 dropped what the parser extracted; it is not a claim that the parser extracted everything the source YAML contains. Phase 7 Step 1 builds this as a new manifest-free direct IR-vs-output scan across all 10 `tests/fixtures/`, deliberately separate from `evaluation/coverage_check.py`'s existing manifest-driven E2, which stays untouched and keeps its Tier 3/4-foundation role (non-circular scoring against `evaluation/held_out_workflows/`)
+- [ ] Diagram-structure check (Mermaid graph matches IR dependency graph exactly) — same manifest-free-vs-manifest-driven split as coverage check above; `evaluation/diagram_diff.py` (E3) stays untouched, same reason
+- [ ] Determinism/variance check (LLM layer only — Phase 5 has landed, this is now unblocked) — `evaluation/variance_check.py` is still a stub, scoped for Phase 7 Step 1
+- [ ] Readability metrics (Flesch-Kincaid or similar) — `evaluation/readability.py` is still a stub, scoped for Phase 7 Step 1
+- [x] Error injection (broken dependency, malformed `if`, undefined secret — does the tool flag it or silently hallucinate?) — `evaluation/error_injection/` (E4), 8 cases, all pre-registered expectations matched, done prior to Phase 7 Step 1; case count intentionally not expanded (Decision 2, Phase 7 Step 1). Now guarded by `evaluation/_path_guard.py`.
 
 **Tasks (Tier 3 — moderate setup)**
 - [ ] Correctness check: trigger real pipelines on 4–5 real repos, compare GitHub's actual job/status output to the tool's documentation

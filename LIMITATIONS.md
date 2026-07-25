@@ -1039,3 +1039,32 @@ against it. Current scope and limits, honestly stated:
   `urllib3_ci.env_var.1` (`FORCE_COLOR`) and `scipy_linux.env_var.1`/`.2`
   (`CCACHE_MAXSIZE`, `CCACHE_COMPILERCHECK`) all score `missing` in E2 for
   the same documented reason.
+- **Held-out set "unseen" status is narrower than a blanket claim (Phase 7
+  Step 1, 2026-07-25).** E1/E2/E3 have already been scored once against
+  `evaluation/held_out_workflows/` (Round 2 results above: E1 80/80, E2
+  77/80, E3 6/6) — that output has been seen and cannot serve as a first
+  look for those three methods again. Only `EVALUATION_PLAN.md` Tier 4
+  Method 9 (the pre-registered three-condition fact-checklist protocol,
+  gated on `evaluation/coverage_check.py`'s `score_llm_conditions()`)
+  remains genuinely unseen for this set. Nothing in this repository should
+  describe `evaluation/held_out_workflows/` as "held-out, never seen"
+  without this qualification — it is unseen specifically for Method 9, not
+  unseen in general.
+- **Path guard, added Phase 7 Step 1: scope is the Tier 1/2 evaluation
+  entry points, not all access to held-out files.**
+  `evaluation/_path_guard.py`'s `assert_not_held_out()` runs as the first
+  line of Tier 1/2 evaluation functions that accept a workflow/fixture
+  path — currently `evaluation/error_injection/run_checks.py`'s
+  `run_one()`, with `evaluation/readability.py`,
+  `evaluation/variance_check.py`, and the new manifest-free
+  coverage/diagram checker joining as each is built in later Phase 7 Step
+  1 PRs. `evaluation/coverage_check.py` and `evaluation/diagram_diff.py`
+  are deliberately not wired to it — they keep their existing Tier
+  3/4-foundation role, which legitimately includes scoring
+  `evaluation/held_out_workflows/`. The guard does not intercept
+  lower-level calls: nothing stops a future ad-hoc caller from invoking
+  `generators/text_generator.py`'s `generate_text()` or
+  `generators/mermaid_generator.py`'s `generate_mermaid()` directly on a
+  held-out IR below the guarded layer. It protects the Tier 1/2 evaluation
+  entry points; it is not a filesystem-level access control on
+  `evaluation/held_out_workflows/`.
