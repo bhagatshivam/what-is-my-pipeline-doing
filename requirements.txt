@@ -1,4 +1,4 @@
 PyYAML
 pytest
-ruff
+ruff==0.15.22
 google-genai
