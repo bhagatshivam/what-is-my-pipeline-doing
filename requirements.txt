@@ -2,3 +2,4 @@ PyYAML
 pytest
 ruff==0.15.22
 google-genai
+textstat==0.7.13

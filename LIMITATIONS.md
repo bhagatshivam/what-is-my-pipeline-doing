@@ -1068,3 +1068,18 @@ against it. Current scope and limits, honestly stated:
   held-out IR below the guarded layer. It protects the Tier 1/2 evaluation
   entry points; it is not a filesystem-level access control on
   `evaluation/held_out_workflows/`.
+- **Readability scores are a secondary/diagnostic measure, not a literal
+  reading grade level (Phase 7 Step 1, PR 2, `evaluation/readability.py`).**
+  Flesch-Kincaid-family formulas assume connected prose. The deterministic
+  (Layer 3a) score they're computed on here is `generators/text_generator.py`'s
+  structured header/bullet-fragment output — not prose — so those numbers
+  are a rough proxy for how dense the fact-dump reads, not a real reading
+  grade level; this is stated in both the module docstring and the results
+  script's output header, not left implicit. The headline comparison —
+  deterministic vs. LLM-polished-prose readability — only reflects a
+  genuine live measurement when `GEMINI_API_KEY` is configured; without
+  one (the default in this repo's CI and this development environment,
+  confirmed unset in both as of this date), `score_workflow_readability_llm()`
+  falls back to scoring the same deterministic text, labeled
+  `source="llm_fallback"` in the results table rather than presented as a
+  distinct data point.
