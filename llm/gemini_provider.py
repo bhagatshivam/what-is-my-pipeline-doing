@@ -7,7 +7,7 @@ run, is forced to have the SDK installed.
 
 Config: `GEMINI_API_KEY` env var (required — `is_available()` is False
 without it, see `llm.base.LLMProvider`), `GEMINI_MODEL` env var (optional,
-default `gemini-2.0-flash`). Temperature is fixed at 0.2 — this is
+default `gemini-2.5-flash`). Temperature is fixed at 0.2 — this is
 rewriting, not creative writing.
 """
 
@@ -19,7 +19,7 @@ from typing import Any, Optional
 from ir.schema import Pipeline
 from llm.base import LLMProvider, ProviderResponse
 
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-2.5-flash"
 DEFAULT_TEMPERATURE = 0.2
 
 # `pipeline` is intentionally never referenced below — see llm/base.py's
