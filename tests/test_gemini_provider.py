@@ -164,9 +164,9 @@ def test_is_available_true_with_injected_client():
     assert provider.is_available() is True
 
 
-def test_model_defaults_to_gemini_2_0_flash():
+def test_model_defaults_to_gemini_2_5_flash():
     provider = GeminiProvider(api_key=None)
-    assert provider.model_name == "gemini-2.0-flash"
+    assert provider.model_name == "gemini-2.5-flash"
 
 
 def test_model_env_var_override(monkeypatch):
