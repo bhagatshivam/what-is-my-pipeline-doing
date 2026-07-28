@@ -1,8 +1,9 @@
 """
 Smoke tests for evaluation/readability.py: deterministic-only (Layer 3a)
-readability scoring across the 10 real tests/fixtures/. Never invokes
-score_workflow_readability_llm() -- that path may make a live LLM call
-and must not run under pytest.
+readability scoring across the 10 real tests/fixtures/, plus
+score_workflow_readability_llm()'s error-surfacing against a fake/
+monkeypatched provider only -- never the real Gemini provider, so no test
+here ever makes a live LLM call.
 """
 
 import os
@@ -10,7 +11,12 @@ import os
 import pytest
 
 from evaluation._path_guard import HELD_OUT_ROOT
-from evaluation.readability import ReadabilityResult, score_workflow_readability
+from evaluation.readability import (
+    ReadabilityResult,
+    score_workflow_readability,
+    score_workflow_readability_llm,
+)
+from llm.base import LLMProvider
 
 REAL_FIXTURE_FILES = [
     "checkout_check_dist.yml",
@@ -49,3 +55,48 @@ def test_score_workflow_readability_refuses_held_out_path():
     held_out_file = os.path.join(str(HELD_OUT_ROOT), "requests_lint.yml")
     with pytest.raises(ValueError):
         score_workflow_readability(held_out_file)
+
+
+class _FakeFailingProvider(LLMProvider):
+    """Every _call_once attempt raises -- verifies
+    score_workflow_readability_llm() surfaces the real failure reason
+    rather than only a bare "llm_fallback" label. No live call, no SDK,
+    no key: this subclasses LLMProvider directly and is monkeypatched in
+    as get_default_provider()'s return value below."""
+
+    @property
+    def provider_name(self):
+        return "fake"
+
+    @property
+    def model_name(self):
+        return "fake-model"
+
+    @property
+    def temperature(self):
+        return 0.0
+
+    def _call_once(self, structured_text, pipeline):
+        raise ValueError("simulated API failure")
+
+
+def test_score_workflow_readability_llm_surfaces_real_error(monkeypatch):
+    monkeypatch.setattr(
+        "evaluation.readability.get_default_provider",
+        lambda: _FakeFailingProvider(),
+    )
+    fixture_path = os.path.join(_FIXTURES_DIR, "checkout_check_dist.yml")
+    result = score_workflow_readability_llm(fixture_path)
+
+    assert result.source == "llm_fallback"
+    assert result.error is not None
+    assert "ValueError: simulated API failure" in result.error
+
+
+def test_score_workflow_readability_llm_no_provider_labels_missing_key(monkeypatch):
+    monkeypatch.setattr("evaluation.readability.get_default_provider", lambda: None)
+    fixture_path = os.path.join(_FIXTURES_DIR, "checkout_check_dist.yml")
+    result = score_workflow_readability_llm(fixture_path)
+
+    assert result.source == "llm_fallback"
+    assert result.error == "GEMINI_API_KEY not set"

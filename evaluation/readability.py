@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Optional
 
 import textstat
 
@@ -31,6 +32,7 @@ class ReadabilityResult:
     flesch_kincaid_grade: float
     flesch_reading_ease: float
     gunning_fog: float
+    error: Optional[str] = None  # only set when source == "llm_fallback"
 
 
 def _compute_scores(text: str) -> tuple[float, float, float]:
@@ -84,6 +86,7 @@ def score_workflow_readability_llm(fixture_path: str) -> ReadabilityResult:
             flesch_kincaid_grade=fkgl,
             flesch_reading_ease=ease,
             gunning_fog=fog,
+            error="GEMINI_API_KEY not set",
         )
 
     result = provider.beautify(structured_text, pipeline)
@@ -95,4 +98,5 @@ def score_workflow_readability_llm(fixture_path: str) -> ReadabilityResult:
         flesch_kincaid_grade=fkgl,
         flesch_reading_ease=ease,
         gunning_fog=fog,
+        error=result.error if result.used_fallback else None,
     )

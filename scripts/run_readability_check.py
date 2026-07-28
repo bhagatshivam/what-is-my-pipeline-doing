@@ -51,17 +51,21 @@ _CAVEAT = (
     "proxy, not a literal reading grade level. The 'llm' column is the "
     "headline comparison (does LLM polish help or hurt readability), but "
     "only reflects a genuine live measurement when source=llm_live; "
-    "source=llm_fallback means no GEMINI_API_KEY was available and the row "
-    "duplicates the deterministic score."
+    "source=llm_fallback means either no GEMINI_API_KEY was available or the "
+    "live call itself failed -- the 'LLM error' column distinguishes the two "
+    "('GEMINI_API_KEY not set' vs. the real exception), and the row duplicates "
+    "the deterministic score either way."
 )
 
 
 def _format_row(det: ReadabilityResult, llm: ReadabilityResult) -> str:
+    error_cell = llm.error if llm.error else ""
     return (
         f"| {det.fixture} "
         f"| {det.flesch_kincaid_grade:.2f} | {det.flesch_reading_ease:.2f} | {det.gunning_fog:.2f} "
         f"| {llm.source} "
-        f"| {llm.flesch_kincaid_grade:.2f} | {llm.flesch_reading_ease:.2f} | {llm.gunning_fog:.2f} |"
+        f"| {llm.flesch_kincaid_grade:.2f} | {llm.flesch_reading_ease:.2f} | {llm.gunning_fog:.2f} "
+        f"| {error_cell} |"
     )
 
 
@@ -75,8 +79,9 @@ def main() -> None:
             det = score_workflow_readability(fixture_path)
             llm = score_workflow_readability_llm(fixture_path)
             rows.append(_format_row(det, llm))
+            error_suffix = f" [{llm.error}]" if llm.error else ""
             print(f"{filename}: deterministic FKGL={det.flesch_kincaid_grade:.2f}, "
-                  f"llm({llm.source}) FKGL={llm.flesch_kincaid_grade:.2f}")
+                  f"llm({llm.source}) FKGL={llm.flesch_kincaid_grade:.2f}{error_suffix}")
     finally:
         os.chdir(original_cwd)
 
@@ -86,8 +91,8 @@ def main() -> None:
         _CAVEAT,
         "",
         "| Fixture | Det. FKGL | Det. Reading Ease | Det. Gunning Fog "
-        "| LLM source | LLM FKGL | LLM Reading Ease | LLM Gunning Fog |",
-        "|---|---|---|---|---|---|---|---|",
+        "| LLM source | LLM FKGL | LLM Reading Ease | LLM Gunning Fog | LLM error |",
+        "|---|---|---|---|---|---|---|---|---|",
         *rows,
         "",
     ]
