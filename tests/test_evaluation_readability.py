@@ -57,6 +57,15 @@ def test_score_workflow_readability_refuses_held_out_path():
         score_workflow_readability(held_out_file)
 
 
+def test_score_workflow_readability_llm_refuses_held_out_path():
+    # assert_not_held_out() is the first line of score_workflow_readability_llm(),
+    # before get_default_provider() or any parse -- this must raise without
+    # ever touching a provider, live or fake.
+    held_out_file = os.path.join(str(HELD_OUT_ROOT), "requests_lint.yml")
+    with pytest.raises(ValueError):
+        score_workflow_readability_llm(held_out_file)
+
+
 class _FakeFailingProvider(LLMProvider):
     """Every _call_once attempt raises -- verifies
     score_workflow_readability_llm() surfaces the real failure reason
