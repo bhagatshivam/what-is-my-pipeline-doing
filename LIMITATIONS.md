@@ -1083,3 +1083,26 @@ against it. Current scope and limits, honestly stated:
   falls back to scoring the same deterministic text, labeled
   `source="llm_fallback"` in the results table rather than presented as a
   distinct data point.
+- **Single-call LLM readability measurements are not reliable indicators
+  of a fixture's true variance (Phase 7 Step 1, PR 4, live variance-check
+  pass, 2026-07-28).** PR 2's `evaluation/readability_results.md` scored
+  each fixture with a single `beautify()` call and produced a per-fixture
+  deterministic-vs-LLM FKGL swing that read as content-driven signal:
+  pytorch_lint.yml showed the largest swing (6.42 grade levels),
+  setup_python_test.yml was second (4.12), and rust_ci.yml appeared
+  essentially flat (0.31). PR 4's 10-repeat variance run
+  (`evaluation/variance_results.md`) inverts that ranking entirely —
+  setup_python_test.yml has the widest observed band (range 7.49, large
+  drift), rust_ci.yml — the supposed flat control — lands in moderate
+  drift (2.67), and pytorch_lint.yml turned out to have the narrowest
+  band of the three (1.59). This 10-repeat pass required Gemini API
+  billing to be enabled to complete in a single run, given the free
+  tier's per-day request cap — which is why the scope is these three
+  fixtures (two PR 2 extremes plus a control) rather than a full
+  10-fixture N=10 sweep. A single call's LLM-polished score is
+  therefore not a stable per-fixture property; no rank ordering or
+  per-fixture characterization should be drawn from a one-sample
+  readability run without a supporting variance check at N≥10. This
+  does not invalidate PR 2's design (deterministic-vs-LLM as a headline
+  framing) — it invalidates any interpretation of a single call as
+  characterizing a specific fixture's LLM behaviour.
