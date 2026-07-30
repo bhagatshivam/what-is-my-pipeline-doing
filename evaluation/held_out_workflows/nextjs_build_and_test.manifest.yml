@@ -1,0 +1,1473 @@
+# Held-out evaluation manifest -- authored by reading
+# nextjs_build_and_test.yml's raw YAML directly, with job/dependency/matrix
+# enumeration cross-checked programmatically via yaml.safe_load (not by
+# eye -- this file has 40 jobs and 144 dependency edges, far larger than
+# any other manifest in this set, so mechanical enumeration is the only
+# reliable way to satisfy the E3 completeness rule at this scale; matches
+# celery_python_package.manifest.yml's precedent of using yaml.safe_load
+# to verify needs: rather than trusting a visual skim, just applied to
+# every job here rather than 2). GitHubActionsParser/generate_text/
+# generate_mermaid were never run before writing this file or generating
+# these fact lists.
+purpose: held_out_evaluation
+workflow_id: nextjs_build_and_test
+source_repo: vercel/next.js
+source_path: .github/workflows/build_and_test.yml
+source_commit: bd770878647212b23dc7643d2a9c6126df45aa2c
+date_pulled: 2026-07-30
+local_file: nextjs_build_and_test.yml
+
+facts:
+  - fact_id: nextjs_build_and_test.trigger.1
+    category: trigger
+    description: "Runs on push to canary branch"
+    expected:
+      type: push
+      branches: [canary]
+
+  - fact_id: nextjs_build_and_test.trigger.2
+    category: trigger
+    description: "Runs on pull request, restricted to opened/synchronize event types (types: filter, not the bare pull_request default)"
+    expected:
+      type: pull_request
+
+  - fact_id: nextjs_build_and_test.concurrency.1
+    category: concurrency
+    description: "Workflow-level concurrency: group is a conditional expression choosing a PR-scoped or SHA-scoped group name depending on github.event_name, cancel-in-progress: true"
+    expected:
+      scope: workflow
+
+  - fact_id: nextjs_build_and_test.environment_variable.1
+    category: environment_variable
+    description: "Workflow-level env var NODE_MAINTENANCE_VERSION = 20"
+    expected:
+      name: NODE_MAINTENANCE_VERSION
+      scope: pipeline
+
+  - fact_id: nextjs_build_and_test.environment_variable.2
+    category: environment_variable
+    description: "Workflow-level env var NODE_LTS_VERSION = 22"
+    expected:
+      name: NODE_LTS_VERSION
+      scope: pipeline
+
+  # All 40 jobs enumerated below (count verified via yaml.safe_load), none skipped.
+
+  - fact_id: nextjs_build_and_test.job.1
+    category: job
+    description: "Job 'optimize-ci' exists; uses: ./.github/workflows/pr_stack_optimizer.yml"
+    expected:
+      name: optimize-ci
+
+  - fact_id: nextjs_build_and_test.job.2
+    category: job
+    description: "Job 'changes' exists"
+    expected:
+      name: changes
+
+  - fact_id: nextjs_build_and_test.job.3
+    category: job
+    description: "Job 'pr-ci-metadata' exists"
+    expected:
+      name: pr-ci-metadata
+
+  - fact_id: nextjs_build_and_test.job.4
+    category: job
+    description: "Job 'build-native' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: build-native
+
+  - fact_id: nextjs_build_and_test.job.5
+    category: job
+    description: "Job 'build-native-windows' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: build-native-windows
+
+  - fact_id: nextjs_build_and_test.job.6
+    category: job
+    description: "Job 'build-next' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: build-next
+
+  - fact_id: nextjs_build_and_test.job.7
+    category: job
+    description: "Job 'fetch-test-timings' exists"
+    expected:
+      name: fetch-test-timings
+
+  - fact_id: nextjs_build_and_test.job.8
+    category: job
+    description: "Job 'lint' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: lint
+
+  - fact_id: nextjs_build_and_test.job.9
+    category: job
+    description: "Job 'validate-docs-links' exists"
+    expected:
+      name: validate-docs-links
+
+  - fact_id: nextjs_build_and_test.job.10
+    category: job
+    description: "Job 'check-types-precompiled' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: check-types-precompiled
+
+  - fact_id: nextjs_build_and_test.job.11
+    category: job
+    description: "Job 'test-cargo-unit' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: test-cargo-unit
+
+  - fact_id: nextjs_build_and_test.job.12
+    category: job
+    description: "Job 'test-bench' exists; uses: ./.github/workflows/test-turbopack-rust-bench-test.yml"
+    expected:
+      name: test-bench
+
+  - fact_id: nextjs_build_and_test.job.13
+    category: job
+    description: "Job 'rust-check' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: rust-check
+
+  - fact_id: nextjs_build_and_test.job.14
+    category: job
+    description: "Job 'rustdoc-check' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: rustdoc-check
+
+  - fact_id: nextjs_build_and_test.job.15
+    category: job
+    description: "Job 'ast-grep' exists"
+    expected:
+      name: ast-grep
+
+  - fact_id: nextjs_build_and_test.job.16
+    category: job
+    description: "Job 'devlow-bench' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: devlow-bench
+
+  - fact_id: nextjs_build_and_test.job.17
+    category: job
+    description: "Job 'test-devlow' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: test-devlow
+
+  - fact_id: nextjs_build_and_test.job.18
+    category: job
+    description: "Job 'test-turbopack-dev' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-turbopack-dev
+
+  - fact_id: nextjs_build_and_test.job.19
+    category: job
+    description: "Job 'test-turbopack-production' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-turbopack-production
+
+  - fact_id: nextjs_build_and_test.job.20
+    category: job
+    description: "Job 'test-rspack-dev' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-rspack-dev
+
+  - fact_id: nextjs_build_and_test.job.21
+    category: job
+    description: "Job 'test-rspack-production' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-rspack-production
+
+  - fact_id: nextjs_build_and_test.job.22
+    category: job
+    description: "Job 'test-next-swc-wasm' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: test-next-swc-wasm
+
+  - fact_id: nextjs_build_and_test.job.23
+    category: job
+    description: "Job 'test-next-napi-bindings-wasi' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: test-next-napi-bindings-wasi
+
+  - fact_id: nextjs_build_and_test.job.24
+    category: job
+    description: "Job 'test-unit' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-unit
+
+  - fact_id: nextjs_build_and_test.job.25
+    category: job
+    description: "Job 'test-next-config-ts-native-ts-dev' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-next-config-ts-native-ts-dev
+
+  - fact_id: nextjs_build_and_test.job.26
+    category: job
+    description: "Job 'test-next-config-ts-native-ts-prod' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-next-config-ts-native-ts-prod
+
+  - fact_id: nextjs_build_and_test.job.27
+    category: job
+    description: "Job 'test-unit-windows' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-unit-windows
+
+  - fact_id: nextjs_build_and_test.job.28
+    category: job
+    description: "Job 'test-new-tests-dev' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-new-tests-dev
+
+  - fact_id: nextjs_build_and_test.job.29
+    category: job
+    description: "Job 'test-new-tests-start' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-new-tests-start
+
+  - fact_id: nextjs_build_and_test.job.30
+    category: job
+    description: "Job 'test-new-tests-deploy' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-new-tests-deploy
+
+  - fact_id: nextjs_build_and_test.job.31
+    category: job
+    description: "Job 'test-new-tests-deploy-cache-components' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-new-tests-deploy-cache-components
+
+  - fact_id: nextjs_build_and_test.job.32
+    category: job
+    description: "Job 'test-dev' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-dev
+
+  - fact_id: nextjs_build_and_test.job.33
+    category: job
+    description: "Job 'test-dev-windows' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: test-dev-windows
+
+  - fact_id: nextjs_build_and_test.job.34
+    category: job
+    description: "Job 'test-integration-windows' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: test-integration-windows
+
+  - fact_id: nextjs_build_and_test.job.35
+    category: job
+    description: "Job 'test-prod-windows' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: test-prod-windows
+
+  - fact_id: nextjs_build_and_test.job.36
+    category: job
+    description: "Job 'test-prod' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-prod
+
+  - fact_id: nextjs_build_and_test.job.37
+    category: job
+    description: "Job 'test-firefox-safari' exists; uses: ./.github/workflows/build_reusable.yml"
+    expected:
+      name: test-firefox-safari
+
+  - fact_id: nextjs_build_and_test.job.38
+    category: job
+    description: "Job 'test-cache-components-dev' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-cache-components-dev
+
+  - fact_id: nextjs_build_and_test.job.39
+    category: job
+    description: "Job 'test-cache-components-prod' exists; uses: ./.github/workflows/build_reusable.yml (matrix job)"
+    expected:
+      name: test-cache-components-prod
+
+  - fact_id: nextjs_build_and_test.job.40
+    category: job
+    description: "Job 'tests-pass' exists"
+    expected:
+      name: tests-pass
+
+  - fact_id: nextjs_build_and_test.dependency.1
+    category: dependency
+    description: "Job 'build-native' depends on 'changes'"
+    expected:
+      job: build-native
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.2
+    category: dependency
+    description: "Job 'build-native-windows' depends on 'changes'"
+    expected:
+      job: build-native-windows
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.3
+    category: dependency
+    description: "Job 'fetch-test-timings' depends on 'changes'"
+    expected:
+      job: fetch-test-timings
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.4
+    category: dependency
+    description: "Job 'lint' depends on 'build-next'"
+    expected:
+      job: lint
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.5
+    category: dependency
+    description: "Job 'check-types-precompiled' depends on 'changes'"
+    expected:
+      job: check-types-precompiled
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.6
+    category: dependency
+    description: "Job 'check-types-precompiled' depends on 'build-native'"
+    expected:
+      job: check-types-precompiled
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.7
+    category: dependency
+    description: "Job 'check-types-precompiled' depends on 'build-next'"
+    expected:
+      job: check-types-precompiled
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.8
+    category: dependency
+    description: "Job 'test-cargo-unit' depends on 'changes'"
+    expected:
+      job: test-cargo-unit
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.9
+    category: dependency
+    description: "Job 'test-cargo-unit' depends on 'build-next'"
+    expected:
+      job: test-cargo-unit
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.10
+    category: dependency
+    description: "Job 'test-bench' depends on 'optimize-ci'"
+    expected:
+      job: test-bench
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.11
+    category: dependency
+    description: "Job 'test-bench' depends on 'changes'"
+    expected:
+      job: test-bench
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.12
+    category: dependency
+    description: "Job 'test-bench' depends on 'build-next'"
+    expected:
+      job: test-bench
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.13
+    category: dependency
+    description: "Job 'rust-check' depends on 'changes'"
+    expected:
+      job: rust-check
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.14
+    category: dependency
+    description: "Job 'rust-check' depends on 'build-next'"
+    expected:
+      job: rust-check
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.15
+    category: dependency
+    description: "Job 'rustdoc-check' depends on 'changes'"
+    expected:
+      job: rustdoc-check
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.16
+    category: dependency
+    description: "Job 'rustdoc-check' depends on 'build-next'"
+    expected:
+      job: rustdoc-check
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.17
+    category: dependency
+    description: "Job 'ast-grep' depends on 'changes'"
+    expected:
+      job: ast-grep
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.18
+    category: dependency
+    description: "Job 'ast-grep' depends on 'build-next'"
+    expected:
+      job: ast-grep
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.19
+    category: dependency
+    description: "Job 'devlow-bench' depends on 'optimize-ci'"
+    expected:
+      job: devlow-bench
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.20
+    category: dependency
+    description: "Job 'devlow-bench' depends on 'changes'"
+    expected:
+      job: devlow-bench
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.21
+    category: dependency
+    description: "Job 'devlow-bench' depends on 'build-next'"
+    expected:
+      job: devlow-bench
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.22
+    category: dependency
+    description: "Job 'devlow-bench' depends on 'build-native'"
+    expected:
+      job: devlow-bench
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.23
+    category: dependency
+    description: "Job 'test-devlow' depends on 'optimize-ci'"
+    expected:
+      job: test-devlow
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.24
+    category: dependency
+    description: "Job 'test-devlow' depends on 'changes'"
+    expected:
+      job: test-devlow
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.25
+    category: dependency
+    description: "Job 'test-turbopack-dev' depends on 'optimize-ci'"
+    expected:
+      job: test-turbopack-dev
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.26
+    category: dependency
+    description: "Job 'test-turbopack-dev' depends on 'changes'"
+    expected:
+      job: test-turbopack-dev
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.27
+    category: dependency
+    description: "Job 'test-turbopack-dev' depends on 'build-next'"
+    expected:
+      job: test-turbopack-dev
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.28
+    category: dependency
+    description: "Job 'test-turbopack-dev' depends on 'build-native'"
+    expected:
+      job: test-turbopack-dev
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.29
+    category: dependency
+    description: "Job 'test-turbopack-dev' depends on 'fetch-test-timings'"
+    expected:
+      job: test-turbopack-dev
+      depends_on: fetch-test-timings
+
+  - fact_id: nextjs_build_and_test.dependency.30
+    category: dependency
+    description: "Job 'test-turbopack-production' depends on 'optimize-ci'"
+    expected:
+      job: test-turbopack-production
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.31
+    category: dependency
+    description: "Job 'test-turbopack-production' depends on 'changes'"
+    expected:
+      job: test-turbopack-production
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.32
+    category: dependency
+    description: "Job 'test-turbopack-production' depends on 'build-next'"
+    expected:
+      job: test-turbopack-production
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.33
+    category: dependency
+    description: "Job 'test-turbopack-production' depends on 'build-native'"
+    expected:
+      job: test-turbopack-production
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.34
+    category: dependency
+    description: "Job 'test-turbopack-production' depends on 'fetch-test-timings'"
+    expected:
+      job: test-turbopack-production
+      depends_on: fetch-test-timings
+
+  - fact_id: nextjs_build_and_test.dependency.35
+    category: dependency
+    description: "Job 'test-rspack-dev' depends on 'optimize-ci'"
+    expected:
+      job: test-rspack-dev
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.36
+    category: dependency
+    description: "Job 'test-rspack-dev' depends on 'changes'"
+    expected:
+      job: test-rspack-dev
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.37
+    category: dependency
+    description: "Job 'test-rspack-dev' depends on 'build-next'"
+    expected:
+      job: test-rspack-dev
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.38
+    category: dependency
+    description: "Job 'test-rspack-dev' depends on 'build-native'"
+    expected:
+      job: test-rspack-dev
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.39
+    category: dependency
+    description: "Job 'test-rspack-dev' depends on 'fetch-test-timings'"
+    expected:
+      job: test-rspack-dev
+      depends_on: fetch-test-timings
+
+  - fact_id: nextjs_build_and_test.dependency.40
+    category: dependency
+    description: "Job 'test-rspack-production' depends on 'optimize-ci'"
+    expected:
+      job: test-rspack-production
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.41
+    category: dependency
+    description: "Job 'test-rspack-production' depends on 'changes'"
+    expected:
+      job: test-rspack-production
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.42
+    category: dependency
+    description: "Job 'test-rspack-production' depends on 'build-next'"
+    expected:
+      job: test-rspack-production
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.43
+    category: dependency
+    description: "Job 'test-rspack-production' depends on 'build-native'"
+    expected:
+      job: test-rspack-production
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.44
+    category: dependency
+    description: "Job 'test-rspack-production' depends on 'fetch-test-timings'"
+    expected:
+      job: test-rspack-production
+      depends_on: fetch-test-timings
+
+  - fact_id: nextjs_build_and_test.dependency.45
+    category: dependency
+    description: "Job 'test-next-swc-wasm' depends on 'optimize-ci'"
+    expected:
+      job: test-next-swc-wasm
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.46
+    category: dependency
+    description: "Job 'test-next-swc-wasm' depends on 'changes'"
+    expected:
+      job: test-next-swc-wasm
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.47
+    category: dependency
+    description: "Job 'test-next-swc-wasm' depends on 'build-next'"
+    expected:
+      job: test-next-swc-wasm
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.48
+    category: dependency
+    description: "Job 'test-next-napi-bindings-wasi' depends on 'optimize-ci'"
+    expected:
+      job: test-next-napi-bindings-wasi
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.49
+    category: dependency
+    description: "Job 'test-next-napi-bindings-wasi' depends on 'changes'"
+    expected:
+      job: test-next-napi-bindings-wasi
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.50
+    category: dependency
+    description: "Job 'test-next-napi-bindings-wasi' depends on 'build-next'"
+    expected:
+      job: test-next-napi-bindings-wasi
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.51
+    category: dependency
+    description: "Job 'test-unit' depends on 'changes'"
+    expected:
+      job: test-unit
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.52
+    category: dependency
+    description: "Job 'test-unit' depends on 'build-next'"
+    expected:
+      job: test-unit
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.53
+    category: dependency
+    description: "Job 'test-unit' depends on 'build-native'"
+    expected:
+      job: test-unit
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.54
+    category: dependency
+    description: "Job 'test-next-config-ts-native-ts-dev' depends on 'changes'"
+    expected:
+      job: test-next-config-ts-native-ts-dev
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.55
+    category: dependency
+    description: "Job 'test-next-config-ts-native-ts-dev' depends on 'build-next'"
+    expected:
+      job: test-next-config-ts-native-ts-dev
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.56
+    category: dependency
+    description: "Job 'test-next-config-ts-native-ts-dev' depends on 'build-native'"
+    expected:
+      job: test-next-config-ts-native-ts-dev
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.57
+    category: dependency
+    description: "Job 'test-next-config-ts-native-ts-prod' depends on 'changes'"
+    expected:
+      job: test-next-config-ts-native-ts-prod
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.58
+    category: dependency
+    description: "Job 'test-next-config-ts-native-ts-prod' depends on 'build-next'"
+    expected:
+      job: test-next-config-ts-native-ts-prod
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.59
+    category: dependency
+    description: "Job 'test-next-config-ts-native-ts-prod' depends on 'build-native'"
+    expected:
+      job: test-next-config-ts-native-ts-prod
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.60
+    category: dependency
+    description: "Job 'test-unit-windows' depends on 'changes'"
+    expected:
+      job: test-unit-windows
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.61
+    category: dependency
+    description: "Job 'test-unit-windows' depends on 'build-native-windows'"
+    expected:
+      job: test-unit-windows
+      depends_on: build-native-windows
+
+  - fact_id: nextjs_build_and_test.dependency.62
+    category: dependency
+    description: "Job 'test-unit-windows' depends on 'build-next'"
+    expected:
+      job: test-unit-windows
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.63
+    category: dependency
+    description: "Job 'test-new-tests-dev' depends on 'optimize-ci'"
+    expected:
+      job: test-new-tests-dev
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.64
+    category: dependency
+    description: "Job 'test-new-tests-dev' depends on 'changes'"
+    expected:
+      job: test-new-tests-dev
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.65
+    category: dependency
+    description: "Job 'test-new-tests-dev' depends on 'build-native'"
+    expected:
+      job: test-new-tests-dev
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.66
+    category: dependency
+    description: "Job 'test-new-tests-dev' depends on 'build-next'"
+    expected:
+      job: test-new-tests-dev
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.67
+    category: dependency
+    description: "Job 'test-new-tests-start' depends on 'optimize-ci'"
+    expected:
+      job: test-new-tests-start
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.68
+    category: dependency
+    description: "Job 'test-new-tests-start' depends on 'changes'"
+    expected:
+      job: test-new-tests-start
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.69
+    category: dependency
+    description: "Job 'test-new-tests-start' depends on 'build-native'"
+    expected:
+      job: test-new-tests-start
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.70
+    category: dependency
+    description: "Job 'test-new-tests-start' depends on 'build-next'"
+    expected:
+      job: test-new-tests-start
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.71
+    category: dependency
+    description: "Job 'test-new-tests-deploy' depends on 'optimize-ci'"
+    expected:
+      job: test-new-tests-deploy
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.72
+    category: dependency
+    description: "Job 'test-new-tests-deploy' depends on 'test-prod'"
+    expected:
+      job: test-new-tests-deploy
+      depends_on: test-prod
+
+  - fact_id: nextjs_build_and_test.dependency.73
+    category: dependency
+    description: "Job 'test-new-tests-deploy' depends on 'test-new-tests-dev'"
+    expected:
+      job: test-new-tests-deploy
+      depends_on: test-new-tests-dev
+
+  - fact_id: nextjs_build_and_test.dependency.74
+    category: dependency
+    description: "Job 'test-new-tests-deploy' depends on 'test-new-tests-start'"
+    expected:
+      job: test-new-tests-deploy
+      depends_on: test-new-tests-start
+
+  - fact_id: nextjs_build_and_test.dependency.75
+    category: dependency
+    description: "Job 'test-new-tests-deploy-cache-components' depends on 'optimize-ci'"
+    expected:
+      job: test-new-tests-deploy-cache-components
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.76
+    category: dependency
+    description: "Job 'test-new-tests-deploy-cache-components' depends on 'test-cache-components-prod'"
+    expected:
+      job: test-new-tests-deploy-cache-components
+      depends_on: test-cache-components-prod
+
+  - fact_id: nextjs_build_and_test.dependency.77
+    category: dependency
+    description: "Job 'test-new-tests-deploy-cache-components' depends on 'test-new-tests-dev'"
+    expected:
+      job: test-new-tests-deploy-cache-components
+      depends_on: test-new-tests-dev
+
+  - fact_id: nextjs_build_and_test.dependency.78
+    category: dependency
+    description: "Job 'test-new-tests-deploy-cache-components' depends on 'test-new-tests-start'"
+    expected:
+      job: test-new-tests-deploy-cache-components
+      depends_on: test-new-tests-start
+
+  - fact_id: nextjs_build_and_test.dependency.79
+    category: dependency
+    description: "Job 'test-dev' depends on 'optimize-ci'"
+    expected:
+      job: test-dev
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.80
+    category: dependency
+    description: "Job 'test-dev' depends on 'changes'"
+    expected:
+      job: test-dev
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.81
+    category: dependency
+    description: "Job 'test-dev' depends on 'build-native'"
+    expected:
+      job: test-dev
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.82
+    category: dependency
+    description: "Job 'test-dev' depends on 'build-next'"
+    expected:
+      job: test-dev
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.83
+    category: dependency
+    description: "Job 'test-dev' depends on 'fetch-test-timings'"
+    expected:
+      job: test-dev
+      depends_on: fetch-test-timings
+
+  - fact_id: nextjs_build_and_test.dependency.84
+    category: dependency
+    description: "Job 'test-dev-windows' depends on 'optimize-ci'"
+    expected:
+      job: test-dev-windows
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.85
+    category: dependency
+    description: "Job 'test-dev-windows' depends on 'changes'"
+    expected:
+      job: test-dev-windows
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.86
+    category: dependency
+    description: "Job 'test-dev-windows' depends on 'build-native-windows'"
+    expected:
+      job: test-dev-windows
+      depends_on: build-native-windows
+
+  - fact_id: nextjs_build_and_test.dependency.87
+    category: dependency
+    description: "Job 'test-dev-windows' depends on 'build-next'"
+    expected:
+      job: test-dev-windows
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.88
+    category: dependency
+    description: "Job 'test-integration-windows' depends on 'optimize-ci'"
+    expected:
+      job: test-integration-windows
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.89
+    category: dependency
+    description: "Job 'test-integration-windows' depends on 'changes'"
+    expected:
+      job: test-integration-windows
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.90
+    category: dependency
+    description: "Job 'test-integration-windows' depends on 'build-native-windows'"
+    expected:
+      job: test-integration-windows
+      depends_on: build-native-windows
+
+  - fact_id: nextjs_build_and_test.dependency.91
+    category: dependency
+    description: "Job 'test-integration-windows' depends on 'build-next'"
+    expected:
+      job: test-integration-windows
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.92
+    category: dependency
+    description: "Job 'test-prod-windows' depends on 'optimize-ci'"
+    expected:
+      job: test-prod-windows
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.93
+    category: dependency
+    description: "Job 'test-prod-windows' depends on 'changes'"
+    expected:
+      job: test-prod-windows
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.94
+    category: dependency
+    description: "Job 'test-prod-windows' depends on 'build-native-windows'"
+    expected:
+      job: test-prod-windows
+      depends_on: build-native-windows
+
+  - fact_id: nextjs_build_and_test.dependency.95
+    category: dependency
+    description: "Job 'test-prod-windows' depends on 'build-next'"
+    expected:
+      job: test-prod-windows
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.96
+    category: dependency
+    description: "Job 'test-prod' depends on 'optimize-ci'"
+    expected:
+      job: test-prod
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.97
+    category: dependency
+    description: "Job 'test-prod' depends on 'changes'"
+    expected:
+      job: test-prod
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.98
+    category: dependency
+    description: "Job 'test-prod' depends on 'build-native'"
+    expected:
+      job: test-prod
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.99
+    category: dependency
+    description: "Job 'test-prod' depends on 'build-next'"
+    expected:
+      job: test-prod
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.100
+    category: dependency
+    description: "Job 'test-prod' depends on 'fetch-test-timings'"
+    expected:
+      job: test-prod
+      depends_on: fetch-test-timings
+
+  - fact_id: nextjs_build_and_test.dependency.101
+    category: dependency
+    description: "Job 'test-firefox-safari' depends on 'optimize-ci'"
+    expected:
+      job: test-firefox-safari
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.102
+    category: dependency
+    description: "Job 'test-firefox-safari' depends on 'changes'"
+    expected:
+      job: test-firefox-safari
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.103
+    category: dependency
+    description: "Job 'test-firefox-safari' depends on 'build-native'"
+    expected:
+      job: test-firefox-safari
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.104
+    category: dependency
+    description: "Job 'test-firefox-safari' depends on 'build-next'"
+    expected:
+      job: test-firefox-safari
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.105
+    category: dependency
+    description: "Job 'test-cache-components-dev' depends on 'optimize-ci'"
+    expected:
+      job: test-cache-components-dev
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.106
+    category: dependency
+    description: "Job 'test-cache-components-dev' depends on 'changes'"
+    expected:
+      job: test-cache-components-dev
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.107
+    category: dependency
+    description: "Job 'test-cache-components-dev' depends on 'build-native'"
+    expected:
+      job: test-cache-components-dev
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.108
+    category: dependency
+    description: "Job 'test-cache-components-dev' depends on 'build-next'"
+    expected:
+      job: test-cache-components-dev
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.109
+    category: dependency
+    description: "Job 'test-cache-components-dev' depends on 'fetch-test-timings'"
+    expected:
+      job: test-cache-components-dev
+      depends_on: fetch-test-timings
+
+  - fact_id: nextjs_build_and_test.dependency.110
+    category: dependency
+    description: "Job 'test-cache-components-prod' depends on 'optimize-ci'"
+    expected:
+      job: test-cache-components-prod
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.111
+    category: dependency
+    description: "Job 'test-cache-components-prod' depends on 'changes'"
+    expected:
+      job: test-cache-components-prod
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.112
+    category: dependency
+    description: "Job 'test-cache-components-prod' depends on 'build-native'"
+    expected:
+      job: test-cache-components-prod
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.113
+    category: dependency
+    description: "Job 'test-cache-components-prod' depends on 'build-next'"
+    expected:
+      job: test-cache-components-prod
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.114
+    category: dependency
+    description: "Job 'test-cache-components-prod' depends on 'fetch-test-timings'"
+    expected:
+      job: test-cache-components-prod
+      depends_on: fetch-test-timings
+
+  - fact_id: nextjs_build_and_test.dependency.115
+    category: dependency
+    description: "Job 'tests-pass' depends on 'optimize-ci'"
+    expected:
+      job: tests-pass
+      depends_on: optimize-ci
+
+  - fact_id: nextjs_build_and_test.dependency.116
+    category: dependency
+    description: "Job 'tests-pass' depends on 'changes'"
+    expected:
+      job: tests-pass
+      depends_on: changes
+
+  - fact_id: nextjs_build_and_test.dependency.117
+    category: dependency
+    description: "Job 'tests-pass' depends on 'build-native'"
+    expected:
+      job: tests-pass
+      depends_on: build-native
+
+  - fact_id: nextjs_build_and_test.dependency.118
+    category: dependency
+    description: "Job 'tests-pass' depends on 'build-next'"
+    expected:
+      job: tests-pass
+      depends_on: build-next
+
+  - fact_id: nextjs_build_and_test.dependency.119
+    category: dependency
+    description: "Job 'tests-pass' depends on 'fetch-test-timings'"
+    expected:
+      job: tests-pass
+      depends_on: fetch-test-timings
+
+  - fact_id: nextjs_build_and_test.dependency.120
+    category: dependency
+    description: "Job 'tests-pass' depends on 'lint'"
+    expected:
+      job: tests-pass
+      depends_on: lint
+
+  - fact_id: nextjs_build_and_test.dependency.121
+    category: dependency
+    description: "Job 'tests-pass' depends on 'validate-docs-links'"
+    expected:
+      job: tests-pass
+      depends_on: validate-docs-links
+
+  - fact_id: nextjs_build_and_test.dependency.122
+    category: dependency
+    description: "Job 'tests-pass' depends on 'check-types-precompiled'"
+    expected:
+      job: tests-pass
+      depends_on: check-types-precompiled
+
+  - fact_id: nextjs_build_and_test.dependency.123
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-unit'"
+    expected:
+      job: tests-pass
+      depends_on: test-unit
+
+  - fact_id: nextjs_build_and_test.dependency.124
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-next-config-ts-native-ts-dev'"
+    expected:
+      job: tests-pass
+      depends_on: test-next-config-ts-native-ts-dev
+
+  - fact_id: nextjs_build_and_test.dependency.125
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-next-config-ts-native-ts-prod'"
+    expected:
+      job: tests-pass
+      depends_on: test-next-config-ts-native-ts-prod
+
+  - fact_id: nextjs_build_and_test.dependency.126
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-dev'"
+    expected:
+      job: tests-pass
+      depends_on: test-dev
+
+  - fact_id: nextjs_build_and_test.dependency.127
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-prod'"
+    expected:
+      job: tests-pass
+      depends_on: test-prod
+
+  - fact_id: nextjs_build_and_test.dependency.128
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-firefox-safari'"
+    expected:
+      job: tests-pass
+      depends_on: test-firefox-safari
+
+  - fact_id: nextjs_build_and_test.dependency.129
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-cache-components-dev'"
+    expected:
+      job: tests-pass
+      depends_on: test-cache-components-dev
+
+  - fact_id: nextjs_build_and_test.dependency.130
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-cache-components-prod'"
+    expected:
+      job: tests-pass
+      depends_on: test-cache-components-prod
+
+  - fact_id: nextjs_build_and_test.dependency.131
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-cargo-unit'"
+    expected:
+      job: tests-pass
+      depends_on: test-cargo-unit
+
+  - fact_id: nextjs_build_and_test.dependency.132
+    category: dependency
+    description: "Job 'tests-pass' depends on 'rust-check'"
+    expected:
+      job: tests-pass
+      depends_on: rust-check
+
+  - fact_id: nextjs_build_and_test.dependency.133
+    category: dependency
+    description: "Job 'tests-pass' depends on 'rustdoc-check'"
+    expected:
+      job: tests-pass
+      depends_on: rustdoc-check
+
+  - fact_id: nextjs_build_and_test.dependency.134
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-next-swc-wasm'"
+    expected:
+      job: tests-pass
+      depends_on: test-next-swc-wasm
+
+  - fact_id: nextjs_build_and_test.dependency.135
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-turbopack-dev'"
+    expected:
+      job: tests-pass
+      depends_on: test-turbopack-dev
+
+  - fact_id: nextjs_build_and_test.dependency.136
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-new-tests-dev'"
+    expected:
+      job: tests-pass
+      depends_on: test-new-tests-dev
+
+  - fact_id: nextjs_build_and_test.dependency.137
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-new-tests-start'"
+    expected:
+      job: tests-pass
+      depends_on: test-new-tests-start
+
+  - fact_id: nextjs_build_and_test.dependency.138
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-new-tests-deploy'"
+    expected:
+      job: tests-pass
+      depends_on: test-new-tests-deploy
+
+  - fact_id: nextjs_build_and_test.dependency.139
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-new-tests-deploy-cache-components'"
+    expected:
+      job: tests-pass
+      depends_on: test-new-tests-deploy-cache-components
+
+  - fact_id: nextjs_build_and_test.dependency.140
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-turbopack-production'"
+    expected:
+      job: tests-pass
+      depends_on: test-turbopack-production
+
+  - fact_id: nextjs_build_and_test.dependency.141
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-unit-windows'"
+    expected:
+      job: tests-pass
+      depends_on: test-unit-windows
+
+  - fact_id: nextjs_build_and_test.dependency.142
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-dev-windows'"
+    expected:
+      job: tests-pass
+      depends_on: test-dev-windows
+
+  - fact_id: nextjs_build_and_test.dependency.143
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-integration-windows'"
+    expected:
+      job: tests-pass
+      depends_on: test-integration-windows
+
+  - fact_id: nextjs_build_and_test.dependency.144
+    category: dependency
+    description: "Job 'tests-pass' depends on 'test-prod-windows'"
+    expected:
+      job: tests-pass
+      depends_on: test-prod-windows
+
+  # 17 matrix-bearing jobs enumerated below (one representative axis each,
+  # matching celery_python_package.manifest.yml/scipy_linux.manifest.yml's
+  # precedent of not exhaustively listing every axis of every matrix job).
+
+  - fact_id: nextjs_build_and_test.matrix.1
+    category: matrix
+    description: "Job 'devlow-bench' has a matrix including axis selector (3 values)"
+    expected:
+      job: devlow-bench
+      axis: selector
+      value_count: 3
+
+  - fact_id: nextjs_build_and_test.matrix.2
+    category: matrix
+    description: "Job 'test-turbopack-dev' has a matrix including axis group (7 values)"
+    expected:
+      job: test-turbopack-dev
+      axis: group
+      value_count: 7
+
+  - fact_id: nextjs_build_and_test.matrix.3
+    category: matrix
+    description: "Job 'test-turbopack-production' has a matrix including axis group (7 values)"
+    expected:
+      job: test-turbopack-production
+      axis: group
+      value_count: 7
+
+  - fact_id: nextjs_build_and_test.matrix.4
+    category: matrix
+    description: "Job 'test-rspack-dev' has a matrix including axis group (5 values)"
+    expected:
+      job: test-rspack-dev
+      axis: group
+      value_count: 5
+
+  - fact_id: nextjs_build_and_test.matrix.5
+    category: matrix
+    description: "Job 'test-rspack-production' has a matrix including axis group (7 values)"
+    expected:
+      job: test-rspack-production
+      axis: group
+      value_count: 7
+
+  - fact_id: nextjs_build_and_test.matrix.6
+    category: matrix
+    description: "Job 'test-unit' has a matrix including axis node (2 values)"
+    expected:
+      job: test-unit
+      axis: node
+      value_count: 2
+
+  - fact_id: nextjs_build_and_test.matrix.7
+    category: matrix
+    description: "Job 'test-next-config-ts-native-ts-dev' has a matrix including axis node (2 values)"
+    expected:
+      job: test-next-config-ts-native-ts-dev
+      axis: node
+      value_count: 2
+
+  - fact_id: nextjs_build_and_test.matrix.8
+    category: matrix
+    description: "Job 'test-next-config-ts-native-ts-prod' has a matrix including axis node (2 values)"
+    expected:
+      job: test-next-config-ts-native-ts-prod
+      axis: node
+      value_count: 2
+
+  - fact_id: nextjs_build_and_test.matrix.9
+    category: matrix
+    description: "Job 'test-unit-windows' has a matrix including axis node (2 values)"
+    expected:
+      job: test-unit-windows
+      axis: node
+      value_count: 2
+
+  - fact_id: nextjs_build_and_test.matrix.10
+    category: matrix
+    description: "Job 'test-new-tests-dev' has a matrix including axis group (5 values)"
+    expected:
+      job: test-new-tests-dev
+      axis: group
+      value_count: 5
+
+  - fact_id: nextjs_build_and_test.matrix.11
+    category: matrix
+    description: "Job 'test-new-tests-start' has a matrix including axis group (5 values)"
+    expected:
+      job: test-new-tests-start
+      axis: group
+      value_count: 5
+
+  - fact_id: nextjs_build_and_test.matrix.12
+    category: matrix
+    description: "Job 'test-new-tests-deploy' has a matrix including axis group (5 values)"
+    expected:
+      job: test-new-tests-deploy
+      axis: group
+      value_count: 5
+
+  - fact_id: nextjs_build_and_test.matrix.13
+    category: matrix
+    description: "Job 'test-new-tests-deploy-cache-components' has a matrix including axis group (5 values)"
+    expected:
+      job: test-new-tests-deploy-cache-components
+      axis: group
+      value_count: 5
+
+  - fact_id: nextjs_build_and_test.matrix.14
+    category: matrix
+    description: "Job 'test-dev' has a matrix including axis group (10 values)"
+    expected:
+      job: test-dev
+      axis: group
+      value_count: 10
+
+  - fact_id: nextjs_build_and_test.matrix.15
+    category: matrix
+    description: "Job 'test-prod' has a matrix including axis group (10 values)"
+    expected:
+      job: test-prod
+      axis: group
+      value_count: 10
+
+  - fact_id: nextjs_build_and_test.matrix.16
+    category: matrix
+    description: "Job 'test-cache-components-dev' has a matrix including axis group (6 values)"
+    expected:
+      job: test-cache-components-dev
+      axis: group
+      value_count: 6
+
+  - fact_id: nextjs_build_and_test.matrix.17
+    category: matrix
+    description: "Job 'test-cache-components-prod' has a matrix including axis group (7 values)"
+    expected:
+      job: test-cache-components-prod
+      axis: group
+      value_count: 7
+  - fact_id: nextjs_build_and_test.secret.1
+    category: secret
+    description: "Secrets KV_REST_API_URL and KV_REST_API_TOKEN required, used in job 'fetch-test-timings', step 'Fetch test timings'"
+    expected:
+      name: KV_REST_API_URL
+      scope: step
+      scope_job: fetch-test-timings
+      scope_step: "Fetch test timings"
+
+  - fact_id: nextjs_build_and_test.secret.2
+    category: secret
+    description: "Secret GITHUB_TOKEN required, used in job 'validate-docs-links', step 'Run link checker'"
+    expected:
+      name: GITHUB_TOKEN
+      scope: step
+      scope_job: validate-docs-links
+      scope_step: "Run link checker"
+
+  - fact_id: nextjs_build_and_test.step.1
+    category: step
+    description: "Job 'optimize-ci' calls uses: ./.github/workflows/pr_stack_optimizer.yml (internal reusable workflow, no steps: block of its own)"
+    expected:
+      job: optimize-ci
+      step_name: "N/A -- uses:-only job, no steps:"
+
+  - fact_id: nextjs_build_and_test.condition.1
+    category: condition
+    description: "Job 'build-native' has if: referencing needs.changes.outputs (gated on the 'changes' job's detected file-change outputs)"
+    expected:
+      job: build-native
+      expression_substring: "needs.changes.outputs"

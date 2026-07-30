@@ -1,0 +1,56 @@
+# Held-out evaluation manifest -- authored by reading
+# cpython_reusable_macos.yml's raw YAML directly. GitHubActionsParser/
+# generate_text/generate_mermaid were never run before writing this file.
+purpose: held_out_evaluation
+workflow_id: cpython_reusable_macos
+source_repo: python/cpython
+source_path: .github/workflows/reusable-macos.yml
+source_commit: 1402ac74aa3f0529a15d31aab4f392c4ece3db97
+date_pulled: 2026-07-30
+local_file: cpython_reusable_macos.yml
+
+facts:
+  - fact_id: cpython_reusable_macos.trigger.1
+    category: trigger
+    description: "Callable as a reusable workflow (workflow_call), with 2 declared inputs: free-threading (boolean, optional, default false) and os (string, required)"
+    expected:
+      type: workflow_call
+      inputs: [free-threading, os]
+
+  - fact_id: cpython_reusable_macos.permissions.1
+    category: permissions
+    description: "Workflow-level permissions: contents: read"
+    expected:
+      scope: workflow
+      value: {contents: read}
+
+  # No `dependency` facts: only 1 job, no needs: anywhere -- correct per
+  # the E3 completeness rule (no real edges exist to omit).
+
+  - fact_id: cpython_reusable_macos.job.1
+    category: job
+    description: "Job 'build-macos' exists; runner is a dynamic ${{ inputs.os }} expression, name is also dynamic (build and test (${{ inputs.os }})), timeout-minutes: 60, 8 steps (first pinned to a full commit SHA with a trailing # v7.0.0 version comment), 3 steps carry an if: condition referencing inputs.free-threading/inputs.os"
+    expected:
+      name: build-macos
+      runner: "${{ inputs.os }}"
+
+  - fact_id: cpython_reusable_macos.step.1
+    category: step
+    description: "Job 'build-macos' has a step named 'Runner image version'"
+    expected:
+      job: build-macos
+      step_name: "Runner image version"
+
+  - fact_id: cpython_reusable_macos.step.2
+    category: step
+    description: "Job 'build-macos' has a step named 'Check compiler warnings', gated by if: !inputs.free-threading && inputs.os == 'macos-26-intel'"
+    expected:
+      job: build-macos
+      step_name: "Check compiler warnings"
+
+  - fact_id: cpython_reusable_macos.condition.1
+    category: condition
+    description: "Step 'Build CPython' has if: ${{ inputs.free-threading || inputs.os != 'macos-26-intel' }}"
+    expected:
+      job: build-macos
+      expression_substring: "inputs.free-threading"
