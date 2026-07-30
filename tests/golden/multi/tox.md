@@ -4,7 +4,12 @@
 Pipeline: tox (unified CI documentation)
 Source: tests/fixtures/multi/tox/.github/workflows (GitHub Actions)
 
-TRIGGERS
+AT A GLANCE
+This workflow runs on manual dispatch, pushes to `main`, pull requests, a scheduled run (cron `0 8 * * *`), and pushes.
+It contains 6 jobs: 5 with no declared dependencies, 1 depending on other jobs.
+2 of 6 jobs use a build matrix; 1 of them define 18 configured combinations between them (1 more job's matrix size not reflected in that total).
+
+WHEN IT RUNS
 - Can be triggered manually
 - Runs on every push to main branch; excluding tags matching **
 - Runs on every pull request
@@ -13,7 +18,11 @@ TRIGGERS
 - Runs on every push with tag matching *
 - Runs on every push with tag matching *
 
-JOBS (in order)
+EXECUTION SUMMARY
+Independent jobs (no dependencies): check_yaml__test, check_yaml__check, prepare_release_yaml__prepare-release, release_yaml__build, update_schemastore_yaml__update-schemastore
+release_yaml__release runs after release_yaml__build
+
+IMPLEMENTATION DETAILS
 1. check_yaml__test — runs on ${{ matrix.os.image }}; 7 steps; matrix: 18 combinations (py, os)
    - actions/checkout
    - Install the latest version of uv
@@ -71,29 +80,25 @@ SECRETS REQUIRED
 
 ```mermaid
 flowchart LR
-    trigger_0(["Manual dispatch"])
-    trigger_1(["Push"])
-    trigger_2(["Pull request"])
-    trigger_3(["Schedule"])
-    trigger_4(["Manual dispatch"])
-    trigger_5(["Push"])
-    trigger_6(["Push"])
     check_yaml__test["check_yaml__test [matrix: 18 combinations (py, os)]"]
     check_yaml__check["check_yaml__check [matrix: up to 10 combinations (tox_env, os), 1 excluded]"]
     prepare_release_yaml__prepare-release["prepare_release_yaml__prepare-release"]
     release_yaml__build["release_yaml__build"]
     release_yaml__release["release_yaml__release"]
     update_schemastore_yaml__update-schemastore["update_schemastore_yaml__update-schemastore"]
-    trigger_0 --> check_yaml__test
-    trigger_0 --> check_yaml__check
-    trigger_1 --> check_yaml__test
-    trigger_1 --> check_yaml__check
-    trigger_2 --> check_yaml__test
-    trigger_2 --> check_yaml__check
-    trigger_3 --> check_yaml__test
-    trigger_3 --> check_yaml__check
-    trigger_4 --> prepare_release_yaml__prepare-release
-    trigger_5 --> release_yaml__build
-    trigger_6 --> update_schemastore_yaml__update-schemastore
     release_yaml__build --> release_yaml__release
 ```
+
+## Workflow Relationships
+
+| Workflow file | Runs when | Job behaviour | Relationship |
+| --- | --- | --- | --- |
+| check_yaml | manual dispatch, pushes to `main`, pull requests, and a scheduled run (cron `0 8 * * *`) | 2 jobs, 2 independent | independent |
+| prepare_release_yaml | manual dispatch | 1 job, 1 independent | independent |
+| release_yaml | pushes | 2 jobs, 1 independent | independent |
+| update_schemastore_yaml | pushes | 1 job, 1 independent | independent |
+
+Some workflow files share the exact same trigger. GitHub Actions gives no ordering between separately-triggered workflow runs — these run independently of each other, not in sequence, even though they fire on the same event:
+
+- pushes: release_yaml, update_schemastore_yaml
+

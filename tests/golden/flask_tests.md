@@ -6,11 +6,19 @@ Source: tests/fixtures/flask_tests.yml (GitHub Actions)
 Permissions: none (all permissions explicitly disabled)
 Concurrency: group ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}; cancels in-progress runs
 
-TRIGGERS
+AT A GLANCE
+This workflow runs on pull requests and pushes to `main`, `stable`.
+It contains 2 jobs, with no job dependencies, so GitHub may run them in parallel.
+1 of 2 jobs use a build matrix; together these define 11 configured combinations.
+
+WHEN IT RUNS
 - Runs on every pull request excluding paths docs/** or README.md
 - Runs on every push to main or stable branches; excluding paths docs/** or README.md
 
-JOBS (in order)
+EXECUTION SUMMARY
+Independent jobs (no dependencies): tests, typing
+
+IMPLEMENTATION DETAILS
 1. tests — runs on ${{ matrix.os || 'ubuntu-latest' }}; 4 steps; matrix: 11 combinations (via include)
    - actions/checkout
    - astral-sh/setup-uv
@@ -28,12 +36,6 @@ JOBS (in order)
 
 ```mermaid
 flowchart LR
-    trigger_0(["Pull request"])
-    trigger_1(["Push"])
     tests["tests [matrix: 11 combinations (via include)]"]
     typing["typing"]
-    trigger_0 --> tests
-    trigger_0 --> typing
-    trigger_1 --> tests
-    trigger_1 --> typing
 ```

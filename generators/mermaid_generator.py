@@ -38,14 +38,15 @@ Contract:
   of detail stays `text_generator`-only; a diagram with every fact from
   the text summary crammed into node labels stops being readable on
   larger graphs (e.g. the 14-job pytorch_lint.yml fixture).
-- One node per `Trigger`, connected to every "entry" job (a job with no
-  dependency that resolves to a real job in this pipeline — including a
-  job whose only `needs:` reference is dangling, mirroring
-  `_topological_job_order`'s own dangling-dependency handling). Trigger
-  node IDs are `trigger_<index>` (0-based position in `pipeline.triggers`)
-  — never derived from `TriggerType`, since a pipeline can have multiple
-  triggers of the same type (e.g. several `schedule:` entries) which would
-  otherwise collide on a type-derived ID.
+- This diagram shows job dependencies only — no trigger nodes (Phase 7.5,
+  2026-07-30, resolves the origin-scoped trigger-wiring exception this
+  docstring used to document). Before this change, every `Trigger` got its
+  own node wired to every "entry" job, which fanned out into a
+  near-meaningless number of edges on pipelines with many independent jobs
+  and few triggers (e.g. 14 jobs x 4 triggers = 56 edges on
+  `tests/fixtures/setup_python_test.yml`). Triggers are covered as text in
+  `text_generator.generate_text()`'s "WHEN IT RUNS" / "AT A GLANCE"
+  sections instead — this diagram is purely the job dependency graph.
 - `Pipeline.secrets`, `Pipeline.environment_variables`, and
   `Pipeline.linked_workflows` are out of scope for this diagram — it is
   specifically the job dependency graph. `LinkedWorkflow` in particular has
@@ -54,7 +55,12 @@ Contract:
 - `Job.dependencies` edges represent execution order only, same as
   `text_generator` — no success-gating semantic is implied by the edge
   itself; only an explicit `Job.condition` (rendered as a node annotation)
-  represents a gating rule.
+  represents a gating rule. A job with a dangling `needs:` reference (its
+  only listed dependency doesn't resolve to a real job in this pipeline)
+  gets no incoming edge at all — it renders as a disconnected node, same
+  as a job with no dependencies, since neither has a real edge to draw;
+  `ir.validate` is what flags the dangling reference itself, not this
+  diagram.
 - A job condition's diagram annotation is truncated past
   `_MERMAID_CONDITION_MAX_LEN` chars (or at its first line, if multi-line)
   — see `_condition_annotation`. This is a diagram-only readability
@@ -62,17 +68,6 @@ Contract:
   `Condition.expression` verbatim in the same document's text section, so
   "never silently drop content" holds at the document level even though
   this one diagram annotation is intentionally lossy.
-- Trigger-to-job wiring is scoped by `origin` (2026-07-23, Phase 6, third
-  documented deliberate exception to this module's fixed-contract status):
-  a trigger only wires to an entry job when `Trigger.origin`/`Job.origin`
-  are either not both set, or set and equal. Both fields are `None` for
-  every Tool 1 single-file call (`GitHubActionsParser` never sets them),
-  so this is a no-op there — every trigger still wires to every entry job,
-  exactly as before, proven byte-identical by the existing golden-file
-  suite. Only `tool2/multi_pipeline.py`'s merge layer ever sets `origin`,
-  to stop one workflow file's triggers from wiring to another, unrelated
-  workflow file's jobs once multiple pipelines share one combined
-  `Pipeline` object — see `LIMITATIONS.md`'s "Tool 2" section.
 """
 
 from __future__ import annotations
@@ -80,8 +75,13 @@ from __future__ import annotations
 from typing import List
 
 from generators.common import _condition_phrase, _matrix_summary, _topological_job_order
-from ir.schema import Condition, Job, Pipeline, Trigger, TriggerType
+from ir.schema import Condition, Job, Pipeline, TriggerType
 
+# Kept as a dict (not folded away with the trigger-node removal below) so it
+# stays the second of three cross-checked TriggerType -> representation
+# mappings that must cover the same TriggerType set — see
+# text_generator._TRIGGER_PHRASE_BUILDERS, generators.common._TRIGGER_GLANCE_BUILDERS,
+# and tests/test_generators_common.py's coverage test (Phase 7.5 Revision 3).
 _TRIGGER_DISPLAY_NAMES = {
     TriggerType.PUSH: "Push",
     TriggerType.PULL_REQUEST: "Pull request",
@@ -104,26 +104,6 @@ def _escape_label(text: str) -> str:
     established, just adapted to Mermaid's specific syntax constraints.
     """
     return text.replace('"', "#quot;").replace("\r\n", "<br/>").replace("\n", "<br/>")
-
-
-# ---------------------------------------------------------------------------
-# Triggers
-# ---------------------------------------------------------------------------
-
-def _trigger_node_label(trigger: Trigger) -> str:
-    return _TRIGGER_DISPLAY_NAMES.get(trigger.type, trigger.raw or "Trigger")
-
-
-def _entry_jobs(jobs: List[Job]) -> List[Job]:
-    """
-    Jobs with no dependency that resolves to a real job in this pipeline —
-    either `dependencies` is empty, or every listed dependency is dangling.
-    Mirrors `_topological_job_order`'s own dangling-dependency skip, so a
-    job whose only `needs:` reference doesn't exist still gets at least one
-    incoming edge (from the trigger nodes) instead of floating disconnected.
-    """
-    names = {j.name for j in jobs}
-    return [j for j in jobs if not any(dep in names for dep in j.dependencies)]
 
 
 # ---------------------------------------------------------------------------
@@ -188,20 +168,10 @@ def generate_mermaid(pipeline: Pipeline) -> str:
         return "\n".join(lines) + "\n"
 
     ordered_jobs = _topological_job_order(pipeline.jobs)
-    entry_jobs = _entry_jobs(pipeline.jobs)
     job_names = {j.name for j in pipeline.jobs}
-
-    for i, trigger in enumerate(pipeline.triggers):
-        lines.append(f'    trigger_{i}(["{_escape_label(_trigger_node_label(trigger))}"])')
 
     for job in ordered_jobs:
         lines.append(f'    {job.name}["{_escape_label(_job_node_label(job))}"]')
-
-    for i, trigger in enumerate(pipeline.triggers):
-        for job in entry_jobs:
-            if trigger.origin is not None and job.origin is not None and trigger.origin != job.origin:
-                continue  # Phase 6: different source workflow, see module docstring.
-            lines.append(f"    trigger_{i} --> {job.name}")
 
     for job in ordered_jobs:
         for dep in job.dependencies:

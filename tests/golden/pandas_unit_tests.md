@@ -5,11 +5,19 @@ Pipeline: Unit Tests
 Source: tests/fixtures/pandas_unit_tests.yml (GitHub Actions)
 Permissions: none (all permissions explicitly disabled)
 
-TRIGGERS
+AT A GLANCE
+This workflow runs on pushes to `main`, `3.0.x` and pull requests.
+It contains 8 jobs, with no job dependencies, so GitHub may run them in parallel.
+3 of 8 jobs use a build matrix; 2 of them define 16 configured combinations between them (1 more job's matrix size not reflected in that total).
+
+WHEN IT RUNS
 - Runs on every push to main or 3.0.x branches
 - Runs on every pull request targeting main or 3.0.x branches; excluding paths doc/** or web/**
 
-JOBS (in order)
+EXECUTION SUMMARY
+Independent jobs (no dependencies): ubuntu, macos-windows, Linux-32-bit, Linux-Musl, Windows-MinGW, Linux-Sanitizers, python-dev, emscripten
+
+IMPLEMENTATION DETAILS
 1. ubuntu — runs on ${{ matrix.platform }}; 8 steps; matrix: 8 base combinations (platform, environment, pytest_marker_expression, pandas_future_infer_string, pandas_future_python_scalars) + 10 via include; permissions: contents: read; concurrency: group ${{ github.event_name == 'push' && github.run_number || github.ref }}-${{ matrix.environment }}-${{ matrix.pytest_marker_expression }}-${{ matrix.extra_apt || '' }}-${{ matrix.pandas_future_infer_string }}-${{ matrix.platform }}; cancels in-progress runs
    - Checkout
    - Generate extra locales
@@ -67,8 +75,6 @@ SECRETS REQUIRED
 
 ```mermaid
 flowchart LR
-    trigger_0(["Push"])
-    trigger_1(["Pull request"])
     ubuntu["ubuntu [matrix: 8 base combinations (platform, environment, pytest_marker_expression, pandas_future_infer_string, pandas_future_python_scalars) + 10 via include]"]
     macos-windows["macos-windows [matrix: 12 combinations (os, environment)]"]
     Linux-32-bit["Linux-32-bit"]
@@ -77,20 +83,4 @@ flowchart LR
     Linux-Sanitizers["Linux-Sanitizers"]
     python-dev["python-dev [matrix: 4 combinations (os), if: false]"]
     emscripten["emscripten"]
-    trigger_0 --> ubuntu
-    trigger_0 --> macos-windows
-    trigger_0 --> Linux-32-bit
-    trigger_0 --> Linux-Musl
-    trigger_0 --> Windows-MinGW
-    trigger_0 --> Linux-Sanitizers
-    trigger_0 --> python-dev
-    trigger_0 --> emscripten
-    trigger_1 --> ubuntu
-    trigger_1 --> macos-windows
-    trigger_1 --> Linux-32-bit
-    trigger_1 --> Linux-Musl
-    trigger_1 --> Windows-MinGW
-    trigger_1 --> Linux-Sanitizers
-    trigger_1 --> python-dev
-    trigger_1 --> emscripten
 ```

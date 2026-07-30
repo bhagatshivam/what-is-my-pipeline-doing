@@ -75,7 +75,7 @@ def test_score_coverage_direct_detects_missing_secret():
 def test_score_coverage_direct_trigger_count_mismatch():
     pipeline = _pipeline(triggers=[Trigger(type=TriggerType.PUSH), Trigger(type=TriggerType.PULL_REQUEST)])
     # Only one trigger line present, but the IR has two.
-    text = "Pipeline: Example\n\nTRIGGERS\n- Runs on every push\n"
+    text = "Pipeline: Example\n\nWHEN IT RUNS\n- Runs on every push\n"
     results = score_coverage_direct("example.yml", pipeline, text)
     assert len(results) == 1
     assert results[0].category == "trigger"
@@ -85,7 +85,7 @@ def test_score_coverage_direct_trigger_count_mismatch():
 
 def test_score_coverage_direct_trigger_count_match():
     pipeline = _pipeline(triggers=[Trigger(type=TriggerType.PUSH), Trigger(type=TriggerType.PULL_REQUEST)])
-    text = "Pipeline: Example\n\nTRIGGERS\n- Runs on every push\n- Runs on every pull request\n"
+    text = "Pipeline: Example\n\nWHEN IT RUNS\n- Runs on every push\n- Runs on every pull request\n"
     results = score_coverage_direct("example.yml", pipeline, text)
     assert results[0].outcome == DirectCoverageOutcome.CORRECT
 

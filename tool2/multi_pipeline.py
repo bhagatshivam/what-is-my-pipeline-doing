@@ -59,7 +59,7 @@ import difflib
 import re
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from generators.text_generator import generate_text
 from ir.schema import EnvironmentVariable, Job, Pipeline, Secret, SecretScope, SourcePlatform, Trigger
@@ -68,6 +68,12 @@ from llm import get_default_provider
 from llm.base import LLMProvider, LLMResult
 from parsers.github_actions import GitHubActionsParser
 from tool1.single_pipeline import _log_llm_call, _strip_llm_overview, generate_documentation
+from tool2.relationships import (
+    analyze_relationships,
+    render_follows_diagram,
+    render_relationship_table,
+    render_shared_triggers_note,
+)
 
 _WORKFLOW_GLOBS = ("*.yml", "*.yaml")
 
@@ -205,6 +211,20 @@ def _merge_pipelines(files: List[Path], pipelines: List[Pipeline], repo_label: s
     )
 
 
+def _origin_display_names(files: List[Path], pipelines: List[Pipeline]) -> Dict[str, str]:
+    """Origin slug -> that file's own (pre-merge) `Pipeline.name`. Additive,
+    read-only helper for `tool2/relationships.py` — NOT part of
+    `_merge_pipelines` and does not change what that function returns;
+    `_merge_pipelines` discards each per-file `Pipeline.name` (only one
+    combined name survives the merge), so this is the one place that
+    mapping still exists, built the same way `_merge_pipelines` derives
+    `origin` (`_slugify(file.name)`) so the two stay in lockstep by
+    construction. See `tool2/relationships.py`'s module docstring for why
+    this mapping (not the origin slug itself) is what `workflow_run`/
+    `LinkedWorkflow` targets actually reference."""
+    return {_slugify(file.name): pipeline.name for file, pipeline in zip(files, pipelines)}
+
+
 # ---------------------------------------------------------------------------
 # Document assembly
 # ---------------------------------------------------------------------------
@@ -216,6 +236,30 @@ def _repo_label(path: str) -> str:
 
 def _output_filename(path: str) -> str:
     return f"{_repo_label(path)}.md"
+
+
+def _render_relationships_section(combined: Pipeline, origin_display_names: Dict[str, str]) -> str:
+    """New Phase 7.5 section, appended after the existing (unmodified)
+    generate_documentation() output — never inserted into or replacing any
+    of that function's own text/Mermaid contract. Always includes the
+    relationship table (informative even when every row is "independent");
+    the shared-triggers note and workflow-to-workflow diagram are each
+    omitted when there's nothing to say, same idiom as the existing
+    generators' conditionally-emitted sections."""
+    report = analyze_relationships(combined, origin_display_names)
+
+    parts = ["## Workflow Relationships\n\n", render_relationship_table(report), "\n"]
+
+    shared_note = render_shared_triggers_note(report)
+    if shared_note:
+        parts.append(shared_note)
+        parts.append("\n")
+
+    if report.follows:
+        parts.append("### Workflow-to-Workflow Diagram\n\n")
+        parts.append(f"```mermaid\n{render_follows_diagram(report)}```\n")
+
+    return "".join(parts)
 
 
 def _build_documentation(path: str, use_llm: bool = True,
@@ -250,6 +294,7 @@ def _build_documentation(path: str, use_llm: bool = True,
 
     combined = _merge_pipelines(files, pipelines, _repo_label(path), files[0].parent)
     validate_or_raise(combined)  # defensive: catches merge-layer bugs, e.g. a name collision
+    origin_display_names = _origin_display_names(files, pipelines)
 
     llm_result: Optional[LLMResult] = None
     if use_llm:
@@ -259,7 +304,8 @@ def _build_documentation(path: str, use_llm: bool = True,
             llm_result = active_provider.beautify(text_output, combined)
             _log_llm_call(str(path), combined.name, llm_result)
 
-    return generate_documentation(combined, llm_result)
+    doc = generate_documentation(combined, llm_result)
+    return doc + "\n" + _render_relationships_section(combined, origin_display_names)
 
 
 # ---------------------------------------------------------------------------

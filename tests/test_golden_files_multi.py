@@ -92,22 +92,58 @@ def test_black_linked_workflows_section_names_the_relationship():
     assert "triggered_by diff-shades" in fresh
 
 
-def test_black_mermaid_has_no_cross_file_trigger_edge():
-    """The real-data proof of Phase 6's origin-scoping fix: the
-    workflow_run trigger (belonging to diff_shades_comment.yml) must wire
-    only to that file's own job, never to a diff_shades.yml or lint.yml
-    job, and vice versa."""
+def test_black_mermaid_has_no_trigger_nodes_at_all():
+    """Phase 7.5 superseded the Phase 6 origin-scoping fix this test used to
+    prove: generate_mermaid() no longer draws trigger nodes/edges at all
+    (see generators/mermaid_generator.py's module docstring), so there's
+    nothing left to scope by origin. The real-data proof of Tool 2's
+    cross-file relationship handling is now
+    test_black_relationship_table_and_follows_diagram_show_the_real_relationship
+    below, against the new Workflow Relationships section."""
     fresh = _generate_fresh("black")
     mermaid_start = fresh.index("```mermaid\n") + len("```mermaid\n")
     mermaid_end = fresh.index("```\n", mermaid_start)
     mermaid = fresh[mermaid_start:mermaid_end]
 
-    assert "trigger_2 --> diff_shades_comment_yml__comment" in mermaid
+    assert "trigger_" not in mermaid
     for job in (
         "diff_shades_yml__configure",
         "diff_shades_yml__analysis-base",
         "diff_shades_yml__analysis-target",
         "diff_shades_yml__compare",
+        "diff_shades_comment_yml__comment",
         "lint_yml__lint",
     ):
-        assert f"trigger_2 --> {job}" not in mermaid
+        assert job in mermaid
+
+
+def test_black_relationship_table_and_follows_diagram_show_the_real_relationship():
+    """The real-data proof of Tool 2's new relationships module (Phase
+    7.5): diff_shades_comment.yml's workflow_run trigger must resolve to an
+    explicit "follows" row and a real workflow-to-workflow diagram edge,
+    never an implied ordering from a shared trigger (see
+    tests/test_relationships.py for the module-level tests this mirrors
+    against real, not synthetic, data)."""
+    fresh = _generate_fresh("black")
+    assert "## Workflow Relationships" in fresh
+    assert "| diff_shades_comment_yml | completion of `diff-shades` |" in fresh
+    assert "follows diff_shades_yml" in fresh
+    assert "diff_shades_yml --> diff_shades_comment_yml" in fresh
+
+
+def test_black_at_a_glance_dedupes_repeated_trigger_phrases():
+    """Real-data regression for the AT A GLANCE dedup fix: lint_yml's
+    unqualified push/pull_request triggers are string-identical to
+    diff_shades_yml's own generic phrases in places, and duplicate each
+    other across origins -- the sentence must state each distinct phrase
+    once, not repeat it. See tests/test_text_generator.py for the isolated
+    unit-level tests this mirrors against real, not synthetic, data."""
+    fresh = _generate_fresh("black")
+    glance_line = next(
+        line for line in fresh.splitlines() if line.startswith("This workflow runs on")
+    )
+    assert glance_line == (
+        "This workflow runs on pushes to `main`, pull requests, "
+        "completion of `diff-shades`, and pushes."
+    )
+    assert glance_line.count("pull requests") == 1
