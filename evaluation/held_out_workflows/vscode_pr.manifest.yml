@@ -1,0 +1,223 @@
+# Held-out evaluation manifest -- authored by reading vscode_pr.yml's raw
+# YAML directly (cross-checked programmatically via yaml.safe_load for job
+# enumeration, list-form runs-on, and with:/permissions: per job -- not by
+# eye alone, matching celery_python_package.manifest.yml's correction
+# discipline). GitHubActionsParser/generate_text/generate_mermaid were
+# never run before writing this file.
+#
+# Structural-gap note: this file was originally selected expecting
+# job-level defaults:/multi-stage workflow_run: triggers (per Phase 7 Step
+# 1 recon's speculative candidate table) -- neither pattern exists anywhere
+# in vscode/vscode's current .github/workflows/ (checked all 15 files).
+# The gap this fixture actually fills, confirmed present and genuinely
+# untested: LIST-FORM `runs-on` with real self-hosted runner labels
+# embedding dynamic ${{ }} expressions inside individual label strings
+# (e.g. compile's runs-on: [self-hosted, 1ES.Pool=..., "JobId=...-${{
+# github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}"]) --
+# LIMITATIONS.md's existing "List-form runs-on" note (~line 53) explicitly
+# flags this shape as "not seen in any current fixture," giving its
+# example as runs-on: [self-hosted, linux, x64]. tests/fixtures/
+# upload_artifact_test.yml's runs-on: [ubuntu-latest, macos-latest,
+# windows-latest] is list-form but standard-hosted-runner names, not
+# self-hosted labels with embedded expressions -- a materially different,
+# still-untested case this fixture closes.
+purpose: held_out_evaluation
+workflow_id: vscode_pr
+source_repo: microsoft/vscode
+source_path: .github/workflows/pr.yml
+source_commit: 1263c0f6ca7d2b23950f11a274d35c2ab33ca0f8
+date_pulled: 2026-07-30
+local_file: vscode_pr.yml
+
+facts:
+  - fact_id: vscode_pr.trigger.1
+    category: trigger
+    description: "Runs on pull request targeting main or release/* branches"
+    expected:
+      type: pull_request
+      branches: [main, "release/*"]
+
+  - fact_id: vscode_pr.concurrency.1
+    category: concurrency
+    description: "Workflow-level concurrency: group is ${{ github.workflow }}-${{ github.ref }}, cancel-in-progress: true"
+    expected:
+      scope: workflow
+
+  - fact_id: vscode_pr.permissions.1
+    category: permissions
+    description: "Workflow-level permissions: contents: read"
+    expected:
+      scope: workflow
+      value: {contents: read}
+
+  # No `dependency` facts anywhere: confirmed via yaml.safe_load that zero
+  # of the 18 jobs declare needs: -- every job runs independently off the
+  # pull_request trigger. Correct per the E3 completeness rule (no real
+  # edges exist to omit).
+
+  # All 18 jobs enumerated below (verified count via yaml.safe_load), none skipped.
+
+  - fact_id: vscode_pr.job.1
+    category: job
+    description: "Job 'compile' ('Compile & Hygiene'): list-form runs-on with self-hosted label, a 1ES.Pool custom label, and a JobId label embedding 3 dynamic ${{ }} expressions; no job-level permissions override (inherits workflow-level contents: read); several steps"
+    expected:
+      name: compile
+
+  - fact_id: vscode_pr.job.2
+    category: job
+    description: "Job 'linux-cli-tests' ('Linux'): uses: ./.github/workflows/pr-linux-cli-test.yml (internal reusable workflow), with: {job_name: CLI, rustup_toolchain: 1.88}"
+    expected:
+      name: linux-cli-tests
+
+  - fact_id: vscode_pr.job.3
+    category: job
+    description: "Job 'linux-electron-tests' ('Linux'): uses: ./.github/workflows/pr-linux-test.yml, with: {job_name: Electron, electron_tests: true, smoke_tests: false}"
+    expected:
+      name: linux-electron-tests
+
+  - fact_id: vscode_pr.job.4
+    category: job
+    description: "Job 'linux-electron-smoke-tests' ('Linux'): uses: ./.github/workflows/pr-linux-test.yml, with: {job_name: Electron-Smoke, electron_tests: true, unit_and_integration_tests: false}"
+    expected:
+      name: linux-electron-smoke-tests
+
+  - fact_id: vscode_pr.job.5
+    category: job
+    description: "Job 'linux-browser-tests' ('Linux'): uses: ./.github/workflows/pr-linux-test.yml, with: {job_name: Browser, browser_tests: true}"
+    expected:
+      name: linux-browser-tests
+
+  - fact_id: vscode_pr.job.6
+    category: job
+    description: "Job 'linux-remote-tests' ('Linux'): uses: ./.github/workflows/pr-linux-test.yml, with: {job_name: Remote, remote_tests: true}"
+    expected:
+      name: linux-remote-tests
+
+  - fact_id: vscode_pr.job.7
+    category: job
+    description: "Job 'macos-electron-tests' ('macOS'): uses: ./.github/workflows/pr-darwin-test.yml, with: {job_name: Electron, electron_tests: true, smoke_tests: false}"
+    expected:
+      name: macos-electron-tests
+
+  - fact_id: vscode_pr.job.8
+    category: job
+    description: "Job 'macos-electron-smoke-tests' ('macOS'): uses: ./.github/workflows/pr-darwin-test.yml, with: {job_name: Electron-Smoke, electron_tests: true, unit_and_integration_tests: false}"
+    expected:
+      name: macos-electron-smoke-tests
+
+  - fact_id: vscode_pr.job.9
+    category: job
+    description: "Job 'macos-browser-tests' ('macOS'): uses: ./.github/workflows/pr-darwin-test.yml, with: {job_name: Browser, browser_tests: true}"
+    expected:
+      name: macos-browser-tests
+
+  - fact_id: vscode_pr.job.10
+    category: job
+    description: "Job 'macos-remote-tests' ('macOS'): uses: ./.github/workflows/pr-darwin-test.yml, with: {job_name: Remote, remote_tests: true}"
+    expected:
+      name: macos-remote-tests
+
+  - fact_id: vscode_pr.job.11
+    category: job
+    description: "Job 'windows-electron-tests' ('Windows'): uses: ./.github/workflows/pr-win32-test.yml, with: {job_name: Electron, electron_tests: true, smoke_tests: false}"
+    expected:
+      name: windows-electron-tests
+
+  - fact_id: vscode_pr.job.12
+    category: job
+    description: "Job 'windows-electron-smoke-tests' ('Windows'): uses: ./.github/workflows/pr-win32-test.yml, with: {job_name: Electron-Smoke, electron_tests: true, unit_and_integration_tests: false}"
+    expected:
+      name: windows-electron-smoke-tests
+
+  - fact_id: vscode_pr.job.13
+    category: job
+    description: "Job 'windows-browser-tests' ('Windows'): uses: ./.github/workflows/pr-win32-test.yml, with: {job_name: Browser, browser_tests: true}"
+    expected:
+      name: windows-browser-tests
+
+  - fact_id: vscode_pr.job.14
+    category: job
+    description: "Job 'windows-remote-tests' ('Windows'): uses: ./.github/workflows/pr-win32-test.yml, with: {job_name: Remote, remote_tests: true}"
+    expected:
+      name: windows-remote-tests
+
+  - fact_id: vscode_pr.job.15
+    category: job
+    description: "Job 'copilot-check-test-cache' ('Copilot - Check Test Cache'): list-form self-hosted runs-on (same 3-label shape as compile), job-level permissions {contents: read, pull-requests: read}"
+    expected:
+      name: copilot-check-test-cache
+
+  - fact_id: vscode_pr.job.16
+    category: job
+    description: "Job 'copilot-check-telemetry' ('Copilot - Check Telemetry'): list-form self-hosted runs-on, job-level permissions {contents: read}"
+    expected:
+      name: copilot-check-telemetry
+
+  - fact_id: vscode_pr.job.17
+    category: job
+    description: "Job 'copilot-linux-tests' ('Copilot - Test (Linux)'): list-form self-hosted runs-on (ubuntu pool), job-level permissions {contents: read}, many steps including an always()-conditioned artifact upload"
+    expected:
+      name: copilot-linux-tests
+
+  - fact_id: vscode_pr.job.18
+    category: job
+    description: "Job 'copilot-windows-tests' ('Copilot - Test (Windows)'): list-form self-hosted runs-on (windows pool, distinct 1ES.Pool label from the linux jobs), job-level permissions {contents: read}"
+    expected:
+      name: copilot-windows-tests
+
+  - fact_id: vscode_pr.step.1
+    category: step
+    description: "Job 'compile' has a step named 'Check cyclic dependencies'"
+    expected:
+      job: compile
+      step_name: "Check cyclic dependencies"
+
+  - fact_id: vscode_pr.condition.1
+    category: condition
+    description: "Step 'Install build tools' in job 'compile' has if: steps.cache-node-modules.outputs.cache-hit != 'true'"
+    expected:
+      job: compile
+      expression_substring: "cache-node-modules"
+
+  - fact_id: vscode_pr.condition.2
+    category: condition
+    description: "Step 'Ensure no untrusted cache changes' in job 'copilot-check-test-cache' has if: github.event_name == 'pull_request'"
+    expected:
+      job: copilot-check-test-cache
+      expression_substring: "github.event_name"
+
+  - fact_id: vscode_pr.secret.1
+    category: secret
+    description: "Secret GITHUB_TOKEN required, used in job 'compile', step 'Install dependencies' (as env var GITHUB_TOKEN)"
+    expected:
+      name: GITHUB_TOKEN
+      scope: step
+      scope_job: compile
+      scope_step: "Install dependencies"
+
+  - fact_id: vscode_pr.secret.2
+    category: secret
+    description: "Secret GITHUB_TOKEN required, used in job 'compile', step 'Download built-in extensions' (as env var GITHUB_TOKEN)"
+    expected:
+      name: GITHUB_TOKEN
+      scope: step
+      scope_job: compile
+      scope_step: "Download built-in extensions"
+
+  - fact_id: vscode_pr.secret.3
+    category: secret
+    description: "Secret GITHUB_TOKEN required, used in job 'compile', step 'Compile & Hygiene' (as env var GITHUB_TOKEN)"
+    expected:
+      name: GITHUB_TOKEN
+      scope: step
+      scope_job: compile
+      scope_step: "Compile & Hygiene"
+
+  - fact_id: vscode_pr.secret.4
+    category: secret
+    description: "Secret GITHUB_TOKEN required, used in job 'copilot-check-test-cache', step 'Ensure no untrusted cache changes' (as env var GH_TOKEN, a local alias for the same secrets.GITHUB_TOKEN)"
+    expected:
+      name: GITHUB_TOKEN
+      scope: step
+      scope_job: copilot-check-test-cache
+      scope_step: "Ensure no untrusted cache changes"

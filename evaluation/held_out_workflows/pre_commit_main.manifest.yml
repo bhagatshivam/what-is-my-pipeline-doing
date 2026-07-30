@@ -1,0 +1,45 @@
+# Held-out evaluation manifest -- authored by reading pre_commit_main.yml's
+# raw YAML directly. GitHubActionsParser/generate_text/generate_mermaid
+# were never run before writing this file.
+purpose: held_out_evaluation
+workflow_id: pre_commit_main
+source_repo: pre-commit/pre-commit
+source_path: .github/workflows/main.yml
+source_commit: f415f6c4d72224363ba794429b25cc3f52e04933
+date_pulled: 2026-07-30
+local_file: pre_commit_main.yml
+
+facts:
+  - fact_id: pre_commit_main.trigger.1
+    category: trigger
+    description: "Runs on push to main or test-me-* branches (also tags: '*', bare-string form, not a list)"
+    expected:
+      type: push
+      branches: [main, "test-me-*"]
+
+  - fact_id: pre_commit_main.trigger.2
+    category: trigger
+    description: "Runs on every pull request, no filters"
+    expected:
+      type: pull_request
+
+  # No `dependency` facts: no needs: anywhere in this file -- correct per
+  # the E3 completeness rule (no real edges exist to omit).
+
+  - fact_id: pre_commit_main.job.1
+    category: job
+    description: "Job 'main-windows' exists; has no runs-on/steps of its own -- it's a bare uses: reusable-workflow-calling job (external, cross-repo: asottile/workflows) with with: inputs (env, os), no steps: block at all (GH Actions treats uses:/steps: as mutually exclusive at job level)"
+    expected:
+      name: main-windows
+
+  - fact_id: pre_commit_main.job.2
+    category: job
+    description: "Job 'main-linux' exists; same uses:-only shape as main-windows, calling the same external reusable workflow with different with: input values (env: 4-version list, os: ubuntu-latest)"
+    expected:
+      name: main-linux
+
+  - fact_id: pre_commit_main.concurrency.1
+    category: concurrency
+    description: "Workflow-level concurrency: group is a dynamic expression (github.workflow + github.head_ref-or-run_id), cancel-in-progress: true"
+    expected:
+      scope: workflow
