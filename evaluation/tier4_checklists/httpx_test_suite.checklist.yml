@@ -1,0 +1,82 @@
+# Tier 4 pre-registered fact checklist (EVALUATION_PLAN.md Method 9).
+# Committed BEFORE any of the three conditions' outputs are generated
+# for this pipeline -- the commit timestamp is the pre-registration
+# evidence. Facts are drawn verbatim, in full, from
+# evaluation/held_out_workflows/httpx_test_suite.manifest.yml.
+workflow_id: httpx_test_suite
+source_manifest: evaluation/held_out_workflows/httpx_test_suite.manifest.yml
+pre_registered_date: '2026-07-30'
+scoring: manual
+facts:
+- fact_id: httpx_test_suite.trigger.1
+  category: trigger
+  description: Runs on push to master
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: httpx_test_suite.trigger.2
+  category: trigger
+  description: Runs on pull request targeting master or version-* branches
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: httpx_test_suite.job.1
+  category: job
+  description: Job 'tests' exists, runs on ubuntu-latest
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: httpx_test_suite.step.1
+  category: step
+  description: Job 'tests' has a step named 'Install dependencies'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: httpx_test_suite.step.2
+  category: step
+  description: Job 'tests' has a step named 'Run tests'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: httpx_test_suite.matrix.1
+  category: matrix
+  description: 'Job ''tests'' has a single-axis matrix: python-version with 5 values'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
