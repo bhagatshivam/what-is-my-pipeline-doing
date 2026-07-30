@@ -248,7 +248,16 @@ def test_slugify_distinguishes_same_stem_different_extension():
 # 3. Origin-scoped Mermaid trigger wiring — the core Phase 6 regression proof.
 # ---------------------------------------------------------------------------
 
-def test_generate_mermaid_scopes_triggers_to_their_own_origin():
+def test_generate_mermaid_has_no_trigger_nodes_after_merge():
+    # Phase 7.5: generate_mermaid() no longer draws any trigger nodes/edges
+    # at all (see generators/mermaid_generator.py's module docstring) --
+    # this replaces the old origin-scoped-trigger-wiring regression test,
+    # since that exception is retired along with the trigger-node concept
+    # it scoped (there's nothing left to scope). Tool 2's per-origin
+    # separation is still visible via the {origin}__ job-name prefix on
+    # the nodes themselves (asserted below), and tool2/relationships.py has
+    # its own, separate diagrams for cross-workflow relationships (see
+    # tests/test_relationships.py).
     p1 = Pipeline(
         name="ci.yml", source_platform=SourcePlatform.GITHUB_ACTIONS, source_file="ci.yml",
         triggers=[Trigger(type=TriggerType.PUSH, raw="on: push")],
@@ -263,30 +272,10 @@ def test_generate_mermaid_scopes_triggers_to_their_own_origin():
 
     mermaid = generate_mermaid(combined)
 
-    assert "trigger_0 --> ci_yml__build" in mermaid
-    assert "trigger_1 --> release_yml__publish" in mermaid
-    # The bug this fix prevents: neither trigger should wire to the other
-    # workflow's job.
-    assert "trigger_0 --> release_yml__publish" not in mermaid
-    assert "trigger_1 --> ci_yml__build" not in mermaid
-
-
-def test_generate_mermaid_single_pipeline_unaffected_by_origin_field():
-    """origin is always None for a real single-file Tool 1 parse — confirms
-    the fix is a no-op there (every trigger still wires to every entry job),
-    on top of the existing golden-file suite already proving this for real
-    fixtures."""
-    pipeline = Pipeline(
-        name="ci.yml", source_platform=SourcePlatform.GITHUB_ACTIONS, source_file="ci.yml",
-        triggers=[
-            Trigger(type=TriggerType.PUSH, raw="on: push"),
-            Trigger(type=TriggerType.PULL_REQUEST, raw="on: pull_request"),
-        ],
-        jobs=[Job(name="build")],
-    )
-    mermaid = generate_mermaid(pipeline)
-    assert "trigger_0 --> build" in mermaid
-    assert "trigger_1 --> build" in mermaid
+    assert "trigger_0" not in mermaid
+    assert "trigger_1" not in mermaid
+    assert '    ci_yml__build["ci_yml__build"]' in mermaid
+    assert '    release_yml__publish["release_yml__publish"]' in mermaid
 
 
 # ---------------------------------------------------------------------------

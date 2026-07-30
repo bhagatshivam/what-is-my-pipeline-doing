@@ -264,6 +264,160 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 
 ---
 
+### Phase 7.5 — Tool 1 / Tool 2 output redesign
+
+**Goal:** address supervisor feedback on Tool 1's and Tool 2's output *before*
+spending the Tier 4 execution budget: Tool 1 read as a technical inventory
+with no onboarding framing, its Mermaid diagram fanned every trigger out to
+every independent job, and Tool 2 had no honest way to distinguish
+independent shared triggers from genuine `workflow_run` chaining. Triggered
+by supervisor review of Tool 1's and Tool 2's real output (2026-07-30), not
+by a Tier 1–4 evaluation result. Tier 4 pre-registration (PR #43) stays
+frozen throughout — this phase changes presentation, not ground truth.
+
+**Tasks**
+- [x] `generators/text_generator.py`: restructured `generate_text()`'s
+  ```text``` block into five sections — AT A GLANCE (new, deterministic,
+  zero inference from job/step names), WHEN IT RUNS (renamed from
+  TRIGGERS, same per-trigger content), EXECUTION SUMMARY (new — which
+  jobs have no declared dependencies vs. which depend on others),
+  IMPLEMENTATION DETAILS (renamed from "JOBS (in order)", content
+  unchanged), plus the existing LINKED WORKFLOWS / SECRETS REQUIRED
+  sections kept as-is after IMPLEMENTATION DETAILS
+- [x] `generators/common.py`: added `_jobs_with_no_declared_dependencies`
+  (narrow, truthful `len(job.dependencies) == 0` check — a job with a
+  dangling `needs:` reference has a real, declared dependency and must
+  never be reported as "independent"), `_matrix_is_dynamic` (factored out
+  of `_matrix_summary`'s own condition, so both share one definition),
+  `_exact_combination_count` (a number only for the two cases
+  `_matrix_summary` itself treats as one unhedged total — axes-only, or
+  include-only with no exclude — `None` otherwise, never approximating a
+  total `_matrix_summary` doesn't itself assert), `_and_join` (Oxford-comma
+  join, shared by Tool 1's At a glance sentence and Tool 2's relationship
+  table), and `_TRIGGER_GLANCE_BUILDERS` (dict-driven trigger-phrase
+  dispatch for the At a glance sentence). `mermaid_generator._entry_jobs`
+  was deleted outright, not promoted/renamed — dead code once trigger
+  nodes left the diagram (see below); its one direct test
+  (`test_entry_jobs_helper`) was removed with it, and the real
+  dangling-dependency diagram case it also partly covered got its own
+  rewritten test instead.
+- [x] `generators/mermaid_generator.py`: dropped all `trigger_<i>` nodes
+  and trigger→job edges — the diagram is now job-dependency-only.
+  Confirmed on `tests/fixtures/setup_python_test.yml` (14 jobs, 4
+  triggers): the old diagram had 56 trigger→job edges, the new one has
+  zero, only real job-dependency edges. Triggers are covered as text in
+  "WHEN IT RUNS"/"AT A GLANCE" instead. This retires the Phase 6
+  origin-scoped trigger-wiring exception — nothing is left to scope, since
+  no trigger edges exist any more (see `LIMITATIONS.md`'s "Resolved"
+  note on that entry).
+- [x] Regenerated all golden files (`tests/golden/*.md`,
+  `tests/golden/multi/*.md`), reviewed by hand, and updated
+  `evaluation/coverage_check_direct.py`'s trigger-coverage check (it
+  hardcoded the old `TRIGGERS` section-header string). No change was
+  needed to `evaluation/diagram_diff.py`/`evaluation/diagram_diff_direct.py`
+  — both already classify trigger vs. job nodes structurally (bracket
+  shape) rather than assuming trigger nodes exist, and
+  `diagram_diff_direct.py` was already scoped to job-dependency edges
+  only, so both stayed correct with zero trigger nodes present.
+- [x] New `tool2/relationships.py`: read-only consumer of the combined
+  `Pipeline` — groups triggers/jobs by `.origin`, detects strictly-equal
+  shared triggers across origins (structured fields as sets + a
+  whitespace-normalized `Trigger.raw` match), resolves `workflow_run`
+  relationships into explicit "follows" edges via a new
+  `origin_display_names: Dict[str, str]` input (origin slug -> that
+  file's own pre-merge `Pipeline.name`, since `workflow_run`/
+  `LinkedWorkflow` targets reference a workflow's *display name*, not its
+  filename-derived origin slug — confirmed divergent on the real `black`
+  fixture: `diff_shades.yml` has `name: diff-shades`, origin slug
+  `diff_shades_yml`), and produces a Markdown relationship table, a
+  shared-triggers note (explicit "no ordering" prose, never implying
+  sequence), and a workflow-to-workflow Mermaid diagram containing only
+  real `follows` edges. **Scope narrower than first designed, corrected
+  during implementation:** "follows" is resolved ONLY from `workflow_run`
+  Triggers (which carry real per-origin `.origin` after merging) — job-level
+  `uses:` reusable-workflow calls (`LinkedWorkflow(relationship="calls")`)
+  are NOT attributed to a source origin, because `LinkedWorkflow` itself
+  has no per-origin field at all after merging (it's unioned/deduped by
+  `(target, relationship)` alone across every file — a pre-existing,
+  already-documented Tool 2 limitation). Guessing the calling origin would
+  have been exactly the kind of inference this phase exists to avoid; that
+  fact is still visible in the document's existing, unchanged LINKED
+  WORKFLOWS section, just not attributed to a specific row in the new
+  table. See `LIMITATIONS.md`'s "Tool 2" section for the full note.
+  `_origin_display_names(files, pipelines)` is a new, small, additive
+  helper in `tool2/multi_pipeline.py`, built alongside — not inside —
+  `_merge_pipelines`; that function and all of its existing rewrite
+  helpers (`_rewrite_job`/`_rewrite_trigger`/`_rewrite_secret`/
+  `_rewrite_env_var`) are untouched.
+- [x] Wired `tool2/relationships.py`'s output into
+  `tool2/multi_pipeline.py`'s document assembly as a new, appended
+  "## Workflow Relationships" section (relationship table always shown;
+  shared-triggers note and workflow-to-workflow diagram only when there's
+  something to say) — new rendering functions, no changes to
+  `generators/text_generator.py`/`generators/mermaid_generator.py`'s
+  existing contracts. Confirmed on the real `black` fixture: the
+  `diff-shades comment` workflow now shows an explicit `follows
+  diff_shades_yml` relationship and a real diagram edge, not an implied
+  ordering.
+- [x] Updated `tests/test_multi_pipeline.py` (replaced the two
+  origin-scoped-trigger-wiring tests, now testing a retired mechanism,
+  with one "no trigger nodes at all after merge" test) and
+  `tests/test_golden_files_multi.py` (replaced
+  `test_black_mermaid_has_no_cross_file_trigger_edge` with a "no trigger
+  nodes at all" version plus a new test asserting the real `black`
+  relationship table/diagram, mirroring the module-level tests in the new
+  `tests/test_relationships.py`).
+- [x] New tests: `tests/test_generators_common.py` (the
+  `_TRIGGER_DISPLAY_NAMES`/`_TRIGGER_PHRASE_BUILDERS`/
+  `_TRIGGER_GLANCE_BUILDERS` cross-coverage test, plus
+  `_jobs_with_no_declared_dependencies`/`_matrix_is_dynamic`/
+  `_exact_combination_count` unit tests) and `tests/test_relationships.py`
+  (strict-equality shared-trigger detection including the
+  same-structured-fields-different-raw case, the real `black` follows
+  resolution, the real `starlette`/`tox` no-relationship contrast cases —
+  including their genuine, verified shared push triggers — and the
+  dangling-dependency-not-counted-as-independent regression). Also added
+  an explicit dangling-`needs:`-reference regression test in
+  `tests/test_text_generator.py` (AT A GLANCE + EXECUTION SUMMARY) and in
+  `tests/test_relationships.py` (the relationship table's
+  `independent_job_count`) — a job with a declared but unresolvable
+  dependency must never be reported as "independent"/"no dependencies" in
+  any of the three.
+
+**Explicitly deferred:** the second, separate pre-registered
+answerability/questions protocol ("What happens on a PR?", "Which jobs run
+in parallel?", "Which workflow follows another?") — that's Tier 4 work for
+after this phase, not built or pre-registered here. Held-out set was not
+touched, viewed, or used to guide any decision in this phase — every design
+and test decision was made against `tests/fixtures/`/`tests/fixtures/multi/`
+only. `tool2/relationships.py`'s `render_per_workflow_diagram()` (one small
+job-only diagram scoped to a single origin) is built and unit-tested but not
+embedded in the default assembled document — the existing unified `##
+Pipeline Diagram` already shows every origin's jobs (just without the old
+trigger fan-out), so N additional per-workflow diagrams would mostly
+duplicate it; the function exists for future use if that trade-off is
+revisited.
+
+**Definition of done:** Tool 1's `generate_text()` output for all 10
+`tests/fixtures/` follows the five-section structure with a deterministic,
+zero-inference AT A GLANCE summary; Tool 1's Mermaid diagram for
+`setup_python_test.yml` (14 jobs, 4 triggers) shows only job-dependency
+edges, no trigger fan-out (confirmed: 56 edges -> 0 trigger edges); Tool 2's
+`tool2/relationships.py` correctly distinguishes independent shared
+triggers from `workflow_run`-chained relationships on the real
+`tests/fixtures/multi/{black,tox,starlette}` fixtures, with `black`'s real
+`diff-shades` → `diff-shades comment` relationship resolving to an explicit
+`follows` row and diagram edge; all golden files and evaluation-check
+expectations regenerated, hand-reviewed, and passing; Tier 4 checklists (PR
+#43) unchanged. Full suite: `10 failed, 645 passed, 11 deselected` — the 10
+failures are the same pre-existing `tests/test_gemini_provider.py`/
+`tests/test_llm_init.py` sandbox `_cffi_backend` issue documented in the
+2026-07-23 changelog entry above (confirmed unrelated: reproduces
+identically on a clean checkout of this same branch before any Phase 7.5
+change). `ruff check` clean across the full maintained scope.
+
+---
+
 ### Phase 8 — Refinement pass on Tool 1 + Tool 2
 
 **Goal:** fix what evaluation revealed, before touching scope expansion or the report.
@@ -366,3 +520,4 @@ Carried over from `PROJECT_PLAN.md` — resolve before they block a phase above:
 - 2026-07-23: Phase 5 implemented — the `llm/` beautification layer. `llm/base.py`'s `LLMProvider` ABC owns a single shared fallback contract via a concrete `beautify(structured_text, pipeline) -> LLMResult` (returning a small dataclass rather than a bare string, since it also needs to carry `used_fallback`/token counts/latency/retry metadata — the one deliberate deviation from this phase's original one-line interface sketch): up to `max_retries=1` extra attempts, `is_available()` short-circuiting a misconfigured provider without a wasted retry, and a `text == structured_text` byte-identical fallback (never a crash, never empty output) on any failure — empty response, unparseable response, exception, or timeout alike. `pipeline` is passed to `_call_once` for logging/framing metadata only; `llm/base.py`'s docstring states explicitly that no implementation may draw prompt content from it, only from `structured_text`. `llm/gemini_provider.py` implements this against the real `google-genai` SDK (now a `requirements.txt` dependency, its `GenerateContentConfig`/`HttpOptions` field names confirmed against the installed 2.14.0 package rather than assumed), with a `SYSTEM_PROMPT` that frames the model as rewriting an already deterministically-extracted, structurally-validated fact sheet into 2-4 prose paragraphs, forbids adding/inferring/omitting facts, forbids markdown/code blocks, and gives an explicit `NO_OVERVIEW` escape hatch for uncertain cases — the model never receives raw YAML, only `generators/text_generator.py`'s `generate_text()` output. `llm/ollama_provider.py` is an interface-only stub (`is_available()` always `False`) proving the interface is genuinely swappable even for an intentionally incomplete provider. `llm/__init__.py`'s `get_default_provider()` is the single place that resolves `GEMINI_API_KEY` into a configured provider or `None`. `tool1/single_pipeline.py`'s `generate_documentation()` gained an optional `llm_result` parameter, defaulting to `None` — every existing call site (`tests/golden_files.py`, `scripts/update_golden_files.py`) is unaffected, and output is byte-identical to pre-Phase-5 whenever `llm_result` is `None` or `used_fallback`. A successful result inserts a `<!-- llm-overview:start -->`/`## Overview`/prose/`<!-- llm-overview:end -->` block between the title and the deterministic ```text``` fact block; the fact block and Mermaid diagram are never touched. `document_pipeline()` now defaults to `use_llm=True`, resolving a provider via `get_default_provider()`. `check_pipeline()` now always regenerates with `use_llm=False` and strips any committed `llm-overview` block before comparing — validating deterministic sections only, resolving the open item `LIMITATIONS.md` flagged since Phase 4 (a committed "golden" LLM output isn't attempted: Gemini output isn't guaranteed bit-reproducible even at low temperature, and CI has no `GEMINI_API_KEY`; LLM drift stays a Tier 1/Tier 4 review concern per `EVALUATION_PLAN.md`, not a `--check` pass/fail). Each real LLM call is logged as one JSON line to `evaluation/llm_call_log.jsonl` (gitignored — local run telemetry, not committed evaluation ground truth), wrapped in `try`/`except OSError` so logging can never break generation. `cli.py`'s `tool1` subcommand gained `--no-llm`; no other new flags, per the single-provider scope decision. `evaluation/coverage_check.py`'s `score_llm_conditions()` deliberately remains `NotImplementedError` — implementing Method 9's full 3-condition scoring, including the naive raw-YAML-baseline generator, is Phase 7 scope, not this phase's. New tests: `tests/test_llm_base.py`, `tests/test_gemini_provider.py` (fake-client unit tests plus one real end-to-end call marked `@pytest.mark.slow` + `skipif(no GEMINI_API_KEY)`, mirroring the existing mermaid-cli slow-test precedent — untested against the live API in this session, no key was available), `tests/test_ollama_provider.py`, `tests/test_llm_init.py`, and additions to `tests/test_single_pipeline.py` covering Overview insertion/fallback byte-identity/`check_pipeline()`'s deterministic-only scope/`--no-llm`, including a 5-fixture pass across the real complexity range (minimal single-job, reusable-workflow delegation, axis-less matrix, matrix + deployment environment, and the 14-job/35-combination `setup_python_test.yml`). New `tests/conftest.py` autouse fixture clears `GEMINI_API_KEY`/`GEMINI_MODEL` for every test so the `use_llm=True` default can never make a live call just because the host environment happens to have a real key set. Full suite: 515 passed, 11 deselected (up from 473 baseline + the new live-only slow test); `ruff check` clean across the full maintained scope. A pre-existing, unrelated finding surfaced while sanity-checking `--check` against the real committed `docs/*.md`: 8 of 10 files there predate the 2026-07-22 permissions/concurrency/deployment-environment promotion and were never regenerated (only `tests/golden/` was) — confirmed via `git log` on the affected files, left unfixed as out of scope for this phase.
 - 2026-07-23: Phase 6 implemented — Tool 2, multi-pipeline documentation. `tool2/multi_pipeline.py`'s `discover_workflow_files()` resolves a repo root or a workflows folder directly to a sorted list of `*.yml`/`*.yaml` files (raising a clear `FileNotFoundError` — CLI exit code 2 — on zero files found, rather than silently producing an empty-but-valid-looking combined doc; exactly one file discovered is still a full, if degenerate, merge with prefixing applied, for consistent output shape). `_merge_pipelines()` parses each file via the same, unmodified `GitHubActionsParser`, validates each individually via `ir.validate.validate_or_raise()` first (aborting the whole run, attributed to that file, on any error — the same fail-closed boundary as `tool1.single_pipeline._build_documentation`), then builds one combined `Pipeline` without mutating any input: every rewritten `Job`/`Trigger`/`Secret`/`EnvironmentVariable` is a new object via `dataclasses.replace()`. Every job is renamed `f"{origin}__{job.name}"` and tagged `Job.origin`/`Trigger.origin` (`origin` a slug of that file's own filename, not just its stem, so same-stem/different-extension files like `ci.yml`/`ci.yaml` can never collide); `Job.dependencies` and JOB/STEP-scope `Secret`/`EnvironmentVariable.scope_ref` are rewritten with the same prefix (safe, since GH Actions has no cross-file `needs:`); `Pipeline.linked_workflows` are unioned and deduped by `(target, relationship)` across files, deliberately without resolving targets against sibling files in the same run (new interpretive logic, out of scope — see `LIMITATIONS.md`). The combined `Pipeline` is then also run through `validate_or_raise()` (in addition to the per-file passes) — this second pass is what actually catches a cross-file job-name collision the merge layer's own prefixing could in principle introduce (job keys may legally contain `_`/`-`, so `__` isn't a provably collision-free separator; see `LIMITATIONS.md`'s new "Tool 2" section for the full justification and `tests/test_multi_pipeline.py`'s deliberately-constructed collision test proving it fails loudly, not silently). `generate_text()`, `generate_mermaid()`, and `tool1.single_pipeline.generate_documentation()`/`_strip_llm_overview()`/`_log_llm_call()` are reused completely unmodified against the combined `Pipeline` — this module builds the combined IR object and nothing else. One approved, additive exception was required in `generators/mermaid_generator.py` (the third documented deliberate exception to that module's fixed-contract status): `Trigger`/`Job` gained an additive `origin: Optional[str] = None` field (`ir/schema.py`), and the trigger-wiring loop now skips an edge when both a trigger's and a job's `origin` are set and differ — `None` for every Tool 1 single-file call, so this is a no-op there, proven byte-identical by the existing golden-file suite (re-run and confirmed unchanged after this edit). Without this, naively concatenating triggers/jobs from N real `Pipeline`s into one combined `Pipeline` and calling `generate_mermaid()` unchanged would wire every trigger to every entry job regardless of source file — correct for one workflow file, wrong across files (it would draw an edge implying one workflow's trigger fires another, unrelated workflow's jobs, which never happens in real GitHub Actions); this was surfaced, discussed, and the fix approved before implementation, rather than worked around silently. Marker-based injection (`<!-- ci-docs:start -->`/`<!-- ci-docs:end -->`, `_inject_markers()`) writes the unified doc into an existing file (e.g. README.md) instead of a standalone `docs/<repo>.md`, mirroring `terraform-docs` — fails loudly (not a silent guess at insertion point) if the target file doesn't exist or has no markers yet. `check_repository()` always regenerates with `use_llm=False` and strips any committed LLM overview block before comparing, mirroring `tool1.check_pipeline`'s exact rationale; its missing-target handling follows one rule throughout — inherit Tool 1's existing exit-1 "no committed doc found" behaviour verbatim for the standalone case (a direct precedent), and treat every `--inject`-specific failure (target file missing; target file present but has no markers) as a new, distinct operational error at exit code 2, since neither has a Tool 1 precedent to inherit. `cli.py`'s `tool2` subcommand gained `--check`/`--no-llm`/`--inject FILE`, mirroring `tool1`'s exact 0/1/2/3 exit-code contract. New `tests/test_multi_pipeline.py` (38 tests): discovery (repo-root/workflows-folder/nonexistent/degenerate one-file/degenerate zero-file), merge-layer non-mutation and rewriting correctness against hand-built `Pipeline` objects (no real fixtures used or added), the deliberate name-collision-raises-`IRValidationError` test, the origin-scoped-Mermaid-wiring regression test (the core architectural proof), marker-injection tests (absent/present/idempotent), and CLI-level exit-code tests for every `--check`/`--inject` combination. Full suite: 548 passed, 11 deselected (up from 510 baseline + 38 new); `ruff check` clean across `tool2/`/`ir/`/`generators/`/`cli.py`/the new test file. **Deliberately not done in this PR, per its own approval gate:** sourcing and committing 2-3 real multi-workflow repos under `tests/fixtures/multi/` — that selection (specific repos, licences, commit SHAs) needs its own separate chat approval before anything is added, so Phase 6's "test against 2-3 real multi-workflow repos" checklist item stays open.
 - 2026-07-23: Correction to the Phase 6 entry above and to PR #31's description: both understated the full-suite result. The exact, unedited `pytest -q -m "not slow"` summary on current `main` (`e0268e6`) is `10 failed, 548 passed, 11 deselected in 9.14s` — three independent buckets, not two. All 10 failures are in `tests/test_gemini_provider.py`/`tests/test_llm_init.py`, share one root cause (`ModuleNotFoundError: No module named '_cffi_backend'` panicking inside `cryptography`'s Rust bindings when the real `google-genai` SDK is imported), and are confirmed to reproduce identically — same 10 test IDs, `10 failed, 6 passed, 1 skipped` — on an isolated `git worktree` checkout of the pre-Phase-6 commit `23eac6e`, in this same execution environment: a sandbox dependency issue, not introduced by Phase 6 and not evidence of a defect in the merged code. The Phase 6 entry's "548 passed, 11 deselected" phrasing omitted these 10 failures entirely rather than naming them; PR #31's description named them but nested them inside the "11 deselected" parenthetical as if related to marker-based deselection, which they are not (11 deselected is the stable `@pytest.mark.slow` count, unrelated to and numerically different from the 10 failures). Recorded here rather than silently edited into the original entry. Also recorded here: commit `c36d2a7` (Phase 6, merged as `e0268e6`) is authored as `Claude <noreply@anthropic.com>` rather than `Shivam Balasaheb Bhagat <bhagatshivam001@gmail.com>`. The session that produced it had no repo-scope git identity configured and fell back to a global default; the identity confirmed working in an earlier session did not persist into that container. Deliberately not corrected by rewriting published history — `main` already carries a merge commit on top, and the cost of a second history rewrite outweighs the provenance gap. Repo-scope identity has since been set explicitly, and verifying it is now a per-session step rather than an assumed one. One consequence worth naming plainly: this project's dissertation discloses AI usage in the methodology section, so a commit authored as Claude isn't a misrepresentation — but it does mean the "all commits on main are now correctly authored" claim recorded after the Phase 5 changelog entry is no longer true as of Phase 6; this entry corrects that.
+- 2026-07-30: Phase 7.5 implemented — Tool 1/Tool 2 output redesign, triggered by supervisor review of real Tool 1/Tool 2 output rather than a Tier 1–4 evaluation result. See the Phase 7.5 section above for the full task list; summarized here: `generators/text_generator.py`'s `generate_text()` restructured from a flat TRIGGERS/JOBS/LINKED WORKFLOWS/SECRETS REQUIRED layout into five sections (AT A GLANCE, WHEN IT RUNS, EXECUTION SUMMARY, IMPLEMENTATION DETAILS, then LINKED WORKFLOWS/SECRETS REQUIRED unchanged), with AT A GLANCE held to the same zero-inference-from-names rule as the rest of the generator (new `LIMITATIONS.md` section documents the boundary explicitly); `generators/mermaid_generator.py` dropped all trigger nodes/edges (confirmed 56 -> 0 edges on `setup_python_test.yml`'s 14-job/4-trigger case), retiring the Phase 6 origin-scoped-trigger-wiring exception since nothing is left to scope; new `tool2/relationships.py` adds a read-only relationship table/shared-trigger note/workflow-to-workflow diagram on top of Tool 2's existing merge output, using strict structured-plus-raw-text trigger equality and a new `origin_display_names` mapping (built alongside, not inside, `_merge_pipelines`) to resolve `workflow_run` relationships correctly against real display names rather than filename-derived origin slugs — proven on the real `black` fixture (`diff-shades` → `diff-shades comment`). Two corrections were made mid-implementation after review, before any code was written: (1) the initial design would have used the diagram's dangling-tolerant "entry job" notion for AT A GLANCE/EXECUTION SUMMARY/the relationship table's independence claims — a job with a broken `needs:` reference would have been wrongly called "independent"; fixed by adding a separate, narrower `_jobs_with_no_declared_dependencies` check and deleting (not renaming) the diagram-only helper, with an explicit regression test in all three call sites. (2) the initial matrix-combination-total helper would have summed a build matrix's `axes` and `include` counts into one "exact" total even though `_matrix_summary` itself deliberately keeps them separate (unmodelled `include` merge-vs-append semantics, already documented) and would have called `exclude`-present cases exact when `_matrix_summary` itself only ever says "up to" for them; fixed by a corrected `_exact_combination_count` matching `_matrix_summary`'s own case split exactly, with AT A GLANCE now disclosing how many matrix-using jobs aren't reflected in a partial total rather than silently rounding up or omitting them. A third, honest scope narrowing was found only during implementation (not pre-planned): `tool2/relationships.py` resolves "follows" relationships only from `workflow_run` triggers, not from job-level `uses:` `LinkedWorkflow` entries, because `LinkedWorkflow` has no per-origin attribution at all after merging — that fact stays visible in the existing, unchanged LINKED WORKFLOWS section, just not attributed to a row in the new table. A fourth, minor finding, also new: the combined multi-file Pipeline's AT A GLANCE trigger sentence is not deduplicated across origins (it lists every origin's triggers in one flat sentence, since `generate_text()` is reused completely unmodified on the merged `Pipeline`, same precedent as the existing job-name-prefixing/permissions-dropping limitations) — documented, not fixed, consistent with that existing precedent. All golden files (`tests/golden/*.md`, `tests/golden/multi/*.md`) regenerated and reviewed by hand, not blindly accepted. Full suite: `10 failed, 645 passed, 11 deselected` — the 10 failures confirmed to be the same pre-existing `_cffi_backend` sandbox issue from the 2026-07-23 entry above, reproducing identically on a clean checkout of this branch before any Phase 7.5 change. `ruff check` clean across the full maintained scope (two lint findings caught and fixed during this pass: an ambiguous `l` variable name in a new test, an unused `Optional` import in the new module). Held-out set (`evaluation/held_out_workflows/`) and Tier 4 checklists (PR #43) untouched throughout, per this phase's explicit boundary.

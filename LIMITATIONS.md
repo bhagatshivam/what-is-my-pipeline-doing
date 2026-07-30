@@ -532,6 +532,53 @@ generated output, not just checking it doesn't raise.
   unresolvable `scope_ref` (shouldn't occur against real parser output)
   falls back to the job-only reference rather than crashing.
 
+**Tool 1 "AT A GLANCE" summary — deliberate no-inferred-intent boundary.**
+Phase 7.5 (2026-07-30). The AT A GLANCE section at the top of
+`generate_text()`'s output is deterministic and Layer 3 only, same
+"never guess at intent" rule the rest of this generator already follows
+(see the module docstring): every sentence is built exclusively from
+structured IR fields already present on `Trigger`/`Job`/`MatrixStrategy` —
+trigger types and their branch/schedule qualifiers, job counts,
+`Job.dependencies` presence/absence via the new, narrow
+`_jobs_with_no_declared_dependencies` helper (never the diagram's
+dangling-tolerant "entry job" notion — see the Mermaid generator section
+below for why those two are deliberately different), and `MatrixStrategy`
+combination counts via the new `_exact_combination_count` helper (a number
+only for the two cases `_matrix_summary` itself treats as exact — see
+below). It never reads `Job.name`/`Step.name` to guess at semantic
+purpose. Concretely out of scope, permanently, in both Layer 3 and Layer 4
+(the LLM layer only rewrites prose this section already produced — it does
+not see raw YAML and is never given job/step names as a basis for a
+purpose claim): a sentence like "this workflow validates setup-python" or
+"tests different configuration methods" is an inference from job/step
+*names*, not an extracted fact, and does not belong in the main
+documentation path. Cron schedules are described literally (e.g. "a
+scheduled run (cron `30 3 * * *`)"), never translated into human labels
+like "nightly" or "weekly" — that translation requires interpreting a
+specific hour against an assumed timezone/convention, exactly the kind of
+inference this section exists to avoid.
+
+**`_exact_combination_count`'s deliberately narrower-than-it-looks scope.**
+Phase 7.5 (2026-07-30). This helper (`generators/common.py`) returns a
+single combination-count number only for axes-only matrices (no
+`include`, no `exclude`) or include-only matrices (no `axes`, no
+`exclude`) — the two cases `_matrix_summary` itself states as one
+unhedged total. Every other shape returns `None`: a dynamic matrix (no
+axes and no include at all); axes-and-include-together, because
+`_matrix_summary`'s own phrase keeps those as two separate numbers ("N
+base combinations + M via include") rather than summing them, since
+`include`'s merge-vs-append semantics against the axis product aren't
+modelled (see "Matrix strategy" above); and any matrix with `exclude`
+present, with or without `include`, because `_matrix_summary` itself only
+ever says "up to" for those, never a bare total. AT A GLANCE's matrix
+sentence sums only the jobs where this returns a number and explicitly
+states how many matrix-using jobs aren't reflected in that total, rather
+than silently omitting them or overclaiming precision — confirmed on
+`tests/fixtures/setup_python_test.yml` (14 matrix-using jobs, 1 with an
+`exclude`): "14 of 14 jobs use a build matrix; 13 of them define 329
+configured combinations between them (1 more job's matrix size not
+reflected in that total)."
+
 ## Mermaid generator
 
 `generators/mermaid_generator.py`'s `generate_mermaid()` shares its
@@ -544,6 +591,24 @@ including an actual render through `@mermaid-js/mermaid-cli` (not just a
 no-raise check) for the complex ground-truth fixture and the 14-job
 `pytorch_lint.yml` fan-out/fan-in graph.
 
+- **This diagram shows job dependencies only — no trigger nodes, added
+  2026-07-30 (Phase 7.5), replacing the trigger-node design documented
+  below.** Before this change, every `Trigger` got its own node wired to
+  every "entry" job — readable for a small pipeline, but a 14-job/4-trigger
+  real fixture (`tests/fixtures/setup_python_test.yml`) produced 56
+  trigger→job edges, most of them near-meaningless (every trigger really
+  does fire every one of that pipeline's independent jobs, but drawing all
+  56 arrows individually obscures rather than clarifies that). Triggers
+  are still fully covered as text in `text_generator.generate_text()`'s
+  "WHEN IT RUNS"/"AT A GLANCE" sections — nothing about trigger conditions
+  is lost, only removed from this specific diagram. A job with a dangling
+  `needs:` reference (its one listed dependency doesn't resolve to a real
+  job) now simply gets no incoming edge and renders as a disconnected
+  node, same as a job with no dependencies at all — `ir.validate` is what
+  flags the dangling reference itself, not this diagram. This change also
+  retired the Phase 6 origin-scoped trigger-wiring exception (see the
+  `## Tool 2` section below) — nothing is left to scope, since no trigger
+  edges exist any more.
 - **Matrix jobs render as a single annotated node, never fanned out into
   one node per combination** — the same approximation `text_generator`
   makes (reusing `_matrix_summary` directly), for the same reason:
@@ -568,6 +633,10 @@ no-raise check) for the complex ground-truth fixture and the 14-job
   type-derived ID. This makes a collision with any `Job.name` structurally
   impossible rather than merely unlikely, since no real job key in any
   fixture takes this form.
+  **Resolved (2026-07-30):** Phase 7.5 removed trigger nodes from this
+  diagram entirely (see below) — there are no `trigger_<index>` IDs left
+  to collide with anything. Kept here as history, not deleted, per this
+  file's own no-silent-drop convention.
 - **An "entry" job** (one that gets an edge from every trigger node) is
   defined as a job with no dependency that resolves to a real job in this
   pipeline — either `dependencies` is empty, or every listed dependency is
@@ -576,6 +645,16 @@ no-raise check) for the complex ground-truth fixture and the 14-job
   least one incoming edge instead of floating disconnected in the diagram.
   Verified with a hand-written case, since no real fixture has a dangling
   dependency.
+  **Resolved (2026-07-30):** `mermaid_generator._entry_jobs` was deleted
+  (not renamed) once trigger nodes were removed — nothing in this module
+  needs "which jobs have no resolvable dependency" any more. A job with a
+  dangling `needs:` reference now simply gets no incoming edge and renders
+  as a disconnected node, same as a job with no dependencies at all (see
+  the new bullet below). Note this "dangling-tolerant" notion was never
+  reused for any Layer 3 prose claiming a job is "independent" — see the
+  new, separate, narrower `_jobs_with_no_declared_dependencies` in
+  `generators/common.py`, used by `text_generator.py`'s AT A GLANCE/
+  EXECUTION SUMMARY and `tool2/relationships.py`'s relationship table.
 - **Label escaping is a new concern this generator has that
   `text_generator` doesn't** (plain text has no equivalent syntax risk):
   literal `"` becomes `#quot;`, and literal newlines become `<br/>`. The
@@ -793,6 +872,14 @@ from N real per-file ones before handing off to those unchanged functions.
   would be new interpretive logic on top of the merge layer; a reader can
   already match a target string against another job's `Source:` line by
   eye, given job names are prefixed by origin.
+  **Partially resolved (2026-07-30):** `tool2/relationships.py` (Phase
+  7.5) now resolves `workflow_run` relationships specifically — see the
+  new bullet below — using a new `origin_display_names` mapping built
+  alongside `_merge_pipelines`, not by changing what `linked_workflows`
+  itself contains or how this module merges it. Job-level `uses:`
+  (`relationship="calls"`) entries are still not resolved to a source
+  origin — see below for why that specific case remains genuinely
+  unresolvable from the combined `Pipeline` alone, not just undone.
 - **`generators/mermaid_generator.py`'s trigger-wiring is now origin-scoped**
   (third documented deliberate exception to that module's fixed-contract
   status, alongside the two below). A trigger only wires to an entry job
@@ -810,6 +897,63 @@ from N real per-file ones before handing off to those unchanged functions.
   which never happens in real GitHub Actions.
   `tests/test_multi_pipeline.py::test_generate_mermaid_scopes_triggers_to_their_own_origin`
   is the regression proof.
+  **Resolved (2026-07-30):** Phase 7.5 removed trigger nodes and
+  trigger→job edges from `generate_mermaid()` entirely (triggers are
+  covered as text in Tool 1's "WHEN IT RUNS"/"AT A GLANCE" sections
+  instead — see the `## Mermaid generator` section above), so this
+  origin-scoping exception no longer applies — there are no trigger edges
+  left to scope. The regression test named above was replaced by
+  `tests/test_multi_pipeline.py::test_generate_mermaid_has_no_trigger_nodes_after_merge`.
+  Kept documented here rather than deleted, per this file's own
+  no-silent-drop convention.
+- **New `tool2/relationships.py` (Phase 7.5, 2026-07-30)** adds a
+  relationship table, a shared-triggers note, and a workflow-to-workflow
+  diagram on top of the existing merge output — read-only, doesn't change
+  anything `_merge_pipelines()` produces. Two scope boundaries worth
+  stating explicitly:
+  - **"Follows" relationships are resolved only from `workflow_run`
+    triggers, not from job-level `uses:` `LinkedWorkflow` entries.**
+    `LinkedWorkflow` has no per-origin field at all after merging (see the
+    bullet above — it's unioned/deduped by `(target, relationship)` alone,
+    with no record of which file each entry came from), so for a `calls`
+    relationship there is no structured, origin-tagged way to know which
+    origin *made* the call from the combined `Pipeline` alone. Guessing
+    the source origin from a bare `LinkedWorkflow` entry would be exactly
+    the kind of inference this phase exists to avoid — that fact stays
+    fully visible in the document's existing, unchanged LINKED WORKFLOWS
+    section, just not attributed to a row in the new relationship table.
+    `workflow_run` triggers are different: `Trigger.origin` is set by the
+    same merge layer, on the trigger itself, so the listening origin is
+    always known — that's the one relationship type this module resolves.
+  - **`origin_display_names` (origin slug -> that file's own pre-merge
+    `Pipeline.name`) is required input, separate from the combined
+    `Pipeline`.** `workflow_run: workflows: [...]` and `LinkedWorkflow.target`
+    reference the target workflow's *display name* (its `name:` field, or
+    filename fallback), not its filename-derived `origin` slug — confirmed
+    divergent on the one real fixture with an actual relationship
+    (`tests/fixtures/multi/black`): `diff_shades.yml` has `name:
+    diff-shades`, but its origin slug is `diff_shades_yml`. Matching
+    `source_workflow` against origin slugs directly would silently fail to
+    resolve this exact real case. `origin_display_names` is built by a new,
+    small, additive `_origin_display_names(files, pipelines)` helper in
+    `tool2/multi_pipeline.py`, from the pre-merge per-file `Pipeline.name`
+    values (discarded by `_merge_pipelines` itself, which only keeps one
+    combined name) — it does not change `_merge_pipelines`'s behavior,
+    output, or tests.
+  - **The combined `Pipeline`'s AT A GLANCE trigger sentence is not
+    deduplicated across origins.** `generate_text()` is reused completely
+    unmodified against the merged `Pipeline` (same precedent as job-name
+    prefixing and dropped workflow-level `permissions`/`concurrency`,
+    above) — its new AT A GLANCE sentence lists every trigger from every
+    origin in one flat sentence, so a repo where two files both push to
+    `main` reads as "...pushes to `main`, pull requests, pushes to `main`,
+    manual dispatch..." rather than deduplicating "pushes to `main`"
+    across origins. Confirmed on the real `black` fixture's combined
+    document. `tool2/relationships.py`'s own relationship table shows each
+    origin's triggers separately and correctly instead; fixing the
+    combined AT A GLANCE sentence itself would need a `text_generator.py`
+    change, out of this phase's scope (that generator is reused
+    unmodified by design — see the module intro above).
 
 ## Consciously unmodeled concepts — verified preservation status
 

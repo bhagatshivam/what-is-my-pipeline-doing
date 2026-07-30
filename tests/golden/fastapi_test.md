@@ -5,12 +5,24 @@ Pipeline: Test
 Source: tests/fixtures/fastapi_test.yml (GitHub Actions)
 Permissions: none (all permissions explicitly disabled)
 
-TRIGGERS
+AT A GLANCE
+This workflow runs on pushes to `master`, pull requests, and a scheduled run (cron `0 0 * * 1`).
+It contains 5 jobs: 1 with no declared dependencies, 4 depending on other jobs.
+1 of 5 jobs use a build matrix.
+
+WHEN IT RUNS
 - Runs on every push to master branch
 - Runs on every pull request
 - Runs on a schedule (0 0 * * 1)
 
-JOBS (in order)
+EXECUTION SUMMARY
+Independent jobs (no dependencies): changes
+test runs after changes
+benchmark runs after changes
+coverage-combine runs after test
+test-alls-green runs after test, coverage-combine, benchmark
+
+IMPLEMENTATION DETAILS
 1. changes — runs on ubuntu-latest; 2 steps; permissions: pull-requests: read
    - actions/checkout
    - dorny/paths-filter
@@ -54,17 +66,11 @@ JOBS (in order)
 
 ```mermaid
 flowchart LR
-    trigger_0(["Push"])
-    trigger_1(["Pull request"])
-    trigger_2(["Schedule"])
     changes["changes"]
     test["test [matrix: 8 base combinations (os, python-version, deprecated-tests, uv-resolution, starlette-src) + 7 via include, if: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/master']"]
     benchmark["benchmark [if: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/master']"]
     coverage-combine["coverage-combine"]
     test-alls-green["test-alls-green [if: always()]"]
-    trigger_0 --> changes
-    trigger_1 --> changes
-    trigger_2 --> changes
     changes --> test
     changes --> benchmark
     test --> coverage-combine

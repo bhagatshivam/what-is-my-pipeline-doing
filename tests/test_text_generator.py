@@ -78,9 +78,14 @@ def test_simple_fixture_text_shape():
     output = generate_text(_load_ground_truth("simple_pipeline_ir.json"))
     assert "Pipeline: Lint" in output
     assert "Source: .github/workflows/lint.yml (GitHub Actions)" in output
-    assert "TRIGGERS" in output
+    assert "AT A GLANCE" in output
+    assert "This workflow runs on pushes to `main`." in output
+    assert "It contains 1 job, with no job dependencies, so GitHub may run them in parallel." in output
+    assert "WHEN IT RUNS" in output
     assert "- Runs on every push to main branch" in output
-    assert "JOBS (in order)" in output
+    assert "EXECUTION SUMMARY" in output
+    assert "Independent jobs (no dependencies): lint" in output
+    assert "IMPLEMENTATION DETAILS" in output
     assert "1. lint — runs on ubuntu-latest; 2 steps" in output
     assert "SECRETS REQUIRED" not in output
     assert "LINKED WORKFLOWS" not in output
@@ -89,8 +94,14 @@ def test_simple_fixture_text_shape():
 def test_medium_fixture_text_shape():
     output = generate_text(_load_ground_truth("medium_pipeline_ir.json"))
     assert "Pipeline: CI Pipeline" in output
+    assert "AT A GLANCE" in output
+    assert "It contains 3 jobs: 1 with no declared dependencies, 2 depending on other jobs." in output
     assert "- Runs on every push to main branch" in output
     assert "- Runs on every pull request targeting main branch" in output
+    assert "EXECUTION SUMMARY" in output
+    assert "Independent jobs (no dependencies): build" in output
+    assert "test runs after build" in output
+    assert "deploy runs after test" in output
     assert "1. build — runs on ubuntu-latest; 2 steps" in output
     assert (
         "2. test — runs on ubuntu-latest; 2 steps; "
@@ -159,6 +170,37 @@ def test_topological_order_ignores_dangling_dependency():
     jobs = [_job("A", deps=["does-not-exist"])]
     ordered = [j.name for j in _topological_job_order(jobs)]
     assert ordered == ["A"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 7.5 Revision 1 — a dangling `needs:` reference is a real, if
+# unresolvable, declared dependency. It must never be rendered as
+# "independent"/"no dependencies" in AT A GLANCE or EXECUTION SUMMARY, even
+# though the (separate, diagram-only) entry-point notion tolerates it.
+# ---------------------------------------------------------------------------
+
+def test_dangling_dependency_not_reported_as_independent():
+    from ir.schema import SourcePlatform
+
+    pipeline = Pipeline(
+        name="Dangling",
+        source_platform=SourcePlatform.GITHUB_ACTIONS,
+        source_file="dangling.yml",
+        jobs=[_job("A"), _job("B", deps=["does-not-exist"])],
+    )
+    output = generate_text(pipeline)
+
+    # AT A GLANCE: only A has no declared dependencies -- B has one
+    # (dangling, but declared), so this must be the mixed-case sentence,
+    # not the "no job dependencies" all-independent one.
+    assert "It contains 2 jobs: 1 with no declared dependencies, 1 depending on other jobs." in output
+    assert "with no job dependencies, so GitHub may run them in parallel" not in output
+
+    # EXECUTION SUMMARY: B belongs under "runs after", not the independent list.
+    assert "Independent jobs (no dependencies): A" in output
+    assert "B runs after does-not-exist" in output
+    independent_line = next(line for line in output.splitlines() if line.startswith("Independent jobs"))
+    assert "B" not in independent_line
 
 
 # ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ import os
 
 import pytest
 
-from generators.mermaid_generator import _entry_jobs, _escape_label, generate_mermaid
+from generators.mermaid_generator import _escape_label, generate_mermaid
 from ir.schema import Job, Pipeline
 from parsers.github_actions import GitHubActionsParser
 
@@ -73,68 +73,35 @@ def test_simple_fixture_mermaid_shape():
     output = generate_mermaid(_load_ground_truth("simple_pipeline_ir.json"))
     assert output == (
         "flowchart LR\n"
-        '    trigger_0(["Push"])\n'
         '    lint["lint"]\n'
-        "    trigger_0 --> lint\n"
     )
 
 
 def test_medium_fixture_mermaid_shape():
     output = generate_mermaid(_load_ground_truth("medium_pipeline_ir.json"))
-    assert '    trigger_0(["Push"])' in output
-    assert '    trigger_1(["Pull request"])' in output
     assert '    build["build"]' in output
     assert '    test["test [matrix: 3 combinations (python-version)]"]' in output
     assert '    deploy["deploy [if: branch == \'main\']"]' in output
-    assert "    trigger_0 --> build" in output
-    assert "    trigger_1 --> build" in output
     assert "    build --> test" in output
     assert "    test --> deploy" in output
-    # deploy has no dependents and isn't an entry job — no trigger edge to it.
-    assert "trigger_0 --> deploy" not in output
-    assert "trigger_1 --> deploy" not in output
+    # Phase 7.5: no trigger nodes at all — this diagram is job-dependency-only.
+    assert "trigger_0" not in output
+    assert "trigger_1" not in output
 
 
 def test_complex_fixture_mermaid_shape():
     output = generate_mermaid(_load_ground_truth("complex_pipeline_ir.json"))
-    assert '    trigger_0(["Push"])' in output
-    assert '    trigger_1(["Workflow call"])' in output
     assert '    build["build [matrix: 3 combinations (os)]"]' in output
     assert '    test["test"]' in output
     assert '    release["release"]' in output
-    assert "    trigger_0 --> build" in output
-    assert "    trigger_1 --> build" in output
     assert "    build --> test" in output
     assert "    test --> release" in output
+    # Phase 7.5: no trigger nodes at all — this diagram is job-dependency-only.
+    assert "trigger_0" not in output
+    assert "trigger_1" not in output
     # linked_workflows/secrets are out of scope for this diagram.
     assert "build.yml" not in output
     assert "PYPI_TOKEN" not in output
-
-
-# ---------------------------------------------------------------------------
-# Trigger node ID scheme: index-based, not TriggerType-derived.
-# ---------------------------------------------------------------------------
-
-def test_multiple_triggers_of_same_type_get_distinct_ids():
-    # Two SCHEDULE triggers (e.g. two separate cron entries) must not
-    # collide on a type-derived node ID.
-    from ir.schema import SourcePlatform, Trigger, TriggerType
-
-    pipeline = Pipeline(
-        name="Cron",
-        source_platform=SourcePlatform.GITHUB_ACTIONS,
-        source_file=".github/workflows/cron.yml",
-        triggers=[
-            Trigger(type=TriggerType.SCHEDULE, schedule="0 0 * * *"),
-            Trigger(type=TriggerType.SCHEDULE, schedule="0 12 * * *"),
-        ],
-        jobs=[Job(name="run")],
-    )
-    output = generate_mermaid(pipeline)
-    assert 'trigger_0(["Schedule"])' in output
-    assert 'trigger_1(["Schedule"])' in output
-    assert "trigger_0 --> run" in output
-    assert "trigger_1 --> run" in output
 
 
 # ---------------------------------------------------------------------------
@@ -169,26 +136,26 @@ def test_fan_out_and_fan_in_edges():
     assert "    C --> D" in output
 
 
-def test_dangling_dependency_still_gets_an_entry_edge():
-    from ir.schema import SourcePlatform, Trigger, TriggerType
+def test_dangling_dependency_produces_no_edge_job_node_survives():
+    # A job whose only `needs:` reference doesn't resolve to a real job in
+    # this pipeline gets no incoming edge at all (there's nothing real to
+    # draw it from) but must still appear as its own node — not silently
+    # dropped from the graph just because its one dependency is dangling.
+    # ir.validate is what flags the dangling reference itself; this
+    # generator's only obligation is to never crash or fabricate an edge.
+    from ir.schema import SourcePlatform
 
     pipeline = Pipeline(
         name="Dangling",
         source_platform=SourcePlatform.GITHUB_ACTIONS,
         source_file="dangling.yml",
-        triggers=[Trigger(type=TriggerType.PUSH)],
         jobs=[_job("A", deps=["does-not-exist"])],
     )
     output = generate_mermaid(pipeline)
-    assert "trigger_0 --> A" in output
-    # No edge is drawn from a nonexistent job.
+    assert '    A["A"]' in output
+    # No edge is drawn from/to a nonexistent job.
     assert "does-not-exist" not in output
-
-
-def test_entry_jobs_helper():
-    jobs = [_job("A"), _job("B", deps=["A"]), _job("C", deps=["does-not-exist"])]
-    entries = [j.name for j in _entry_jobs(jobs)]
-    assert entries == ["A", "C"]
+    assert "-->" not in output
 
 
 def test_cycle_falls_back_without_raising():

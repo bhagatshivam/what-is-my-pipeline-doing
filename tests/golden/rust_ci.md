@@ -6,11 +6,21 @@ Source: tests/fixtures/rust_ci.yml (GitHub Actions)
 Permissions: contents: read, packages: write
 Concurrency: group ${{ github.workflow }}-${{ ((github.ref == 'refs/heads/try-perf' || github.ref == 'refs/heads/automation/bors/try') && github.sha) || github.ref }}; cancels in-progress runs
 
-TRIGGERS
+AT A GLANCE
+This workflow runs on pushes to `automation/bors/auto`, `automation/bors/try`, `try-perf` and pull requests.
+It contains 3 jobs: 1 with no declared dependencies, 2 depending on other jobs.
+1 of 3 jobs use a build matrix.
+
+WHEN IT RUNS
 - Runs on every push to automation/bors/auto or automation/bors/try or try-perf branches
 - Runs on every pull request targeting ** branch
 
-JOBS (in order)
+EXECUTION SUMMARY
+Independent jobs (no dependencies): calculate_matrix
+job runs after calculate_matrix
+outcome runs after calculate_matrix, job
+
+IMPLEMENTATION DETAILS
 1. calculate_matrix — runs on ubuntu-24.04-arm; 3 steps
    - Checkout the source code
    - Test citool
@@ -45,13 +55,9 @@ SECRETS REQUIRED
 
 ```mermaid
 flowchart LR
-    trigger_0(["Push"])
-    trigger_1(["Pull request"])
     calculate_matrix["calculate_matrix"]
     job["job [matrix: combinations determined at runtime]"]
     outcome["outcome [if: ${{ needs.calculate_matrix.outputs.run_type == 'auto' }}]"]
-    trigger_0 --> calculate_matrix
-    trigger_1 --> calculate_matrix
     calculate_matrix --> job
     calculate_matrix --> outcome
     job --> outcome

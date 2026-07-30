@@ -4,7 +4,12 @@
 Pipeline: starlette (unified CI documentation)
 Source: tests/fixtures/multi/starlette/.github/workflows (GitHub Actions)
 
-TRIGGERS
+AT A GLANCE
+This workflow runs on pushes to `main`, pull requests, pushes, manual dispatch, pushes to `main`, and pull requests.
+It contains 8 jobs: 4 with no declared dependencies, 4 depending on other jobs.
+1 of 8 jobs use a build matrix; together these define 5 configured combinations.
+
+WHEN IT RUNS
 - Runs on every push to main branch
 - Runs on every pull request targeting main branch
 - Runs on every push with tag matching *
@@ -12,7 +17,14 @@ TRIGGERS
 - Runs on every push to main branch
 - Runs on every pull request targeting ** branch
 
-JOBS (in order)
+EXECUTION SUMMARY
+Independent jobs (no dependencies): main_yml__tests, main_yml__docs-cloudflare-preview, publish_yml__build, zizmor_yml__zizmor
+main_yml__check runs after main_yml__tests
+publish_yml__pypi-publish runs after publish_yml__build
+publish_yml__docs-publish runs after publish_yml__build
+publish_yml__docs-cloudflare runs after publish_yml__build
+
+IMPLEMENTATION DETAILS
 1. main_yml__tests — runs on ubuntu-latest; 7 steps; matrix: 5 combinations (python-version)
    - actions/checkout
    - Install uv
@@ -65,12 +77,6 @@ SECRETS REQUIRED
 
 ```mermaid
 flowchart LR
-    trigger_0(["Push"])
-    trigger_1(["Pull request"])
-    trigger_2(["Push"])
-    trigger_3(["Manual dispatch"])
-    trigger_4(["Push"])
-    trigger_5(["Pull request"])
     main_yml__tests["main_yml__tests [matrix: 5 combinations (python-version)]"]
     main_yml__check["main_yml__check [if: always()]"]
     main_yml__docs-cloudflare-preview["main_yml__docs-cloudflare-preview [if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_...]"]
@@ -79,16 +85,21 @@ flowchart LR
     publish_yml__docs-publish["publish_yml__docs-publish"]
     publish_yml__docs-cloudflare["publish_yml__docs-cloudflare"]
     zizmor_yml__zizmor["zizmor_yml__zizmor"]
-    trigger_0 --> main_yml__tests
-    trigger_0 --> main_yml__docs-cloudflare-preview
-    trigger_1 --> main_yml__tests
-    trigger_1 --> main_yml__docs-cloudflare-preview
-    trigger_2 --> publish_yml__build
-    trigger_3 --> publish_yml__build
-    trigger_4 --> zizmor_yml__zizmor
-    trigger_5 --> zizmor_yml__zizmor
     main_yml__tests --> main_yml__check
     publish_yml__build --> publish_yml__pypi-publish
     publish_yml__build --> publish_yml__docs-publish
     publish_yml__build --> publish_yml__docs-cloudflare
 ```
+
+## Workflow Relationships
+
+| Workflow file | Runs when | Job behaviour | Relationship |
+| --- | --- | --- | --- |
+| main_yml | pushes to `main` and pull requests | 3 jobs, 2 independent | independent |
+| publish_yml | pushes and manual dispatch | 4 jobs, 1 independent | independent |
+| zizmor_yml | pushes to `main` and pull requests | 1 job, 1 independent | independent |
+
+Some workflow files share the exact same trigger. GitHub Actions gives no ordering between separately-triggered workflow runs — these run independently of each other, not in sequence, even though they fire on the same event:
+
+- pushes to `main`: main_yml, zizmor_yml
+

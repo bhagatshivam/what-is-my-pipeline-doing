@@ -6,11 +6,19 @@ Source: tests/fixtures/node_test_linux.yml (GitHub Actions)
 Permissions: contents: read
 Concurrency: group ${{ github.workflow }}-${{ github.head_ref || github.run_id }}; cancels in-progress runs
 
-TRIGGERS
+AT A GLANCE
+This workflow runs on pull requests and pushes to `main`, `canary`, `v[0-9]+.x-staging`, `v[0-9]+.x`.
+It contains 1 job, with no job dependencies, so GitHub may run them in parallel.
+1 of 1 job use a build matrix; together these define 2 configured combinations.
+
+WHEN IT RUNS
 - Runs on every pull request excluding paths .mailmap or README.md or vcbuild.bat or tools/actions/** or tools/clang-format/** or tools/dep_updaters/** or test/internet/** or **.nix or .github/** or !.github/workflows/test-linux.yml
 - Runs on every push to main or canary or v[0-9]+.x-staging or v[0-9]+.x branches; excluding paths .mailmap or README.md or vcbuild.bat or tools/actions/** or tools/clang-format/** or tools/dep_updaters/** or test/internet/** or **.nix or .github/** or !.github/workflows/test-linux.yml
 
-JOBS (in order)
+EXECUTION SUMMARY
+Independent jobs (no dependencies): test-linux
+
+IMPLEMENTATION DETAILS
 1. test-linux — runs on ${{ matrix.os }}; 9 steps; matrix: 2 combinations (os); condition: github.event.pull_request.draft == false
    - actions/checkout
    - Install Clang ${{ env.CLANG_VERSION }}
@@ -27,9 +35,5 @@ JOBS (in order)
 
 ```mermaid
 flowchart LR
-    trigger_0(["Pull request"])
-    trigger_1(["Push"])
     test-linux["test-linux [matrix: 2 combinations (os), if: github.event.pull_request.draft == false]"]
-    trigger_0 --> test-linux
-    trigger_1 --> test-linux
 ```

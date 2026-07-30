@@ -6,12 +6,28 @@ Source: tests/fixtures/pytorch_lint.yml (GitHub Actions)
 Permissions: read-all
 Concurrency: group ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' && github.run_id }}; cancels in-progress runs
 
-TRIGGERS
+AT A GLANCE
+This workflow runs on pull requests, pushes to `main`, `release/*`, `landchecks/*`, and manual dispatch.
+It contains 14 jobs: 6 with no declared dependencies, 8 depending on other jobs.
+1 of 14 jobs use a build matrix; together these define 3 configured combinations.
+
+WHEN IT RUNS
 - Runs on every pull request except branch nightly
 - Runs on every push to main or release/* or landchecks/* branches; with tag matching ciflow/pull/* or ciflow/trunk/*
 - Can be triggered manually
 
-JOBS (in order)
+EXECUTION SUMMARY
+Independent jobs (no dependencies): get-label-type, get-changed-files, pr-sanity-checks, test_run_test, test_collect_env, doc-redirects-check
+lintrunner-clang runs after get-label-type, get-changed-files
+lintrunner-pyrefly runs after get-label-type, get-changed-files
+lintrunner-noclang runs after get-label-type, get-changed-files
+quick-checks runs after get-label-type
+workflow-checks runs after get-label-type
+toc runs after get-label-type
+test-tools runs after get-label-type
+link-check runs after get-label-type
+
+IMPLEMENTATION DETAILS
 1. get-label-type — delegates to reusable workflow pytorch/pytorch/.github/workflows/_runner-determinator.yml@main; condition: github.repository_owner == 'pytorch'
 2. get-changed-files — delegates to reusable workflow ./.github/workflows/_get-changed-files.yml; condition: github.repository_owner == 'pytorch'
 3. lintrunner-clang — delegates to reusable workflow ./.github/workflows/_lint.yml; after get-label-type, get-changed-files; condition: github.repository_owner == 'pytorch' && (
@@ -70,9 +86,6 @@ LINKED WORKFLOWS
 
 ```mermaid
 flowchart LR
-    trigger_0(["Pull request"])
-    trigger_1(["Push"])
-    trigger_2(["Manual dispatch"])
     get-label-type["get-label-type [if: github.repository_owner == 'pytorch']"]
     get-changed-files["get-changed-files [if: github.repository_owner == 'pytorch']"]
     lintrunner-clang["lintrunner-clang [if: github.repository_owner == 'pytorch' && (...]"]
@@ -87,24 +100,6 @@ flowchart LR
     test_collect_env["test_collect_env [matrix: 3 combinations (via include), if: ${{ github.repository == 'pytorch/pytorch' }}]"]
     link-check["link-check [if: github.repository_owner == 'pytorch']"]
     doc-redirects-check["doc-redirects-check [if: github.event_name == 'pull_request' && github.repository_owner == 'pytorch']"]
-    trigger_0 --> get-label-type
-    trigger_0 --> get-changed-files
-    trigger_0 --> pr-sanity-checks
-    trigger_0 --> test_run_test
-    trigger_0 --> test_collect_env
-    trigger_0 --> doc-redirects-check
-    trigger_1 --> get-label-type
-    trigger_1 --> get-changed-files
-    trigger_1 --> pr-sanity-checks
-    trigger_1 --> test_run_test
-    trigger_1 --> test_collect_env
-    trigger_1 --> doc-redirects-check
-    trigger_2 --> get-label-type
-    trigger_2 --> get-changed-files
-    trigger_2 --> pr-sanity-checks
-    trigger_2 --> test_run_test
-    trigger_2 --> test_collect_env
-    trigger_2 --> doc-redirects-check
     get-label-type --> lintrunner-clang
     get-changed-files --> lintrunner-clang
     get-label-type --> lintrunner-pyrefly

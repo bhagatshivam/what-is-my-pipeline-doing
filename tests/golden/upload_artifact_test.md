@@ -5,11 +5,21 @@ Pipeline: Test
 Source: tests/fixtures/upload_artifact_test.yml (GitHub Actions)
 Permissions: contents: read, actions: write
 
-TRIGGERS
+AT A GLANCE
+This workflow runs on pushes to `main` and pull requests.
+It contains 4 jobs: 2 with no declared dependencies, 2 depending on other jobs.
+1 of 4 jobs use a build matrix; together these define 3 configured combinations.
+
+WHEN IT RUNS
 - Runs on every push to main branch; excluding paths **.md
 - Runs on every pull request excluding paths **.md
 
-JOBS (in order)
+EXECUTION SUMMARY
+Independent jobs (no dependencies): build, upload-html-report
+merge runs after build
+cleanup runs after build, merge
+
+IMPLEMENTATION DETAILS
 1. build — runs on ${{ matrix.runs-on }}; 28 steps; matrix: 3 combinations (runs-on)
    - Checkout
    - Setup Node 24
@@ -45,16 +55,10 @@ JOBS (in order)
 
 ```mermaid
 flowchart LR
-    trigger_0(["Push"])
-    trigger_1(["Pull request"])
     build["build [matrix: 3 combinations (runs-on)]"]
     upload-html-report["upload-html-report"]
     merge["merge"]
     cleanup["cleanup"]
-    trigger_0 --> build
-    trigger_0 --> upload-html-report
-    trigger_1 --> build
-    trigger_1 --> upload-html-report
     build --> merge
     build --> cleanup
     merge --> cleanup

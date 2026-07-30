@@ -4,12 +4,19 @@
 Pipeline: Check dist
 Source: tests/fixtures/checkout_check_dist.yml (GitHub Actions)
 
-TRIGGERS
+AT A GLANCE
+This workflow runs on pushes to `main`, pull requests, and manual dispatch.
+It contains 1 job, with no job dependencies, so GitHub may run them in parallel.
+
+WHEN IT RUNS
 - Runs on every push to main branch; excluding paths **.md
 - Runs on every pull request excluding paths **.md
 - Can be triggered manually
 
-JOBS (in order)
+EXECUTION SUMMARY
+Independent jobs (no dependencies): check-dist
+
+IMPLEMENTATION DETAILS
 1. check-dist — runs on ubuntu-latest; 6 steps
    - actions/checkout@v7
    - Set Node.js 24.x
@@ -23,11 +30,5 @@ JOBS (in order)
 
 ```mermaid
 flowchart LR
-    trigger_0(["Push"])
-    trigger_1(["Pull request"])
-    trigger_2(["Manual dispatch"])
     check-dist["check-dist"]
-    trigger_0 --> check-dist
-    trigger_1 --> check-dist
-    trigger_2 --> check-dist
 ```

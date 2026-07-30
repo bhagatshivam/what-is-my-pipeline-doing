@@ -12,23 +12,78 @@ private to this module, not to a specific generator.
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Callable, Dict, List, Optional
 
-from ir.schema import Condition, Job, MatrixStrategy
+from ir.schema import Condition, Job, MatrixStrategy, Trigger, TriggerType
 
 
 def _plural(n: int, word: str) -> str:
     return word if n == 1 else word + "s"
 
 
+def _and_join(items: List[str]) -> str:
+    """Oxford-comma "and" join — shared by text_generator's At a glance
+    trigger-summary sentence and tool2/relationships.py's relationship
+    table ("Runs when" column), so both use the same conjunction/format
+    for the same underlying trigger-glance phrases."""
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
+
+
 # ---------------------------------------------------------------------------
 # Matrix
 # ---------------------------------------------------------------------------
 
+def _matrix_is_dynamic(matrix: MatrixStrategy) -> bool:
+    """True when the matrix's combination count can't be statically
+    resolved (e.g. `include: ${{ fromJSON(...) }}`) — no `axes` and no
+    `include` list at all. Factored out of `_matrix_summary`'s own first
+    branch so its "combinations determined at runtime" prose and any other
+    caller's dynamic-matrix check (e.g. text_generator's At a glance
+    summary) share one definition instead of the latter pattern-matching
+    the former's return string."""
+    return not matrix.axes and not matrix.include
+
+
+def _exact_combination_count(matrix: MatrixStrategy) -> Optional[int]:
+    """A single exact combination count only for the two cases
+    `_matrix_summary` itself states as one unhedged number: axes-only (no
+    `include`, no `exclude`) -> the axis product; include-only (no `axes`,
+    no `exclude`) -> `len(include)`. Every other case returns `None` rather
+    than approximate a total `_matrix_summary` doesn't itself assert:
+    - dynamic (no axes, no include) — `_matrix_is_dynamic` is `True`.
+    - axes AND include both present — `_matrix_summary`'s own phrase keeps
+      these as two separate numbers ("N base combinations + M via
+      include"), since `include`'s merge-vs-append semantics against the
+      axis product aren't modelled (see LIMITATIONS.md); summing them
+      would assert a precision `_matrix_summary` never claims.
+    - any `exclude` present, with or without `include` — `_matrix_summary`
+      itself says "up to" in every such case, never a bare total.
+    Used only by text_generator's At a glance matrix sentence and Tool 2's
+    relationship-table job-behaviour summary; `_matrix_summary`'s own
+    per-job prose is untouched by this function."""
+    axes, include, exclude = matrix.axes, matrix.include, matrix.exclude
+    if exclude:
+        return None
+    if axes and not include:
+        base = 1
+        for values in axes.values():
+            base *= len(values)
+        return base
+    if include and not axes:
+        return len(include)
+    return None  # dynamic, or axes+include both present
+
+
 def _matrix_summary(matrix: MatrixStrategy) -> str:
     axes, include, exclude = matrix.axes, matrix.include, matrix.exclude
 
-    if not axes and not include:
+    if _matrix_is_dynamic(matrix):
         # A genuinely dynamic matrix (e.g. `include: ${{ fromJSON(...) }}`) —
         # the parser can't resolve this statically, so neither can we.
         return "combinations determined at runtime"
@@ -119,3 +174,79 @@ def _topological_job_order(jobs: List[Job]) -> List[Job]:
     if len(result) != len(jobs):
         return list(jobs)
     return [by_name[name] for name in result]
+
+
+def _jobs_with_no_declared_dependencies(jobs: List[Job]) -> List[Job]:
+    """Jobs whose `dependencies` list is literally empty — a narrow,
+    truthful check, deliberately distinct from any "diagram entry point"
+    notion. A job with a declared but dangling `needs:` reference (e.g.
+    `needs: nonexistent-job`) has a real, non-empty `dependencies` list —
+    it is NOT "independent"/"has no dependencies", even though such a job
+    would need special handling to place on a dependency diagram. That
+    distinct, separate concern is `ir.validate`'s (a dangling dependency is
+    a validation warning), not this function's. Used only by prose that
+    makes a truthful independence claim (text_generator's At a glance /
+    Execution summary, tool2/relationships.py's job-behaviour summary) —
+    never for diagram wiring."""
+    return [j for j in jobs if not j.dependencies]
+
+
+# ---------------------------------------------------------------------------
+# Triggers
+# ---------------------------------------------------------------------------
+
+def _glance_push(trigger: Trigger) -> str:
+    if trigger.branches:
+        return f"pushes to {', '.join(f'`{b}`' for b in trigger.branches)}"
+    return "pushes"
+
+
+def _glance_pull_request(trigger: Trigger) -> str:
+    return "pull requests"
+
+
+def _glance_schedule(trigger: Trigger) -> str:
+    if trigger.schedule:
+        return f"a scheduled run (cron `{trigger.schedule}`)"
+    return "a scheduled run"
+
+
+def _glance_manual(trigger: Trigger) -> str:
+    return "manual dispatch"
+
+
+def _glance_release(trigger: Trigger) -> str:
+    return "releases"
+
+
+def _glance_workflow_call(trigger: Trigger) -> str:
+    return "being called by another workflow"
+
+
+def _glance_workflow_run(trigger: Trigger) -> str:
+    if trigger.source_workflow:
+        return f"completion of `{trigger.source_workflow}`"
+    return "completion of another workflow"
+
+
+def _glance_other(trigger: Trigger) -> str:
+    return trigger.raw if trigger.raw else "an unrecognized trigger"
+
+
+# Dict-driven (not if/elif) specifically so the coverage test in
+# tests/test_generators_common.py can introspect `.keys()` against
+# text_generator._TRIGGER_PHRASE_BUILDERS and
+# mermaid_generator._TRIGGER_DISPLAY_NAMES — see LIMITATIONS.md/BUILD_PLAN.md
+# Phase 7.5. TriggerType.OTHER is deliberately excluded: its only sensible
+# rendering is dumping `trigger.raw`, which is inherently generic and not
+# something a future-new-TriggerType coverage risk applies to — callers use
+# `_TRIGGER_GLANCE_BUILDERS.get(trigger.type, _glance_other)`.
+_TRIGGER_GLANCE_BUILDERS: Dict[TriggerType, Callable[[Trigger], str]] = {
+    TriggerType.PUSH: _glance_push,
+    TriggerType.PULL_REQUEST: _glance_pull_request,
+    TriggerType.SCHEDULE: _glance_schedule,
+    TriggerType.MANUAL: _glance_manual,
+    TriggerType.RELEASE: _glance_release,
+    TriggerType.WORKFLOW_CALL: _glance_workflow_call,
+    TriggerType.WORKFLOW_RUN: _glance_workflow_run,
+}

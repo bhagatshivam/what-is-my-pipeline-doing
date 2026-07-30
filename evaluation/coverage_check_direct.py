@@ -71,19 +71,20 @@ def _trigger_coverage(fixture: str, pipeline: Pipeline, text: str) -> List[Direc
     # Trigger has no unique name field (unlike Job/Secret), so a per-trigger
     # presence check isn't expressible the same way. Coverage, not exact
     # wording: count the "- " bullet lines actually present under the
-    # TRIGGERS section header and compare to len(pipeline.triggers) -- this
-    # catches a silently dropped or duplicated trigger without hardcoding
-    # a copy of text_generator.py's private per-type phrase wording (which
-    # would drift out of sync as that wording evolves).
+    # WHEN IT RUNS section header (renamed from TRIGGERS, Phase 7.5) and
+    # compare to len(pipeline.triggers) -- this catches a silently dropped
+    # or duplicated trigger without hardcoding a copy of text_generator.py's
+    # private per-type phrase wording (which would drift out of sync as
+    # that wording evolves).
     if not pipeline.triggers:
         return []
     lines = text.splitlines()
-    if "TRIGGERS" not in lines:
+    if "WHEN IT RUNS" not in lines:
         return [DirectCoverageResult(
             fixture, "trigger", "triggers", DirectCoverageOutcome.MISSING,
-            "no TRIGGERS section found in generated text",
+            "no WHEN IT RUNS section found in generated text",
         )]
-    start = lines.index("TRIGGERS") + 1
+    start = lines.index("WHEN IT RUNS") + 1
     count = 0
     for line in lines[start:]:
         if line == "" or not line.startswith("- "):
