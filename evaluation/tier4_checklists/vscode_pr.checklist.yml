@@ -1,0 +1,373 @@
+# Tier 4 pre-registered fact checklist (EVALUATION_PLAN.md Method 9).
+# Committed BEFORE any of the three conditions' outputs are generated
+# for this pipeline -- the commit timestamp is the pre-registration
+# evidence. Facts are drawn verbatim, in full, from
+# evaluation/held_out_workflows/vscode_pr.manifest.yml.
+workflow_id: vscode_pr
+source_manifest: evaluation/held_out_workflows/vscode_pr.manifest.yml
+pre_registered_date: '2026-07-30'
+scoring: manual
+facts:
+- fact_id: vscode_pr.trigger.1
+  category: trigger
+  description: Runs on pull request targeting main or release/* branches
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.concurrency.1
+  category: concurrency
+  description: 'Workflow-level concurrency: group is ${{ github.workflow }}-${{ github.ref }}, cancel-in-progress:
+    true'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.permissions.1
+  category: permissions
+  description: 'Workflow-level permissions: contents: read'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.1
+  category: job
+  description: 'Job ''compile'' (''Compile & Hygiene''): list-form runs-on with self-hosted label, a 1ES.Pool
+    custom label, and a JobId label embedding 3 dynamic ${{ }} expressions; no job-level permissions override
+    (inherits workflow-level contents: read); several steps'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.2
+  category: job
+  description: 'Job ''linux-cli-tests'' (''Linux''): uses: ./.github/workflows/pr-linux-cli-test.yml (internal
+    reusable workflow), with: {job_name: CLI, rustup_toolchain: 1.88}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.3
+  category: job
+  description: 'Job ''linux-electron-tests'' (''Linux''): uses: ./.github/workflows/pr-linux-test.yml,
+    with: {job_name: Electron, electron_tests: true, smoke_tests: false}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.4
+  category: job
+  description: 'Job ''linux-electron-smoke-tests'' (''Linux''): uses: ./.github/workflows/pr-linux-test.yml,
+    with: {job_name: Electron-Smoke, electron_tests: true, unit_and_integration_tests: false}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.5
+  category: job
+  description: 'Job ''linux-browser-tests'' (''Linux''): uses: ./.github/workflows/pr-linux-test.yml,
+    with: {job_name: Browser, browser_tests: true}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.6
+  category: job
+  description: 'Job ''linux-remote-tests'' (''Linux''): uses: ./.github/workflows/pr-linux-test.yml, with:
+    {job_name: Remote, remote_tests: true}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.7
+  category: job
+  description: 'Job ''macos-electron-tests'' (''macOS''): uses: ./.github/workflows/pr-darwin-test.yml,
+    with: {job_name: Electron, electron_tests: true, smoke_tests: false}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.8
+  category: job
+  description: 'Job ''macos-electron-smoke-tests'' (''macOS''): uses: ./.github/workflows/pr-darwin-test.yml,
+    with: {job_name: Electron-Smoke, electron_tests: true, unit_and_integration_tests: false}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.9
+  category: job
+  description: 'Job ''macos-browser-tests'' (''macOS''): uses: ./.github/workflows/pr-darwin-test.yml,
+    with: {job_name: Browser, browser_tests: true}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.10
+  category: job
+  description: 'Job ''macos-remote-tests'' (''macOS''): uses: ./.github/workflows/pr-darwin-test.yml,
+    with: {job_name: Remote, remote_tests: true}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.11
+  category: job
+  description: 'Job ''windows-electron-tests'' (''Windows''): uses: ./.github/workflows/pr-win32-test.yml,
+    with: {job_name: Electron, electron_tests: true, smoke_tests: false}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.12
+  category: job
+  description: 'Job ''windows-electron-smoke-tests'' (''Windows''): uses: ./.github/workflows/pr-win32-test.yml,
+    with: {job_name: Electron-Smoke, electron_tests: true, unit_and_integration_tests: false}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.13
+  category: job
+  description: 'Job ''windows-browser-tests'' (''Windows''): uses: ./.github/workflows/pr-win32-test.yml,
+    with: {job_name: Browser, browser_tests: true}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.14
+  category: job
+  description: 'Job ''windows-remote-tests'' (''Windows''): uses: ./.github/workflows/pr-win32-test.yml,
+    with: {job_name: Remote, remote_tests: true}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.15
+  category: job
+  description: 'Job ''copilot-check-test-cache'' (''Copilot - Check Test Cache''): list-form self-hosted
+    runs-on (same 3-label shape as compile), job-level permissions {contents: read, pull-requests: read}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.16
+  category: job
+  description: 'Job ''copilot-check-telemetry'' (''Copilot - Check Telemetry''): list-form self-hosted
+    runs-on, job-level permissions {contents: read}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.17
+  category: job
+  description: 'Job ''copilot-linux-tests'' (''Copilot - Test (Linux)''): list-form self-hosted runs-on
+    (ubuntu pool), job-level permissions {contents: read}, many steps including an always()-conditioned
+    artifact upload'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.job.18
+  category: job
+  description: 'Job ''copilot-windows-tests'' (''Copilot - Test (Windows)''): list-form self-hosted runs-on
+    (windows pool, distinct 1ES.Pool label from the linux jobs), job-level permissions {contents: read}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.step.1
+  category: step
+  description: Job 'compile' has a step named 'Check cyclic dependencies'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.condition.1
+  category: condition
+  description: 'Step ''Install build tools'' in job ''compile'' has if: steps.cache-node-modules.outputs.cache-hit
+    != ''true'''
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.condition.2
+  category: condition
+  description: 'Step ''Ensure no untrusted cache changes'' in job ''copilot-check-test-cache'' has if:
+    github.event_name == ''pull_request'''
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.secret.1
+  category: secret
+  description: Secret GITHUB_TOKEN required, used in job 'compile', step 'Install dependencies' (as env
+    var GITHUB_TOKEN)
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.secret.2
+  category: secret
+  description: Secret GITHUB_TOKEN required, used in job 'compile', step 'Download built-in extensions'
+    (as env var GITHUB_TOKEN)
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.secret.3
+  category: secret
+  description: Secret GITHUB_TOKEN required, used in job 'compile', step 'Compile & Hygiene' (as env var
+    GITHUB_TOKEN)
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: vscode_pr.secret.4
+  category: secret
+  description: Secret GITHUB_TOKEN required, used in job 'copilot-check-test-cache', step 'Ensure no untrusted
+    cache changes' (as env var GH_TOKEN, a local alias for the same secrets.GITHUB_TOKEN)
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''

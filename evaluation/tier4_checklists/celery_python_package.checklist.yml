@@ -1,0 +1,252 @@
+# Tier 4 pre-registered fact checklist (EVALUATION_PLAN.md Method 9).
+# Committed BEFORE any of the three conditions' outputs are generated
+# for this pipeline -- the commit timestamp is the pre-registration
+# evidence. Facts are drawn verbatim, in full, from
+# evaluation/held_out_workflows/celery_python_package.manifest.yml.
+workflow_id: celery_python_package
+source_manifest: evaluation/held_out_workflows/celery_python_package.manifest.yml
+pre_registered_date: '2026-07-30'
+scoring: manual
+facts:
+- fact_id: celery_python_package.trigger.1
+  category: trigger
+  description: Runs on push to main, path-filtered to source/config/workflow files
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.trigger.2
+  category: trigger
+  description: Runs on pull request targeting main, path-filtered
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.trigger.3
+  category: trigger
+  description: Can be triggered manually via workflow_dispatch
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.job.1
+  category: job
+  description: Job 'Unit' exists, runner is a dynamic ${{ matrix.os }} expression
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.job.2
+  category: job
+  description: Job 'Discover-test-modules' exists, runs on blacksmith-4vcpu-ubuntu-2404
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.job.3
+  category: job
+  description: Job 'Integration-tests' exists (a reusable-workflow-calling job, no runs-on of its own)
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.job.4
+  category: job
+  description: Job 'Smoke-tests' exists (a reusable-workflow-calling job, no runs-on of its own)
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.dependency.1
+  category: dependency
+  description: '''Integration-tests'' runs after ''Unit'''
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.dependency.2
+  category: dependency
+  description: '''Integration-tests'' runs after ''Discover-test-modules'''
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.dependency.3
+  category: dependency
+  description: '''Smoke-tests'' runs after ''Unit'''
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.dependency.4
+  category: dependency
+  description: '''Smoke-tests'' runs after ''Discover-test-modules'''
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.step.1
+  category: step
+  description: Job 'Unit' has a step named 'Upload test results to Codecov' (step index 6, 0-based)
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.step.2
+  category: step
+  description: Job 'Discover-test-modules' has a step named 'Discover test module paths'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.condition.1
+  category: condition
+  description: Job 'Integration-tests' is gated on Unit's result being success
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.condition.2
+  category: condition
+  description: Job 'Smoke-tests' is gated on Unit's result being success
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.matrix.1
+  category: matrix
+  description: 'Job ''Unit'' has a matrix: python-version (6 values) x os (2 values), with 6 exclude entries
+    pruning Windows combos'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.secret.1
+  category: secret
+  description: 'Secret CODECOV_TOKEN required, used in job ''Unit'', step ''Upload test results to Codecov''
+    (in a with: block, not env:)'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.linked_workflow.1
+  category: linked_workflow
+  description: '''Integration-tests'' calls the reusable workflow ./.github/workflows/integration-tests.yml'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.linked_workflow.2
+  category: linked_workflow
+  description: '''Smoke-tests'' calls the reusable workflow ./.github/workflows/smoke-tests.yml'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: celery_python_package.permissions.1
+  category: permissions
+  description: 'Workflow-level permissions: contents: read'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''

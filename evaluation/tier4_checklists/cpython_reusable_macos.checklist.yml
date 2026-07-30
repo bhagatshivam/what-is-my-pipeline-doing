@@ -1,0 +1,87 @@
+# Tier 4 pre-registered fact checklist (EVALUATION_PLAN.md Method 9).
+# Committed BEFORE any of the three conditions' outputs are generated
+# for this pipeline -- the commit timestamp is the pre-registration
+# evidence. Facts are drawn verbatim, in full, from
+# evaluation/held_out_workflows/cpython_reusable_macos.manifest.yml.
+workflow_id: cpython_reusable_macos
+source_manifest: evaluation/held_out_workflows/cpython_reusable_macos.manifest.yml
+pre_registered_date: '2026-07-30'
+scoring: manual
+facts:
+- fact_id: cpython_reusable_macos.trigger.1
+  category: trigger
+  description: 'Callable as a reusable workflow (workflow_call), with 2 declared inputs: free-threading
+    (boolean, optional, default false) and os (string, required)'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: cpython_reusable_macos.permissions.1
+  category: permissions
+  description: 'Workflow-level permissions: contents: read'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: cpython_reusable_macos.job.1
+  category: job
+  description: 'Job ''build-macos'' exists; runner is a dynamic ${{ inputs.os }} expression, name is also
+    dynamic (build and test (${{ inputs.os }})), timeout-minutes: 60, 8 steps (first pinned to a full
+    commit SHA with a trailing # v7.0.0 version comment), 3 steps carry an if: condition referencing inputs.free-threading/inputs.os'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: cpython_reusable_macos.step.1
+  category: step
+  description: Job 'build-macos' has a step named 'Runner image version'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: cpython_reusable_macos.step.2
+  category: step
+  description: 'Job ''build-macos'' has a step named ''Check compiler warnings'', gated by if: !inputs.free-threading
+    && inputs.os == ''macos-26-intel'''
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: cpython_reusable_macos.condition.1
+  category: condition
+  description: 'Step ''Build CPython'' has if: ${{ inputs.free-threading || inputs.os != ''macos-26-intel''
+    }}'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''

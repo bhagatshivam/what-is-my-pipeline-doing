@@ -1,0 +1,75 @@
+# Tier 4 pre-registered fact checklist (EVALUATION_PLAN.md Method 9).
+# Committed BEFORE any of the three conditions' outputs are generated
+# for this pipeline -- the commit timestamp is the pre-registration
+# evidence. Facts are drawn verbatim, in full, from
+# evaluation/held_out_workflows/pre_commit_main.manifest.yml.
+workflow_id: pre_commit_main
+source_manifest: evaluation/held_out_workflows/pre_commit_main.manifest.yml
+pre_registered_date: '2026-07-30'
+scoring: manual
+facts:
+- fact_id: pre_commit_main.trigger.1
+  category: trigger
+  description: 'Runs on push to main or test-me-* branches (also tags: ''*'', bare-string form, not a
+    list)'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: pre_commit_main.trigger.2
+  category: trigger
+  description: Runs on every pull request, no filters
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: pre_commit_main.job.1
+  category: job
+  description: 'Job ''main-windows'' exists; has no runs-on/steps of its own -- it''s a bare uses: reusable-workflow-calling
+    job (external, cross-repo: asottile/workflows) with with: inputs (env, os), no steps: block at all
+    (GH Actions treats uses:/steps: as mutually exclusive at job level)'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: pre_commit_main.job.2
+  category: job
+  description: 'Job ''main-linux'' exists; same uses:-only shape as main-windows, calling the same external
+    reusable workflow with different with: input values (env: 4-version list, os: ubuntu-latest)'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
+- fact_id: pre_commit_main.concurrency.1
+  category: concurrency
+  description: 'Workflow-level concurrency: group is a dynamic expression (github.workflow + github.head_ref-or-run_id),
+    cancel-in-progress: true'
+  condition_1_deterministic:
+    outcome: null
+    detail: ''
+  condition_2_llm_polished:
+    outcome: null
+    detail: ''
+  condition_3_naive_baseline:
+    outcome: null
+    detail: ''
