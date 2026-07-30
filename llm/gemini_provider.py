@@ -9,6 +9,17 @@ Config: `GEMINI_API_KEY` env var (required — `is_available()` is False
 without it, see `llm.base.LLMProvider`), `GEMINI_MODEL` env var (optional,
 default `gemini-2.5-flash`). Temperature is fixed at 0.2 — this is
 rewriting, not creative writing.
+
+`_generate_once` (2026-07-30) is the raw Gemini `generate_content` call,
+factored out of `GeminiProvider._call_once` so `evaluation/naive_baseline.py`
+(Tier 4's condition 3) can share the exact same model/config/timeout
+plumbing without going through `GeminiProvider._call_once`/`beautify()` —
+those carry this provider's IR-fact-rewriting contract (`SYSTEM_PROMPT`,
+the `NO_OVERVIEW` sentinel, the `Pipeline`-shaped signature), which
+condition 3 must not use, by design. Sharing this one low-level helper is
+what guarantees condition 2 and condition 3 use the same model string and
+temperature — the fairness requirement EVALUATION_PLAN.md's Tier 4
+comparison depends on.
 """
 
 from __future__ import annotations
@@ -57,6 +68,36 @@ def _build_user_prompt(structured_text: str) -> str:
     )
 
 
+def _generate_once(client: Any, model: str, temperature: float, timeout_s: float,
+                    system_instruction: Optional[str], user_content: str) -> ProviderResponse:
+    """Raw, single Gemini `generate_content` call + response-shape
+    unwrapping only — no retry, no fallback, no prompt-specific
+    validation (e.g. the `NO_OVERVIEW` sentinel stays
+    `GeminiProvider._call_once`'s own concern, not this helper's). Shared
+    by `GeminiProvider._call_once` and `evaluation.naive_baseline` so both
+    go through byte-identical model/config/timeout plumbing — the one
+    thing Tier 4's condition-2-vs-3 comparison requires to be fair. Raises
+    on any SDK-level failure; callers decide what "empty" means."""
+    from google.genai import types  # lazy, same reasoning as _build_client
+
+    response = client.models.generate_content(
+        model=model,
+        contents=user_content,
+        config=types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            temperature=temperature,
+            http_options=types.HttpOptions(timeout=int(timeout_s * 1000)),  # ms, not seconds
+        ),
+    )
+    text = (response.text or "").strip()
+    usage = getattr(response, "usage_metadata", None)
+    return ProviderResponse(
+        text=text,
+        input_tokens=getattr(usage, "prompt_token_count", None) if usage else None,
+        output_tokens=getattr(usage, "candidates_token_count", None) if usage else None,
+    )
+
+
 class GeminiProvider(LLMProvider):
     def __init__(
         self,
@@ -93,24 +134,10 @@ class GeminiProvider(LLMProvider):
         return self._client is not None
 
     def _call_once(self, structured_text: str, pipeline: Pipeline) -> ProviderResponse:
-        from google.genai import types  # lazy, same reasoning as _build_client
-
-        response = self._client.models.generate_content(
-            model=self._model,
-            contents=_build_user_prompt(structured_text),
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                temperature=self._temperature,
-                http_options=types.HttpOptions(timeout=int(self.timeout_s * 1000)),  # ms, not seconds
-            ),
+        response = _generate_once(
+            self._client, self._model, self._temperature, self.timeout_s,
+            SYSTEM_PROMPT, _build_user_prompt(structured_text),
         )
-        text = (response.text or "").strip()
-        if not text or text == "NO_OVERVIEW":
-            raise ValueError(f"unusable response: {text!r}")
-
-        usage = getattr(response, "usage_metadata", None)
-        return ProviderResponse(
-            text=text,
-            input_tokens=getattr(usage, "prompt_token_count", None) if usage else None,
-            output_tokens=getattr(usage, "candidates_token_count", None) if usage else None,
-        )
+        if not response.text or response.text == "NO_OVERVIEW":
+            raise ValueError(f"unusable response: {response.text!r}")
+        return response
