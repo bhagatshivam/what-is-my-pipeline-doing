@@ -66,12 +66,4 @@ LINKED WORKFLOWS
 
 ## Pipeline Diagram
 
-```mermaid
-flowchart LR
-    verify_files["verify_files"]
-    test_on_node["test_on_node [matrix: 5 base combinations (os, node, NODE_OPTIONS) + 3 via include]"]
-    test_on_browser["test_on_browser"]
-    test_types["test_types"]
-    test_package_manager["test_package_manager"]
-    pnpm_test["pnpm_test"]
-```
+All 6 jobs are independent — no job-dependency diagram is shown; see EXECUTION SUMMARY above.

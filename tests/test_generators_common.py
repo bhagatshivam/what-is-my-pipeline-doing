@@ -8,6 +8,7 @@ truthful `_jobs_with_no_declared_dependencies` check (Revision 1), the
 
 from generators.common import (
     _exact_combination_count,
+    _has_dependency_edges,
     _jobs_with_no_declared_dependencies,
     _matrix_is_dynamic,
     _matrix_summary,
@@ -119,3 +120,33 @@ def test_exact_combination_count_none_when_any_exclude_present():
         axes={"os": ["a", "b"]}, include=[{"x": "1"}], exclude=[{"os": "a"}]
     )
     assert _exact_combination_count(all_three) is None
+
+
+# ---------------------------------------------------------------------------
+# Follow-up fix (2026-07-30) — _has_dependency_edges, used by
+# tool1/single_pipeline.py and tool2/relationships.py to decide whether a
+# Mermaid diagram (all disconnected boxes, no edges) is worth showing at
+# all versus a one-line "all jobs are independent" note.
+# ---------------------------------------------------------------------------
+
+def test_has_dependency_edges_true_when_any_job_depends_on_a_real_job():
+    jobs = [_job("A"), _job("B", deps=["A"])]
+    assert _has_dependency_edges(jobs) is True
+
+
+def test_has_dependency_edges_false_when_all_jobs_independent():
+    jobs = [_job("A"), _job("B"), _job("C")]
+    assert _has_dependency_edges(jobs) is False
+
+
+def test_has_dependency_edges_false_for_empty_job_list():
+    assert _has_dependency_edges([]) is False
+
+
+def test_has_dependency_edges_false_when_only_dangling_dependencies():
+    # A dangling `needs:` reference never resolves to a real job, so it
+    # never becomes a drawn edge -- generate_mermaid() wouldn't draw
+    # anything here either, matching this helper's "would the diagram
+    # have a real edge" contract exactly.
+    jobs = [_job("A", deps=["does-not-exist"]), _job("B")]
+    assert _has_dependency_edges(jobs) is False

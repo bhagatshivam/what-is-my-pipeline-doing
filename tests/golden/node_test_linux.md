@@ -33,7 +33,4 @@ IMPLEMENTATION DETAILS
 
 ## Pipeline Diagram
 
-```mermaid
-flowchart LR
-    test-linux["test-linux [matrix: 2 combinations (os), if: github.event.pull_request.draft == false]"]
-```
+All 1 job is independent — no job-dependency diagram is shown; see EXECUTION SUMMARY above.

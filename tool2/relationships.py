@@ -73,7 +73,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
-from generators.common import _and_join, _glance_other, _jobs_with_no_declared_dependencies, _plural, _TRIGGER_GLANCE_BUILDERS
+from generators.common import (
+    _and_join,
+    _glance_other,
+    _has_dependency_edges,
+    _jobs_with_no_declared_dependencies,
+    _plural,
+    _TRIGGER_GLANCE_BUILDERS,
+)
 from generators.mermaid_generator import generate_mermaid
 from ir.schema import Job, Pipeline, SourcePlatform, Trigger, TriggerType
 
@@ -351,14 +358,32 @@ def render_per_workflow_diagram(origin: str, jobs_by_origin: Dict[str, List[Job]
     """One small job-dependency diagram scoped to a single origin, reusing
     the now-job-only `generate_mermaid` unchanged (Phase 7.5 already
     dropped trigger nodes from that contract) against a scratch Pipeline
-    holding only that origin's jobs."""
+    holding only that origin's jobs. Returns the full ready-to-insert
+    section — a "### {origin}" heading plus either a fenced Mermaid block
+    or, when every job in this origin is independent
+    (`generators.common._has_dependency_edges` is `False`), a one-line
+    note instead of an all-disconnected-boxes diagram — same check and
+    rationale as `tool1/single_pipeline.py`'s `_pipeline_diagram_section`,
+    applied here for the same reason (see LIMITATIONS.md). Owning the full
+    section, not just raw Mermaid text, means a future caller can't wire
+    this in while forgetting to also apply that check."""
+    jobs = jobs_by_origin.get(origin, [])
+    heading = f"### {origin}\n\n"
+    if jobs and not _has_dependency_edges(jobs):
+        n = len(jobs)
+        verb = "is" if n == 1 else "are"
+        return heading + (
+            f"All {n} {_plural(n, 'job')} {verb} independent — no "
+            f"job-dependency diagram is shown.\n"
+        )
     scratch = Pipeline(
         name=origin,
         source_platform=SourcePlatform.GITHUB_ACTIONS,
         source_file=origin,
-        jobs=jobs_by_origin.get(origin, []),
+        jobs=jobs,
     )
-    return generate_mermaid(scratch)
+    mermaid_output = generate_mermaid(scratch).rstrip("\n") + "\n"
+    return heading + f"```mermaid\n{mermaid_output}```\n"
 
 
 def render_follows_diagram(report: RelationshipReport) -> str:

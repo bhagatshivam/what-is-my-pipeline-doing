@@ -34,8 +34,4 @@ IMPLEMENTATION DETAILS
 
 ## Pipeline Diagram
 
-```mermaid
-flowchart LR
-    tests["tests [matrix: 11 combinations (via include)]"]
-    typing["typing"]
-```
+All 2 jobs are independent — no job-dependency diagram is shown; see EXECUTION SUMMARY above.

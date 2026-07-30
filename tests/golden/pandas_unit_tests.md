@@ -73,14 +73,4 @@ SECRETS REQUIRED
 
 ## Pipeline Diagram
 
-```mermaid
-flowchart LR
-    ubuntu["ubuntu [matrix: 8 base combinations (platform, environment, pytest_marker_expression, pandas_future_infer_string, pandas_future_python_scalars) + 10 via include]"]
-    macos-windows["macos-windows [matrix: 12 combinations (os, environment)]"]
-    Linux-32-bit["Linux-32-bit"]
-    Linux-Musl["Linux-Musl"]
-    Windows-MinGW["Windows-MinGW"]
-    Linux-Sanitizers["Linux-Sanitizers"]
-    python-dev["python-dev [matrix: 4 combinations (os), if: false]"]
-    emscripten["emscripten"]
-```
+All 8 jobs are independent — no job-dependency diagram is shown; see EXECUTION SUMMARY above.
