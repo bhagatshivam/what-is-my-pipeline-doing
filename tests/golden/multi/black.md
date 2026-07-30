@@ -5,7 +5,7 @@ Pipeline: black (unified CI documentation)
 Source: tests/fixtures/multi/black/.github/workflows (GitHub Actions)
 
 AT A GLANCE
-This workflow runs on pushes to `main`, pull requests, completion of `diff-shades`, pushes, and pull requests.
+This workflow runs on pushes to `main`, pull requests, completion of `diff-shades`, and pushes.
 It contains 6 jobs: 3 with no declared dependencies, 3 depending on other jobs.
 3 of 6 jobs use a build matrix.
 

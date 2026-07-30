@@ -335,7 +335,16 @@ def _secret_line(secret, jobs_by_name: Dict[str, Job]) -> str:
 
 def _at_a_glance_triggers_sentence(triggers: List[Trigger]) -> str:
     phrases = [_TRIGGER_GLANCE_BUILDERS.get(t.type, _glance_other)(t) for t in triggers]
-    return f"This workflow runs on {_and_join(phrases)}."
+    # Deduped by exact phrase string, first-seen order preserved. Real case:
+    # Tool 2's combined Pipeline can have multiple origins each contributing
+    # an unqualified "pushes"/"pull requests" trigger (see
+    # tests/fixtures/multi/black's lint.yml) — without this, the sentence
+    # repeats the same phrase verbatim, reading as broken rather than as
+    # "two different files both react to this". Two phrases that are
+    # semantically the same but not string-identical (e.g. differing only
+    # in a path filter) are NOT deduped here — see LIMITATIONS.md.
+    deduped_phrases = list(dict.fromkeys(phrases))
+    return f"This workflow runs on {_and_join(deduped_phrases)}."
 
 
 def _at_a_glance_jobs_sentence(jobs: List[Job]) -> str:

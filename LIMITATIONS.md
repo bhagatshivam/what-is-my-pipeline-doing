@@ -940,20 +940,49 @@ from N real per-file ones before handing off to those unchanged functions.
     values (discarded by `_merge_pipelines` itself, which only keeps one
     combined name) — it does not change `_merge_pipelines`'s behavior,
     output, or tests.
-  - **The combined `Pipeline`'s AT A GLANCE trigger sentence is not
-    deduplicated across origins.** `generate_text()` is reused completely
-    unmodified against the merged `Pipeline` (same precedent as job-name
-    prefixing and dropped workflow-level `permissions`/`concurrency`,
-    above) — its new AT A GLANCE sentence lists every trigger from every
-    origin in one flat sentence, so a repo where two files both push to
-    `main` reads as "...pushes to `main`, pull requests, pushes to `main`,
-    manual dispatch..." rather than deduplicating "pushes to `main`"
-    across origins. Confirmed on the real `black` fixture's combined
-    document. `tool2/relationships.py`'s own relationship table shows each
-    origin's triggers separately and correctly instead; fixing the
-    combined AT A GLANCE sentence itself would need a `text_generator.py`
-    change, out of this phase's scope (that generator is reused
-    unmodified by design — see the module intro above).
+  - **The combined `Pipeline`'s AT A GLANCE trigger sentence dedupes
+    repeated trigger phrases by exact string match, first-seen order
+    preserved — narrower than full semantic deduplication, deliberately.**
+    Originally found on the real `black` fixture's combined document: the
+    sentence read "...completion of `diff-shades`, pushes, and pull
+    requests" with "pushes"/"pull requests" appearing twice (once each
+    from `diff_shades.yml`'s qualified triggers, once each from
+    `lint.yml`'s unqualified ones), reading as broken even though every
+    clause was factually true.
+    **Fixed (2026-07-30):** `_at_a_glance_triggers_sentence`
+    (`generators/text_generator.py`) now dedupes via
+    `dict.fromkeys(phrases)` before joining — `black`'s sentence now reads
+    "pushes to `main`, pull requests, completion of `diff-shades`, and
+    pushes." (`tests/test_golden_files_multi.py::test_black_at_a_glance_dedupes_repeated_trigger_phrases`
+    is the real-data regression proof; `tests/test_text_generator.py`
+    has the isolated unit-level cases.) This is a self-contained fix to
+    `text_generator.py`'s new AT A GLANCE logic only — it does not touch
+    `_merge_pipelines` or any other frozen contract, and applies equally
+    whether the duplicate phrases come from Tool 2's merge (the real
+    trigger for this bug) or, in principle, a single file with genuinely
+    duplicate triggers.
+    **Deliberate remaining boundary:** dedup is by exact phrase string,
+    not by underlying `Trigger` structural equality or semantic meaning.
+    Two triggers that render to visibly different phrases — e.g. `push:
+    branches: [main]` ("pushes to `main`") vs. an unqualified `push:`
+    ("pushes") — are correctly kept distinct, since the branch scoping is
+    a real difference worth stating. But two *structurally different*
+    triggers that happen to render to the *same simplified* AT A GLANCE
+    phrase also collapse into one, potentially losing a real distinction:
+    `_glance_pull_request` (`generators/common.py`) never includes branch
+    qualifiers at all, so a `pull_request: branches: [main]` trigger and
+    an unqualified `pull_request:` trigger both already rendered as the
+    generic phrase "pull requests" before this fix, and now also dedupe
+    into one if both appear (real case: `starlette`'s `main.yml`
+    `branches: [main]` vs. `zizmor.yml` `branches: [**]`, both "pull
+    requests"). This isn't new information loss introduced by the dedup
+    fix — the AT A GLANCE `pull_request` phrase never carried branch
+    detail even pre-dedup — but the fix does mean two such triggers now
+    also collapse into a single mention rather than two identical-looking
+    repeats. The full, unsimplified branch scoping for every trigger is
+    always available in "WHEN IT RUNS" and, per-origin, in
+    `tool2/relationships.py`'s relationship table — this AT A GLANCE
+    sentence stays a deliberately simplified, skim-level summary.
 
 ## Consciously unmodeled concepts — verified preservation status
 

@@ -5,7 +5,7 @@ Pipeline: tox (unified CI documentation)
 Source: tests/fixtures/multi/tox/.github/workflows (GitHub Actions)
 
 AT A GLANCE
-This workflow runs on manual dispatch, pushes to `main`, pull requests, a scheduled run (cron `0 8 * * *`), manual dispatch, pushes, and pushes.
+This workflow runs on manual dispatch, pushes to `main`, pull requests, a scheduled run (cron `0 8 * * *`), and pushes.
 It contains 6 jobs: 5 with no declared dependencies, 1 depending on other jobs.
 2 of 6 jobs use a build matrix; 1 of them define 18 configured combinations between them (1 more job's matrix size not reflected in that total).
 

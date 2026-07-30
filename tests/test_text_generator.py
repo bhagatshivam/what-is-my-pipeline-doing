@@ -204,6 +204,61 @@ def test_dangling_dependency_not_reported_as_independent():
 
 
 # ---------------------------------------------------------------------------
+# Phase 7.5 post-merge fix — AT A GLANCE's trigger sentence dedupes
+# string-identical trigger phrases (first-seen order preserved). Real case:
+# Tool 2's combined Pipeline can have two origins each contributing an
+# unqualified "pushes"/"pull requests" trigger (tests/fixtures/multi/black's
+# lint.yml alongside diff_shades.yml/diff_shades_comment.yml), which without
+# this fix repeated the same phrase verbatim in the sentence. Two phrases
+# that are semantically similar but NOT string-identical (e.g. "pushes to
+# `main`" vs. unqualified "pushes") are deliberately NOT deduped -- that's a
+# real difference in branch scoping, not a duplicate.
+# ---------------------------------------------------------------------------
+
+def test_at_a_glance_dedupes_string_identical_trigger_phrases():
+    from ir.schema import SourcePlatform, Trigger, TriggerType
+
+    pipeline = Pipeline(
+        name="TwoOriginsSameTrigger",
+        source_platform=SourcePlatform.GITHUB_ACTIONS,
+        source_file="combined.yml",
+        triggers=[
+            Trigger(type=TriggerType.PUSH, raw="push:"),          # origin A: unqualified push
+            Trigger(type=TriggerType.PULL_REQUEST, raw="pull_request:"),
+            Trigger(type=TriggerType.PUSH, raw="push:"),          # origin B: identical unqualified push
+            Trigger(type=TriggerType.PULL_REQUEST, raw="pull_request:"),
+        ],
+        jobs=[_job("build")],
+    )
+    output = generate_text(pipeline)
+
+    assert "This workflow runs on pushes and pull requests." in output
+    # Each phrase appears exactly once in the sentence itself, not twice.
+    glance_line = next(line for line in output.splitlines() if line.startswith("This workflow runs on"))
+    assert glance_line.count("pushes") == 1
+    assert glance_line.count("pull requests") == 1
+
+
+def test_at_a_glance_keeps_differently_qualified_trigger_phrases_distinct():
+    # Same TriggerType, different branch scoping -> different phrases,
+    # both kept -- this is real information, not a duplicate to collapse.
+    from ir.schema import SourcePlatform, Trigger, TriggerType
+
+    pipeline = Pipeline(
+        name="TwoOriginsDifferentScope",
+        source_platform=SourcePlatform.GITHUB_ACTIONS,
+        source_file="combined.yml",
+        triggers=[
+            Trigger(type=TriggerType.PUSH, branches=["main"], raw="push:\n  branches: [main]"),
+            Trigger(type=TriggerType.PUSH, raw="push:"),  # unqualified -- a genuinely different phrase
+        ],
+        jobs=[_job("build")],
+    )
+    output = generate_text(pipeline)
+    assert "This workflow runs on pushes to `main` and pushes." in output
+
+
+# ---------------------------------------------------------------------------
 # Gap 1 — per-job step-name listing (PROJECT_PLAN.md's Tool 1 deliverable
 # "what each step in each job does"), against real fixtures.
 # ---------------------------------------------------------------------------

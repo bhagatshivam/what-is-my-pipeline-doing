@@ -5,7 +5,7 @@ Pipeline: starlette (unified CI documentation)
 Source: tests/fixtures/multi/starlette/.github/workflows (GitHub Actions)
 
 AT A GLANCE
-This workflow runs on pushes to `main`, pull requests, pushes, manual dispatch, pushes to `main`, and pull requests.
+This workflow runs on pushes to `main`, pull requests, pushes, and manual dispatch.
 It contains 8 jobs: 4 with no declared dependencies, 4 depending on other jobs.
 1 of 8 jobs use a build matrix; together these define 5 configured combinations.
 
