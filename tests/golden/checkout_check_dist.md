@@ -28,7 +28,4 @@ IMPLEMENTATION DETAILS
 
 ## Pipeline Diagram
 
-```mermaid
-flowchart LR
-    check-dist["check-dist"]
-```
+All 1 job is independent — no job-dependency diagram is shown; see EXECUTION SUMMARY above.

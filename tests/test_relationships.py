@@ -23,6 +23,7 @@ from tool2.multi_pipeline import (
 from tool2.relationships import (
     analyze_relationships,
     render_follows_diagram,
+    render_per_workflow_diagram,
     render_relationship_table,
     render_shared_triggers_note,
 )
@@ -192,3 +193,51 @@ def test_dangling_dependency_not_counted_as_independent_in_relationship_table():
     # Only A has no declared dependencies -- B's dangling `needs:` is a
     # real, declared (if unresolvable) dependency, not "independence".
     assert row.independent_job_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Follow-up fix (2026-07-30) — render_per_workflow_diagram() shows a
+# one-line note instead of an all-disconnected-boxes diagram when every job
+# in that origin is independent, same _has_dependency_edges check and
+# rationale as tool1/single_pipeline.py's _pipeline_diagram_section.
+# ---------------------------------------------------------------------------
+
+def test_render_per_workflow_diagram_shows_note_when_all_jobs_independent():
+    jobs_by_origin = {"lint_yml": [Job(name="lint")]}
+    section = render_per_workflow_diagram("lint_yml", jobs_by_origin)
+
+    assert section.startswith("### lint_yml\n\n")
+    assert "```mermaid" not in section
+    assert "All 1 job is independent — no job-dependency diagram is shown." in section
+
+
+def test_render_per_workflow_diagram_shows_mermaid_when_jobs_depend_on_each_other():
+    jobs_by_origin = {
+        "ci_yml": [Job(name="build"), Job(name="test", dependencies=["build"])],
+    }
+    section = render_per_workflow_diagram("ci_yml", jobs_by_origin)
+
+    assert section.startswith("### ci_yml\n\n")
+    assert "```mermaid" in section
+    assert "build --> test" in section
+    assert "is independent" not in section
+
+
+def test_black_per_workflow_diagram_matches_real_data():
+    # Real-data proof, mirroring the two unit tests above: lint_yml's one
+    # independent job gets a note, diff_shades_yml's real dependency chain
+    # gets a diagram.
+    from tool2.relationships import _group_jobs_by_origin
+
+    repo_path = os.path.join(FIXTURES_MULTI_DIR, "black")
+    files = discover_workflow_files(repo_path)
+    pipelines = [GitHubActionsParser().parse(str(f)) for f in files]
+    combined = _merge_pipelines(files, pipelines, _repo_label(repo_path), files[0].parent)
+    jobs_by_origin = _group_jobs_by_origin(combined)
+
+    lint_section = render_per_workflow_diagram("lint_yml", jobs_by_origin)
+    assert "All 1 job is independent — no job-dependency diagram is shown." in lint_section
+
+    diff_shades_section = render_per_workflow_diagram("diff_shades_yml", jobs_by_origin)
+    assert "```mermaid" in diff_shades_section
+    assert "diff_shades_yml__configure --> diff_shades_yml__compare" in diff_shades_section

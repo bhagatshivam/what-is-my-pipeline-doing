@@ -43,6 +43,27 @@ REAL_FIXTURE_FILES = [
     "upload_artifact_test.yml",
 ]
 
+# Split by whether generate_mermaid() actually draws any job-dependency
+# edge for that fixture (generators.common._has_dependency_edges) -- the
+# 6 all-independent-jobs fixtures get a no-diagram note instead of a
+# Mermaid block (see tool1/single_pipeline.py's _pipeline_diagram_section),
+# so a mermaid-cli render doesn't apply to them at all.
+REAL_FIXTURE_FILES_WITH_DIAGRAM = [
+    "fastapi_test.yml",
+    "pytorch_lint.yml",
+    "rust_ci.yml",
+    "upload_artifact_test.yml",
+]
+REAL_FIXTURE_FILES_WITHOUT_DIAGRAM = [
+    "checkout_check_dist.yml",
+    "eslint_ci.yml",
+    "flask_tests.yml",
+    "node_test_linux.yml",
+    "pandas_unit_tests.yml",
+    "setup_python_test.yml",
+]
+assert sorted(REAL_FIXTURE_FILES_WITH_DIAGRAM + REAL_FIXTURE_FILES_WITHOUT_DIAGRAM) == sorted(REAL_FIXTURE_FILES)
+
 
 def _fixture_path(filename):
     return os.path.join(FIXTURES_DIR, filename)
@@ -64,7 +85,15 @@ def _write_workflow(tmp_path, content, filename="workflow.yml"):
 # ---------------------------------------------------------------------------
 
 def test_generate_documentation_simple_fixture_shape():
-    pipeline = _load_ground_truth("simple_pipeline_ir.json")
+    # medium_pipeline_ir.json (not simple_pipeline_ir.json): this test
+    # verifies generate_documentation() combines the text/Mermaid output
+    # verbatim into one document, which requires a fixture that actually
+    # has a Mermaid diagram section -- simple_pipeline_ir.json's single,
+    # dependency-free job is exactly the all-independent case that now
+    # gets a no-diagram note instead (see
+    # test_generate_documentation_all_independent_jobs_shows_note_not_diagram
+    # below for that case, specifically).
+    pipeline = _load_ground_truth("medium_pipeline_ir.json")
     doc = generate_documentation(pipeline)
 
     text_output = generate_text(pipeline)
@@ -82,6 +111,23 @@ def test_generate_documentation_simple_fixture_shape():
 
     heading_pos = doc.index("## Pipeline Diagram")
     assert text_end < heading_pos < mermaid_start
+
+
+def test_generate_documentation_all_independent_jobs_shows_note_not_diagram():
+    # simple_pipeline_ir.json's single job has no dependencies -- the
+    # Mermaid diagram would be one disconnected box, conveying nothing
+    # EXECUTION SUMMARY doesn't already state, so a one-line note replaces
+    # it instead of calling generate_mermaid() at all. See
+    # generators.common._has_dependency_edges and LIMITATIONS.md.
+    pipeline = _load_ground_truth("simple_pipeline_ir.json")
+    doc = generate_documentation(pipeline)
+
+    assert "## Pipeline Diagram" in doc
+    assert "```mermaid" not in doc
+    assert (
+        "All 1 job is independent — no job-dependency diagram is shown; "
+        "see EXECUTION SUMMARY above."
+    ) in doc
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +261,7 @@ _MMDC_AVAILABLE = shutil.which("npx") is not None
 
 @pytest.mark.slow
 @pytest.mark.skipif(not _MMDC_AVAILABLE, reason="npx not available for mermaid-cli rendering")
-@pytest.mark.parametrize("filename", REAL_FIXTURE_FILES)
+@pytest.mark.parametrize("filename", REAL_FIXTURE_FILES_WITH_DIAGRAM)
 def test_document_pipeline_diagram_renders_via_mermaid_cli(tmp_path, filename):
     source = _fixture_path(filename)
     output_dir = tmp_path / "docs"
@@ -245,6 +291,22 @@ def test_document_pipeline_diagram_renders_via_mermaid_cli(tmp_path, filename):
     assert svg_path.exists()
     assert svg_path.stat().st_size > 0
     assert svg_path.read_text(encoding="utf-8").startswith("<svg")
+
+
+@pytest.mark.parametrize("filename", REAL_FIXTURE_FILES_WITHOUT_DIAGRAM)
+def test_document_pipeline_all_independent_fixtures_show_note_not_diagram(tmp_path, filename):
+    # The complement of the mermaid-cli test above: these 6 real fixtures
+    # have no job that depends on another job in the same pipeline, so
+    # document_pipeline() must show the no-diagram note, never a Mermaid
+    # block -- no mermaid-cli render applies here, there's nothing to render.
+    source = _fixture_path(filename)
+    output_dir = tmp_path / "docs"
+    written = document_pipeline(source, output_dir=str(output_dir))
+    doc = written.read_text(encoding="utf-8")
+
+    assert "## Pipeline Diagram" in doc
+    assert "```mermaid" not in doc
+    assert "no job-dependency diagram is shown" in doc
 
 
 # ---------------------------------------------------------------------------
@@ -480,7 +542,14 @@ def test_document_pipeline_with_llm_across_complexity_range(tmp_path, filename):
     assert "<!-- llm-overview:start -->" in content
     assert f"Overview for {filename}." in content
     assert "## Pipeline Diagram" in content
-    assert "```mermaid" in content
+    # Most of these fixtures have real job-dependency edges and get a
+    # Mermaid block; checkout_check_dist/eslint_ci/flask_tests/
+    # setup_python_test don't (see REAL_FIXTURE_FILES_WITHOUT_DIAGRAM) and
+    # get the no-diagram note instead -- either way, the section is present.
+    if filename in REAL_FIXTURE_FILES_WITH_DIAGRAM:
+        assert "```mermaid" in content
+    else:
+        assert "no job-dependency diagram is shown" in content
 
 
 def test_document_pipeline_use_llm_false_omits_overview_even_with_provider_passed(tmp_path):

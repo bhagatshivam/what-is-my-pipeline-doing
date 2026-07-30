@@ -106,20 +106,4 @@ IMPLEMENTATION DETAILS
 
 ## Pipeline Diagram
 
-```mermaid
-flowchart LR
-    setup-versions-from-manifest["setup-versions-from-manifest [matrix: 35 combinations (os, python)]"]
-    setup-versions-from-file["setup-versions-from-file [matrix: 35 combinations (os, python)]"]
-    setup-versions-from-file-without-parameter["setup-versions-from-file-without-parameter [matrix: 35 combinations (os, python)]"]
-    setup-versions-from-standard-pyproject-file["setup-versions-from-standard-pyproject-file [matrix: 35 combinations (os, python)]"]
-    setup-versions-from-poetry-pyproject-file["setup-versions-from-poetry-pyproject-file [matrix: 35 combinations (os, python)]"]
-    setup-versions-from-tool-versions-file["setup-versions-from-tool-versions-file [matrix: up to 28 combinations (os, python), 1 excluded]"]
-    setup-versions-from-pipfile-with-python_version["setup-versions-from-pipfile-with-python_version [matrix: 28 combinations (os, python)]"]
-    setup-versions-from-pipfile-with-python_full_version["setup-versions-from-pipfile-with-python_full_version [matrix: 28 combinations (os, python)]"]
-    setup-pre-release-version-from-manifest["setup-pre-release-version-from-manifest [matrix: 7 combinations (os)]"]
-    setup-dev-version["setup-dev-version [matrix: 7 combinations (os)]"]
-    setup-prerelease-version["setup-prerelease-version [matrix: 7 combinations (os)]"]
-    setup-versions-noenv["setup-versions-noenv [matrix: 35 combinations (os, python)]"]
-    check-latest["check-latest [matrix: 35 combinations (os, python-version)]"]
-    setup-python-multiple-python-versions["setup-python-multiple-python-versions [matrix: 7 combinations (os)]"]
-```
+All 14 jobs are independent — no job-dependency diagram is shown; see EXECUTION SUMMARY above.

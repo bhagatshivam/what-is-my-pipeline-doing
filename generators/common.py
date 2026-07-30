@@ -191,6 +191,26 @@ def _jobs_with_no_declared_dependencies(jobs: List[Job]) -> List[Job]:
     return [j for j in jobs if not j.dependencies]
 
 
+def _has_dependency_edges(jobs: List[Job]) -> bool:
+    """True iff at least one job has a `dependencies` entry that resolves
+    to a real job in this pipeline — i.e. iff `generate_mermaid()` would
+    draw at least one job-dependency edge for this job list. Mirrors
+    `generate_mermaid()`'s own edge-drawing condition (a name in
+    `Job.dependencies` counts only if it matches another job's `name`)
+    exactly, so this stays consistent with what the diagram itself would
+    actually contain — a third, deliberately distinct notion from
+    `_jobs_with_no_declared_dependencies` above (a narrow, per-job,
+    truthful-independence check for prose) and the now-deleted
+    `mermaid_generator._entry_jobs` (a per-job, dangling-tolerant,
+    diagram-wiring check). This one is document-assembly-level and
+    pipeline-wide: not "which jobs", but "would this pipeline's diagram
+    have any real edges in it at all". Used by `tool1/single_pipeline.py`
+    and `tool2/relationships.py` to decide whether to show a Mermaid
+    diagram at all, or a one-line note instead — see LIMITATIONS.md."""
+    names = {j.name for j in jobs}
+    return any(dep in names for job in jobs for dep in job.dependencies)
+
+
 # ---------------------------------------------------------------------------
 # Triggers
 # ---------------------------------------------------------------------------

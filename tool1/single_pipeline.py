@@ -24,6 +24,21 @@ Contract:
   never replaced or altered by the LLM.
 - Only `parsers.github_actions.GitHubActionsParser` is wired in — other
   platforms are out of scope until Phase 9.
+- Phase 7.5 fix (2026-07-30): when `pipeline.jobs` is non-empty but none of
+  them have a dependency that resolves to another job in the pipeline
+  (`generators.common._has_dependency_edges` is `False` — real case: a
+  pipeline where every job is independent, e.g. `setup_python_test.yml`'s
+  14 matrix jobs), the `## Pipeline Diagram` section's `generate_mermaid()`
+  output would be N disconnected boxes with no edges at all — technically
+  correct (no false edges drawn) but conveys nothing beyond what
+  `generate_text()`'s EXECUTION SUMMARY section already states, and reads
+  as broken/empty rather than as a deliberate choice. In that case only,
+  `generate_documentation` replaces the ```mermaid``` fenced block with a
+  one-line note under the same `## Pipeline Diagram` heading, instead of
+  calling `generate_mermaid()` at all. This is a document-assembly
+  decision made here, not a change to `generate_mermaid()`'s own contract
+  — that generator is untouched and still produces the same (edgeless)
+  output if called directly. See `LIMITATIONS.md` for the full rationale.
 """
 
 from __future__ import annotations
@@ -36,6 +51,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from generators.common import _has_dependency_edges, _plural
 from generators.mermaid_generator import generate_mermaid
 from generators.text_generator import generate_text
 from ir.schema import Pipeline
@@ -54,17 +70,39 @@ _OVERVIEW_BLOCK_RE = re.compile(
 DEFAULT_LLM_LOG_PATH = "evaluation/llm_call_log.jsonl"
 
 
+def _pipeline_diagram_section(pipeline: Pipeline) -> str:
+    """The "## Pipeline Diagram" section's content: `generate_mermaid()`'s
+    output as a fenced code block, unless every job is independent (no
+    dependency resolves to another job in this pipeline) — in that case
+    the diagram would be N disconnected boxes with no edges, conveying
+    nothing beyond EXECUTION SUMMARY's own "no job dependencies" sentence,
+    so a one-line note is shown instead. See module docstring's Phase 7.5
+    note and LIMITATIONS.md for the full rationale. `generate_mermaid()`
+    itself is untouched — this is a document-assembly decision only."""
+    if pipeline.jobs and not _has_dependency_edges(pipeline.jobs):
+        n = len(pipeline.jobs)
+        verb = "is" if n == 1 else "are"
+        return (
+            f"## Pipeline Diagram\n\n"
+            f"All {n} {_plural(n, 'job')} {verb} independent — no "
+            f"job-dependency diagram is shown; see EXECUTION SUMMARY "
+            f"above.\n"
+        )
+    mermaid_output = generate_mermaid(pipeline).rstrip("\n") + "\n"
+    return f"## Pipeline Diagram\n\n```mermaid\n{mermaid_output}```\n"
+
+
 def generate_documentation(pipeline: Pipeline, llm_result: Optional[LLMResult] = None) -> str:
     """Combine generate_text()'s, generate_mermaid()'s, and (optionally)
     llm_result's output, verbatim, into one Markdown document. See module
     docstring for the fallback contract when llm_result is None or
-    used_fallback."""
+    used_fallback, and for the one documented exception to "verbatim":
+    the all-jobs-independent no-diagram note (`_pipeline_diagram_section`)."""
     # Defensive normalization: both generators currently guarantee exactly
     # one trailing "\n" by construction, but this protects the fence
     # structure below if that ever drifts, without touching either
     # generator module.
     text_output = generate_text(pipeline).rstrip("\n") + "\n"
-    mermaid_output = generate_mermaid(pipeline).rstrip("\n") + "\n"
 
     overview = ""
     if llm_result is not None and not llm_result.used_fallback:
@@ -79,8 +117,7 @@ def generate_documentation(pipeline: Pipeline, llm_result: Optional[LLMResult] =
         f"# {pipeline.name}\n\n"
         f"{overview}"
         f"```text\n{text_output}```\n\n"
-        f"## Pipeline Diagram\n\n"
-        f"```mermaid\n{mermaid_output}```\n"
+        f"{_pipeline_diagram_section(pipeline)}"
     )
 
 

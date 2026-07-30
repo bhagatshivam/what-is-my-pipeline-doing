@@ -769,11 +769,48 @@ no-raise check) for the complex ground-truth fixture and the 14-job
 `generate_documentation()`/`document_pipeline()`/`check_pipeline()` are a
 purely structural layer on top of `text_generator`/`mermaid_generator` —
 both generators' output is embedded verbatim, never reformatted or
-reinterpreted, and neither generator module was modified to build this.
-Verified against all 10 real fixtures (written via `document_pipeline()`,
-each embedded diagram actually rendered through `mermaid-cli` to a real
-SVG, not just checked for no-raise) plus a ground-truth fixture for exact
-fence-content assertions.
+reinterpreted, and neither generator module was modified to build this,
+with one documented exception (see below: the all-jobs-independent
+no-diagram note). Verified against all 10 real fixtures (written via
+`document_pipeline()`, each fixture that actually has a diagram rendered
+through `mermaid-cli` to a real SVG, not just checked for no-raise) plus
+a ground-truth fixture for exact fence-content assertions.
+
+- **When every job in the pipeline is independent (no job depends on
+  another job in the same pipeline), `generate_documentation()` shows a
+  one-line note instead of calling `generate_mermaid()` at all — the one
+  documented exception to "both generators' output is embedded verbatim"
+  above.** Added 2026-07-30 (follow-up fix after Phase 7.5's PR #44
+  merged). Found on the real `setup_python_test.yml` fixture (14 jobs, 0
+  `needs:` edges among them): the diagram was 14 fully disconnected
+  boxes — technically correct (no false edges are ever drawn; see
+  `generators/mermaid_generator.py`'s own "never fabricate an edge" rule
+  above), but it conveyed nothing beyond `generate_text()`'s own
+  EXECUTION SUMMARY "no job dependencies" sentence, and read as
+  broken/empty rather than as a deliberate design choice — the kind of
+  finding this project's evaluation is meant to catch. 6 of the 10 real
+  dev fixtures turn out to have this shape (`checkout_check_dist.yml`,
+  `eslint_ci.yml`, `flask_tests.yml`, `node_test_linux.yml`,
+  `pandas_unit_tests.yml`, `setup_python_test.yml` — checked by direct
+  script, not assumed), so this wasn't a one-fixture edge case.
+  `generators.common._has_dependency_edges(jobs) -> bool` (mirrors
+  `generate_mermaid()`'s own edge-drawing condition exactly — a name in
+  `Job.dependencies` counts only if it resolves to a real job in the same
+  pipeline) is a new, third, deliberately distinct "dependency" notion
+  alongside `_jobs_with_no_declared_dependencies` (narrow, per-job,
+  truthful-independence prose check) and the now-deleted
+  `mermaid_generator._entry_jobs` (per-job, dangling-tolerant,
+  diagram-wiring check): this one is pipeline-wide and document-assembly-
+  level — not "which jobs", but "would this pipeline's diagram have any
+  real edge in it at all". `tool1/single_pipeline.py`'s new
+  `_pipeline_diagram_section()` is where the check and the note live —
+  `generate_mermaid()` itself is untouched and still produces the same
+  (edgeless) output if called directly; this is a document-assembly
+  decision, not a change to that generator's own contract.
+  `tool2/relationships.py`'s `render_per_workflow_diagram()` applies the
+  identical check for the identical reason, since a per-origin diagram
+  can independently be all-disconnected even when the origin's jobs are
+  part of a combined `Pipeline` that has other, real edges elsewhere.
 
 - **The "Pipeline Diagram" section is an `## ` (H2) Markdown heading**, a
   small resolved ambiguity: no other part of the spec this was built
