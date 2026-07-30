@@ -812,6 +812,64 @@ a ground-truth fixture for exact fence-content assertions.
   can independently be all-disconnected even when the origin's jobs are
   part of a combined `Pipeline` that has other, real edges elsewhere.
 
+- **Partial dependency graphs (a real chain plus separate standalone jobs
+  in the same pipeline) were audited across all project data; grouping
+  them visually was considered and deliberately not built.** Added
+  2026-07-30, as a direct follow-up question to the no-diagram-note fix
+  above: does *every* job being independent cover the real cases, or are
+  there pipelines with a genuine mix — some jobs chained, others
+  standalone — where the diagram might also be confusing? A read-only
+  diagnostic (weakly-connected components of the job-dependency graph,
+  `Job.dependencies` edges, undirected, resolved the same way
+  `generators.common._has_dependency_edges` already does) was run across
+  all 13 real pipelines/repos this project has: the 10 `tests/fixtures/`
+  files and the 3 combined `tests/fixtures/multi/` repos. Reproducible via
+  `evaluation/diagram_shape_diagnostic.py` (read-only, `tests/fixtures/`
+  only, no held-out access).
+  Results: of the 10 dev fixtures, 2 are trivial (1 job),
+  4 are all-independent (already covered by the note above), 2 are fully
+  chained (a single connected component), and exactly **2 are genuinely
+  mixed** — `pytorch_lint.yml` (14 jobs, components sized `[10, 1, 1, 1,
+  1]`: a 10-job chain plus 4 standalone jobs) and
+  `upload_artifact_test.yml` (4 jobs, `[3, 1]`: a 3-job chain plus 1
+  standalone job). Of the 3 Tool 2 repos, `black`'s and `tox`'s
+  multi-component combined graphs are fully explained by origin count
+  alone (no single origin is internally mixed — each origin's own jobs
+  are either one clean chain or all independent); `starlette` has one
+  internally mixed origin, `main.yml` (`check`→`tests`, a 2-job chain,
+  plus a standalone `docs-cloudflare-preview` job).
+  All 5 of these genuinely mixed graphs (2 Tool 1 fixtures, 1 Tool 2
+  origin, counted at the level each would actually be rendered) already
+  render correctly today: the diagram shows the real chain and the
+  standalone boxes side by side in one `flowchart`, which is accurate —
+  only real `needs:` edges are ever drawn (see
+  `generators/mermaid_generator.py`'s "never fabricate an edge" rule),
+  and nothing about a disconnected box implies a false relationship to
+  the chain next to it.
+  **Idea considered and deliberately not built:** grouping each connected
+  component (or, for Tool 2, each `.origin`) into a Mermaid `subgraph`
+  block, to visually cluster related jobs apart from unrelated ones.
+  Rejected for two reasons, both evidence-based rather than
+  time-pressure-based: (1) this diagnostic found only 5 genuinely mixed
+  graphs across the entirety of this project's real data, and none of
+  them currently render incorrectly or ambiguously — there is no observed
+  problem for `subgraph` grouping to solve here. (2) at the scale these
+  graphs actually appear at in this project (6-14 jobs, 3-4 origins), a
+  `subgraph` wrapper adds a further layer of visual nesting without a
+  demonstrated readability problem to justify it — unlike the
+  all-independent case above, where the *complete absence* of any
+  structure (a 14-node diagram with zero edges) was the concrete,
+  observed failure this project's own evaluation approach is meant to
+  catch. This calculus is explicitly scale-dependent, not a general claim
+  that subgraph grouping is never worthwhile: a much larger repository
+  (order 10+ origins, 50+ jobs) could plausibly justify it, but nothing in
+  the 13 real pipelines/repos this diagnostic covered reaches that scale
+  (this diagnostic was run against `tests/fixtures/`/`tests/fixtures/multi/`
+  only, per this project's held-out boundary — it says nothing about
+  `evaluation/held_out_workflows/`), so building it now would be
+  speculative engineering against a case not observed in this project's
+  development data.
+
 - **The "Pipeline Diagram" section is an `## ` (H2) Markdown heading**, a
   small resolved ambiguity: no other part of the spec this was built
   against says so explicitly, but nothing else about the file (a `#`
