@@ -80,3 +80,25 @@ def test_render_answer_key_does_not_leak_condition_text():
 
     for condition in conditions:
         assert condition.text not in key
+
+
+def test_render_scoring_document_flags_fallback_without_revealing_condition_number():
+    conditions = _sample_conditions()
+    conditions[2].used_fallback = True  # condition_number=3 in _sample_conditions' order
+    conditions[2].error = "empty response"
+    doc = _render_scoring_document("example_pipeline", conditions)
+
+    assert "GENERATION FAILED" in doc
+    assert "empty response" in doc
+    # The failed condition's own text (raw fallback content) must still be
+    # shown, just clearly flagged -- never silently dropped.
+    assert conditions[2].text in doc
+    # Still no real condition-number identity leaked by the warning itself.
+    assert "Condition 1" not in doc
+    assert "Condition 2" not in doc
+    assert "Condition 3" not in doc
+
+
+def test_render_scoring_document_no_warning_when_no_fallback():
+    doc = _render_scoring_document("example_pipeline", _sample_conditions())
+    assert "GENERATION FAILED" not in doc

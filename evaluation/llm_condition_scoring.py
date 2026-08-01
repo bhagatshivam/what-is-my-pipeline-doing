@@ -31,6 +31,16 @@ unseeded -- fresh system randomness each run, since this is bias
 mitigation for a human scorer, not something that needs the
 reproducibility deterministic document generation elsewhere in this
 project requires.
+
+Conditions 2 and 3 each carry their underlying `LLMResult.used_fallback`/
+`.error` through to `ConditionOutput` (condition 1 never sets these -- it
+makes no LLM call, so it can't fall back). When `used_fallback` is True,
+`_render_scoring_document` prepends a clearly-flagged warning (including
+the real `.error` string) to that condition's section instead of silently
+rendering fallback/raw output as if it were a genuine generated result.
+The warning wording is deliberately architecture-agnostic -- it never says
+whether it's condition 2 or 3 that failed, since either can, so blinding
+stays intact.
 """
 
 from __future__ import annotations
@@ -41,7 +51,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
@@ -77,9 +87,12 @@ _CONDITION_LABELS = {
 class ConditionOutput:
     condition_number: int   # 1, 2, or 3 -- the real identity, kept out of the scoring doc
     text: str                 # what actually gets shown, blind-labeled, in the scoring doc
+    used_fallback: bool = False   # True => text is NOT a real generated result (see below)
+    error: Optional[str] = None   # LLMResult.error, only meaningful when used_fallback is True
 
 
 def _generate_condition_1(pipeline) -> ConditionOutput:
+    # No LLM call at all -- can't fall back, used_fallback stays False.
     return ConditionOutput(condition_number=1, text=generate_text(pipeline))
 
 
@@ -90,16 +103,25 @@ def _generate_condition_2(pipeline, provider: GeminiProvider, yaml_path: str) ->
     # Scored as the full assembled document (title + Overview + fact sheet
     # + diagram), not result.text in isolation -- see module docstring for
     # why. Same one beautify() call either way; only which text gets
-    # handed to the scoring doc changes.
+    # handed to the scoring doc changes. Note: when result.used_fallback
+    # is True, beautify()'s fallback is the ORIGINAL structured_text
+    # unchanged (llm/base.py's documented contract), so full_document here
+    # still reflects that fallback text, not a real LLM rewrite.
     full_document = generate_documentation(pipeline, llm_result=result)
-    return ConditionOutput(condition_number=2, text=full_document)
+    return ConditionOutput(
+        condition_number=2, text=full_document,
+        used_fallback=result.used_fallback, error=result.error,
+    )
 
 
 def _generate_condition_3(yaml_path: str, provider: GeminiProvider) -> ConditionOutput:
     # generate_naive_baseline already calls _log_llm_call internally --
     # no separate logging call needed here (see its own module docstring).
     result = generate_naive_baseline(yaml_path, provider=provider)
-    return ConditionOutput(condition_number=3, text=result.text)
+    return ConditionOutput(
+        condition_number=3, text=result.text,
+        used_fallback=result.used_fallback, error=result.error,
+    )
 
 
 def _render_scoring_document(pipeline_stem: str, blind_ordered: List[ConditionOutput]) -> str:
@@ -121,6 +143,20 @@ def _render_scoring_document(pipeline_stem: str, blind_ordered: List[ConditionOu
     for label, condition in zip(labels, blind_ordered):
         lines.append(f"## Condition {label}")
         lines.append("")
+        if condition.used_fallback:
+            # Deliberately architecture-agnostic wording -- conditions 2
+            # and 3 can both fall back, condition 1 never can, so this
+            # alone doesn't leak which of the three this is. Flags the
+            # text below as not a real generated result, so it isn't
+            # scored as though it were one.
+            lines.append(
+                "> **⚠ GENERATION FAILED -- this condition's tool call did not "
+                "succeed. The text below is fallback/unprocessed output, not a real "
+                "generated result. Score it as unavailable/failed, not as a "
+                "legitimate output of its underlying method.**"
+            )
+            lines.append(f"> Error: {condition.error}")
+            lines.append("")
         lines.append(condition.text.strip())
         lines.append("")
         lines.append("---")
