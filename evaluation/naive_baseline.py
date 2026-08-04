@@ -25,11 +25,28 @@ Contract:
   condition 2's `llm/gemini_provider.py`. Achieved by construction, not by
   convention: `generate_naive_baseline` accepts (or default-constructs) a
   real `llm.gemini_provider.GeminiProvider` and reads its `model_name`/
-  `temperature`/`timeout_s` directly, then calls the exact same
+  `temperature` directly, then calls the exact same
   `llm.gemini_provider._generate_once` low-level helper `GeminiProvider
   ._call_once` itself calls for condition 2 -- so if `DEFAULT_MODEL`/
   `DEFAULT_TEMPERATURE` ever change, both conditions change together,
   automatically, with no second constant to keep in sync.
+  **`timeout_s` is deliberately excluded from this parity requirement.**
+  Condition 3's prompt is unavoidably larger than condition 2's -- raw,
+  unfiltered YAML vs. condition 2's already-extracted, compact structured
+  text -- purely as a structural consequence of what condition 3 is
+  testing, so it legitimately needs more wall-clock time to complete, the
+  same way it needs a larger implicit token budget. A longer timeout
+  doesn't change *what* the model is allowed to produce (that's what
+  model/temperature parity guards against); it only changes whether an
+  oversized prompt gets the chance to finish at all. `generate_naive_baseline`
+  therefore uses its own `NAIVE_TIMEOUT_S` (60.0s, 3x `LLMProvider`'s
+  class default of 20.0s -- see `llm/base.py`), not `provider.timeout_s`;
+  condition 2's `GeminiProvider._call_once` is untouched by this and keeps
+  using `provider.timeout_s` as before. Found empirically: a 39KB/1091-line
+  held-out pipeline (`nextjs_build_and_test.yml`) hit `504 DEADLINE_EXCEEDED`
+  twice at the 20.0s default (~37s elapsed across both attempts) while
+  condition 2 succeeded on the same file in 12.2s -- confirming the gap is
+  specifically "much larger unfiltered prompt," not a general API issue.
 - Does NOT subclass `llm.base.LLMProvider` and does NOT call
   `GeminiProvider.beautify()`/`_call_once()` anywhere -- that class's
   entire public contract (`_call_once(structured_text: str, pipeline:
@@ -69,6 +86,12 @@ from llm.gemini_provider import GeminiProvider, _generate_once
 NAIVE_PROMPT_VERSION = "naive-v1"  # distinct from llm/base.py's PROMPT_VERSION ("v1"),
                                     # so log records can tell condition 2 and 3 apart
 
+NAIVE_TIMEOUT_S = 60.0  # 3x LLMProvider's class default (20.0, llm/base.py) -- deliberately
+                         # NOT provider.timeout_s. See module docstring's "Fairness
+                         # requirement" note for why timeout is excluded from the
+                         # model/temperature parity condition 3 must maintain with
+                         # condition 2.
+
 
 def _build_naive_prompt(yaml_text: str) -> str:
     return f"Explain what this CI/CD pipeline does:\n\n{yaml_text}"
@@ -87,12 +110,17 @@ def _build_naive_prompt(yaml_text: str) -> str:
 def generate_naive_baseline(
     yaml_path: str,
     provider: Optional[GeminiProvider] = None,
+    timeout_s: Optional[float] = None,
 ) -> LLMResult:
     """Condition 3: dump raw YAML into an LLM with a generic prompt, no
     parser/IR/generators involved at all. Returns llm.base.LLMResult
     (reused, not a parallel type) so it slots into the same
     logging/scoring plumbing as condition 2. Logs to
     evaluation/llm_call_log.jsonl via tool1.single_pipeline._log_llm_call.
+
+    `timeout_s` defaults to `NAIVE_TIMEOUT_S` (60.0), not `provider.timeout_s`
+    -- see module docstring's "Fairness requirement" note. Pass an explicit
+    value to override (e.g. for testing).
     """
     # Local import: tool1.single_pipeline is only needed for _log_llm_call,
     # and importing it lazily keeps this module's own import graph minimal
@@ -107,6 +135,7 @@ def generate_naive_baseline(
 
     if provider is None:
         provider = GeminiProvider()
+    effective_timeout_s = NAIVE_TIMEOUT_S if timeout_s is None else timeout_s
 
     start = time.monotonic()
     common = dict(
@@ -133,7 +162,7 @@ def generate_naive_baseline(
         try:
             response = _generate_once(
                 provider._client, provider.model_name, provider.temperature,
-                provider.timeout_s, None, _build_naive_prompt(yaml_text),
+                effective_timeout_s, None, _build_naive_prompt(yaml_text),
             )
             if response.text and response.text.strip():
                 result = LLMResult(

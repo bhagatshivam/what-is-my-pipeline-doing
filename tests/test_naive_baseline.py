@@ -184,6 +184,34 @@ def test_generate_naive_baseline_uses_same_model_and_temperature_as_condition_2(
     assert client.models.last_call_kwargs["config"].temperature == DEFAULT_TEMPERATURE
 
 
+def test_generate_naive_baseline_uses_its_own_longer_default_timeout(tmp_path, monkeypatch):
+    # timeout_s is deliberately excluded from the model/temperature parity
+    # requirement (see naive_baseline.py's module docstring) -- this proves
+    # the two conditions genuinely diverge on it: provider.timeout_s stays
+    # at LLMProvider's class default (20.0s / 20000ms) but the timeout
+    # actually sent to the SDK call is NAIVE_TIMEOUT_S (60.0s / 60000ms).
+    monkeypatch.setattr(single_pipeline_module, "DEFAULT_LLM_LOG_PATH", str(tmp_path / "log.jsonl"))
+    provider, client = _provider_with(_FakeResponse("explanation"))
+    assert provider.timeout_s == 20.0
+    source = _fixture_path("checkout_check_dist.yml")
+
+    generate_naive_baseline(source, provider=provider)
+
+    sent_config = client.models.last_call_kwargs["config"]
+    assert sent_config.http_options.timeout == 60000
+
+
+def test_generate_naive_baseline_honors_explicit_timeout_override(tmp_path, monkeypatch):
+    monkeypatch.setattr(single_pipeline_module, "DEFAULT_LLM_LOG_PATH", str(tmp_path / "log.jsonl"))
+    provider, client = _provider_with(_FakeResponse("explanation"))
+    source = _fixture_path("checkout_check_dist.yml")
+
+    generate_naive_baseline(source, provider=provider, timeout_s=5.0)
+
+    sent_config = client.models.last_call_kwargs["config"]
+    assert sent_config.http_options.timeout == 5000
+
+
 def test_generate_naive_baseline_default_provider_is_a_real_gemini_provider(tmp_path, monkeypatch):
     # No provider passed -> GeminiProvider() constructed directly, same
     # construction llm.get_default_provider() uses internally. Without a
