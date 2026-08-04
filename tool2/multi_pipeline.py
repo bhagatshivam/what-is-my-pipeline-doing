@@ -329,7 +329,12 @@ def _inject_markers(target: Path, doc: str) -> None:
             f"then re-run to inject the unified documentation there."
         )
     replacement = f"{_CI_DOCS_START}\n{doc}{_CI_DOCS_END}"
-    new_content = _CI_DOCS_BLOCK_RE.sub(replacement, content, count=1)
+    # Callable, not a raw string: re.sub re-parses string replacements for
+    # backslash escape sequences (\g<...>, \1, etc.), and `doc` can contain
+    # a real filesystem path (e.g. a Windows Source: line with \Users) whose
+    # backslash+letter sequence isn't a valid escape -- a lambda sidesteps
+    # escape-parsing entirely since it's never treated as a template string.
+    new_content = _CI_DOCS_BLOCK_RE.sub(lambda m: replacement, content, count=1)
     target.write_text(new_content, encoding="utf-8")
 
 

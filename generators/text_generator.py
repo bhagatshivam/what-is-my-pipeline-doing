@@ -432,9 +432,15 @@ def _execution_summary_lines(pipeline: Pipeline) -> List[str]:
 
 def generate_text(pipeline: Pipeline) -> str:
     """Render a structured plain-text summary of `pipeline`. See module docstring for the contract."""
+    # Always forward slashes, regardless of the OS this runs on -- backslash
+    # is never a legitimate character in a GitHub Actions workflow path, so
+    # this can't misrepresent a real path, and it keeps golden files
+    # portable across platforms (pipeline.source_file itself is left
+    # untouched; only this rendered line is normalized).
+    portable_source_file = pipeline.source_file.replace("\\", "/")
     lines: List[str] = [
         f"Pipeline: {pipeline.name}",
-        f"Source: {pipeline.source_file} ({_platform_display_name(pipeline.source_platform)})",
+        f"Source: {portable_source_file} ({_platform_display_name(pipeline.source_platform)})",
     ]
 
     if pipeline.permissions is not None:

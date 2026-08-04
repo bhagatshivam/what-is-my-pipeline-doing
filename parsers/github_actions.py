@@ -78,7 +78,7 @@ _GitHubActionsSafeLoader.add_implicit_resolver(
 
 
 def _load_workflow_yaml(file_path: str) -> Dict[str, Any]:
-    with open(file_path) as f:
+    with open(file_path, encoding="utf-8") as f:
         data = yaml.load(f, Loader=_GitHubActionsSafeLoader)
     if not isinstance(data, dict):
         raise ValueError(

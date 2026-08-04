@@ -46,7 +46,7 @@ GROUND_TRUTH_FIXTURE_FILES = [
 
 
 def _load_ground_truth(filename):
-    with open(os.path.join(FIXTURES_DIR, filename)) as f:
+    with open(os.path.join(FIXTURES_DIR, filename), encoding="utf-8") as f:
         return Pipeline.from_dict(json.load(f))
 
 

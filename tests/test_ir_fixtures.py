@@ -20,7 +20,7 @@ FIXTURE_FILES = [
 @pytest.mark.parametrize("filename", FIXTURE_FILES)
 def test_ground_truth_fixture_is_valid(filename):
     path = os.path.join(FIXTURES_DIR, filename)
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
 
     pipeline = Pipeline.from_dict(data)
