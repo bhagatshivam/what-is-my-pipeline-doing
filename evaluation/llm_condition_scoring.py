@@ -53,16 +53,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
+from evaluation.naive_baseline import generate_naive_baseline
+from generators.text_generator import generate_text
+from ir.validate import validate_or_raise
+from llm.gemini_provider import GeminiProvider
+from parsers.github_actions import GitHubActionsParser
+from tool1.single_pipeline import _log_llm_call, generate_documentation
+
+# No sys.path manipulation here -- this module is import-side-effect-free.
+# Run it via `python -m evaluation.llm_condition_scoring` (from the repo
+# root, or with the repo root already on PYTHONPATH), not by executing
+# this file directly -- a direct `python evaluation/llm_condition_scoring.py`
+# would put this file's own directory on sys.path[0], not the repo root,
+# and these absolute-package imports would fail to resolve.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
-sys.path.insert(0, REPO_ROOT)
-
-from evaluation.naive_baseline import generate_naive_baseline  # noqa: E402
-from generators.text_generator import generate_text  # noqa: E402
-from ir.validate import validate_or_raise  # noqa: E402
-from llm.gemini_provider import GeminiProvider  # noqa: E402
-from parsers.github_actions import GitHubActionsParser  # noqa: E402
-from tool1.single_pipeline import _log_llm_call, generate_documentation  # noqa: E402
 
 HELD_OUT_DIR = os.path.join(REPO_ROOT, "evaluation", "held_out_workflows")
 OUTPUT_DIR = os.path.join(REPO_ROOT, "evaluation", "tier4_scoring")
@@ -126,6 +131,13 @@ def _generate_condition_3(yaml_path: str, provider: GeminiProvider) -> Condition
 
 def _render_scoring_document(pipeline_stem: str, blind_ordered: List[ConditionOutput]) -> str:
     labels = "ABC"
+    if len(blind_ordered) != len(labels):
+        # zip() would otherwise silently truncate/ignore a length mismatch,
+        # producing an incomplete scoring doc instead of failing loudly --
+        # Tier 4 requires exactly 3 conditions, no more, no fewer.
+        raise ValueError(
+            f"expected exactly {len(labels)} conditions to render, got {len(blind_ordered)}"
+        )
     lines = [
         f"# Tier 4 scoring — {pipeline_stem}",
         "",
@@ -167,6 +179,10 @@ def _render_scoring_document(pipeline_stem: str, blind_ordered: List[ConditionOu
 def _render_answer_key(pipeline_stem: str, blind_ordered: List[ConditionOutput],
                         model: str, temperature: float) -> str:
     labels = "ABC"
+    if len(blind_ordered) != len(labels):
+        raise ValueError(
+            f"expected exactly {len(labels)} conditions to render, got {len(blind_ordered)}"
+        )
     lines = [
         f"# Tier 4 answer key — {pipeline_stem}",
         "",
@@ -189,7 +205,13 @@ def _render_answer_key(pipeline_stem: str, blind_ordered: List[ConditionOutput],
 def generate_tier4_scoring_materials(pipeline_stem: str, provider: GeminiProvider) -> None:
     yaml_path = os.path.join(HELD_OUT_DIR, f"{pipeline_stem}.yml")
     pipeline = GitHubActionsParser().parse(yaml_path)
-    validate_or_raise(pipeline)  # fail loudly, same fail-closed boundary as tool1/tool2
+    # Same fail-closed boundary as tool1/tool2: raises on errors. Warnings
+    # (non-fatal) are printed to stderr at generation time, same convention
+    # as tool1/single_pipeline.py -- never surfaced in the scoring doc or
+    # answer key themselves, which stay clean for blind manual scoring.
+    warnings = validate_or_raise(pipeline)
+    for warning in warnings:
+        print(warning, file=sys.stderr)
 
     conditions = [
         _generate_condition_1(pipeline),

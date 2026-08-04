@@ -6,6 +6,8 @@ deliberately not exercised in the automated test suite — this module is
 a manual, deliberately-run script, never invoked by pytest/CI).
 """
 
+import pytest
+
 from evaluation.llm_condition_scoring import (
     ConditionOutput,
     _render_answer_key,
@@ -80,6 +82,22 @@ def test_render_answer_key_does_not_leak_condition_text():
 
     for condition in conditions:
         assert condition.text not in key
+
+
+def test_render_scoring_document_rejects_wrong_condition_count():
+    # zip(labels, blind_ordered) would otherwise silently truncate/ignore a
+    # length mismatch instead of failing loudly -- Tier 4 requires exactly
+    # 3 conditions.
+    with pytest.raises(ValueError):
+        _render_scoring_document("example_pipeline", _sample_conditions()[:2])
+
+
+def test_render_answer_key_rejects_wrong_condition_count():
+    with pytest.raises(ValueError):
+        _render_answer_key(
+            "example_pipeline", _sample_conditions()[:2],
+            model="gemini-2.5-flash", temperature=0.2,
+        )
 
 
 def test_render_scoring_document_flags_fallback_without_revealing_condition_number():
