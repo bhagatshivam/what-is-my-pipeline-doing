@@ -214,3 +214,4 @@ Golden-document tests cover real single-workflow and multi-workflow fixtures. Ev
 ## Licence and academic use
 
 This repository is an academic prototype. Please check the repository licence and the limitations before relying on generated documentation for production-critical decisions.
+
