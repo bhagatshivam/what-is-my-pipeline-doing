@@ -203,7 +203,7 @@ def main() -> None:
     }
     for filename, pipeline in fixtures.items():
         path = os.path.join(FIXTURES_DIR, filename)
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(pipeline.to_dict(), f, indent=2)
             f.write("\n")
         print(f"wrote {path}")

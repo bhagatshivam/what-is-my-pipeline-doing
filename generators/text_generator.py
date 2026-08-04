@@ -432,9 +432,18 @@ def _execution_summary_lines(pipeline: Pipeline) -> List[str]:
 
 def generate_text(pipeline: Pipeline) -> str:
     """Render a structured plain-text summary of `pipeline`. See module docstring for the contract."""
+    # Presentation-only normalization, always forward slashes regardless of
+    # OS: pipeline.source_file can be a real OS filesystem path (e.g.
+    # tool2's source_file=str(workflows_dir)), so on Windows this does
+    # change how that path is displayed here -- a deliberate tradeoff for
+    # golden-file portability across platforms, not a claim that backslash
+    # paths are somehow illegitimate. pipeline.source_file itself is left
+    # untouched (e.g. still used as-is in the LLM call log); only this
+    # rendered line is normalized.
+    portable_source_file = pipeline.source_file.replace("\\", "/")
     lines: List[str] = [
         f"Pipeline: {pipeline.name}",
-        f"Source: {pipeline.source_file} ({_platform_display_name(pipeline.source_platform)})",
+        f"Source: {portable_source_file} ({_platform_display_name(pipeline.source_platform)})",
     ]
 
     if pipeline.permissions is not None:

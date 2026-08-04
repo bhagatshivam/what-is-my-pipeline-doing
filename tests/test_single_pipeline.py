@@ -70,7 +70,7 @@ def _fixture_path(filename):
 
 
 def _load_ground_truth(filename):
-    with open(_fixture_path(filename)) as f:
+    with open(_fixture_path(filename), encoding="utf-8") as f:
         return Pipeline.from_dict(json.load(f))
 
 
