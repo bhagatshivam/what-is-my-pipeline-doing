@@ -1374,3 +1374,20 @@ against it. Current scope and limits, honestly stated:
   does not invalidate PR 2's design (deterministic-vs-LLM as a headline
   framing) — it invalidates any interpretation of a single call as
   characterizing a specific fixture's LLM behaviour.
+
+## CI environment
+
+**GitHub Actions runner-side test failure, unresolved as of 2026-08-04.**
+Every subprocess-invoked CLI test (21 tests across
+`tests/test_single_pipeline.py`/`tests/test_multi_pipeline.py`/
+`tests/test_evaluation_error_injection.py`) fails on the real GitHub
+Actions runner with `ModuleNotFoundError: No module named 'tool1'`,
+confirmed environment/runner-side rather than a code defect — full
+diagnosis, evidence, and the two PRs merged despite it (#47, #49) are in
+`BUILD_PLAN.md`'s 2026-08-04 changelog entry. Root cause on GitHub's side
+is not yet identified: a runner image update and a Python path-hardening
+flag change are both plausible, untested candidates, not confirmed ones.
+If this resurfaces or worsens, it should be investigated properly rather
+than treated as routine — the exception made for PRs #47/#49 was
+justified by strong local/real-machine evidence gathered per case, not a
+general license to merge past red CI.
