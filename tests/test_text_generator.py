@@ -18,6 +18,7 @@ from generators.text_generator import (
     _concurrency_phrase,
     _permissions_phrase,
     _topological_job_order,
+    _with_phrase,
     generate_text,
 )
 from ir.schema import Job, Pipeline
@@ -344,6 +345,93 @@ def test_reusable_workflow_calling_job_states_delegation():
         "eslint/workflows/.github/workflows/ci-package-manager.yml@main"
     ) in output
     assert "test_package_manager — 0 steps" not in output
+
+
+def test_reusable_workflow_calling_job_without_with_block_has_no_with_clause():
+    # eslint_ci.yml's test_package_manager has uses: but no job-level with:
+    # (only its steps use with:) — the whole line must stay unchanged by
+    # the with: clause added below, not just the delegation prefix.
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "eslint_ci.yml"))
+    output = generate_text(pipeline)
+    line = next(ln for ln in output.splitlines() if "test_package_manager —" in ln)
+    assert "with:" not in line
+    assert line.endswith(
+        "test_package_manager — delegates to reusable workflow "
+        "eslint/workflows/.github/workflows/ci-package-manager.yml@main"
+    )
+
+
+def test_reusable_workflow_calling_job_with_block_is_rendered():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pytorch_lint.yml"))
+    output = generate_text(pipeline)
+    assert (
+        "get-changed-files — delegates to reusable workflow "
+        "./.github/workflows/_get-changed-files.yml; "
+        "with: all_files: ${{ contains(github.event.pull_request.labels.*.name, 'lint-all-files') "
+        "|| contains(github.event.pull_request.labels.*.name, 'Reverted') || github.event_name == 'push' }}; "
+        "condition: github.repository_owner == 'pytorch'"
+    ) in output
+
+
+def test_reusable_workflow_calling_job_multiline_with_value_is_capped():
+    # lintrunner-clang's with: script: is a 10-line block scalar — the
+    # rendered job entry must stay one scannable line: the [+9 more
+    # lines] marker present, and the truncated script content genuinely
+    # absent (not just annotated alongside the full text).
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pytorch_lint.yml"))
+    output = generate_text(pipeline)
+    line = next(ln for ln in output.splitlines() if ln.startswith("3. lintrunner-clang —"))
+    assert (
+        'script: CHANGED_FILES="${{ needs.get-changed-files.outputs.changed-files }}" '
+        "[+9 more lines]; after get-label-type, get-changed-files"
+    ) in line
+    assert "if [ \"$CHANGED_FILES\"" not in line
+    assert ".github/scripts/lintrunner.sh" not in line
+
+
+def test_with_phrase_formats_bool_as_lowercase_yaml_style():
+    # YAML `true`/`false` parses to Python bool — render it back in YAML's
+    # own spelling, not Python's `True`/`False`.
+    assert _with_phrase({"uploadNativeArtifact": True, "skipInstallBuild": "yes"}) == (
+        "uploadNativeArtifact: true, skipInstallBuild: yes"
+    )
+
+
+def test_with_phrase_trims_block_scalar_trailing_newline_only():
+    # A `|` block scalar keeps one trailing newline per YAML's clip
+    # chomping even for genuinely single-line content. Left in, it would
+    # push the next "; "-joined clause in _job_line_body onto its own
+    # line instead of attaching it to the value's last content line. A
+    # value with no *internal* newline must render completely unchanged
+    # otherwise (no truncation marker) — this is the trailing-newline
+    # fix in isolation from the line-count cap below.
+    assert _with_phrase({"script": "single line\n"}) == "script: single line"
+
+
+def test_with_phrase_leaves_single_line_value_untouched():
+    # No embedded newline at all (not even a trailing one) — must never
+    # trigger the line-count cap below.
+    assert _with_phrase({"k": "single line"}) == "k: single line"
+
+
+def test_with_phrase_caps_multiline_value_at_first_line():
+    # A genuinely multiline value (e.g. a long `script:` body) would
+    # otherwise blow a job's single "IMPLEMENTATION DETAILS" line into a
+    # many-line wall of raw script — the same scannability problem
+    # _step_lines/_STEP_LIST_CAP already solve for long step lists,
+    # applied here to one value instead of a list. Only the first line is
+    # kept, with an explicit count of what was cut — never silently
+    # dropped.
+    assert _with_phrase({"script": "line one\nline two\nline three"}) == (
+        "script: line one [+2 more lines]"
+    )
+
+
+def test_with_phrase_two_line_value_is_the_truncation_boundary():
+    # Exactly one line beyond the first already triggers the cap (there
+    # is no "show 2, then truncate" grace period, unlike _STEP_LIST_CAP's
+    # 10-item threshold) — and the overflow count is correctly singular.
+    assert _with_phrase({"k": "line one\nline two"}) == "k: line one [+1 more line]"
 
 
 # ---------------------------------------------------------------------------
