@@ -261,9 +261,22 @@ def _with_phrase(value: Dict[str, Any]) -> str:
             # newline per YAML's clip chomping. Left in place, it pushes
             # the next "; "-joined clause onto its own line instead of
             # attaching it to the value's last content line. Only the
-            # trailing newline(s) are trimmed — internal newlines (the
-            # multiline content itself) are preserved verbatim.
-            return v.rstrip("\n")
+            # trailing newline(s) are trimmed here — internal newlines are
+            # handled next.
+            v = v.rstrip("\n")
+            if "\n" in v:
+                # A genuinely multiline value (e.g. a `script:` body)
+                # would otherwise blow a job's single-line IMPLEMENTATION
+                # DETAILS entry into a many-line wall of raw script —
+                # same scannability problem `_step_lines`/`_STEP_LIST_CAP`
+                # already solve for long step lists, applied here to one
+                # value instead of a list. Keep only the first line, and
+                # say explicitly how much was cut rather than silently
+                # dropping it — never claim there was nothing more.
+                first_line, *rest = v.split("\n")
+                remaining = len(rest)
+                return f"{first_line} [+{remaining} more {_plural(remaining, 'line')}]"
+            return v
         return str(v)
     return ", ".join(f"{k}: {_fmt(v)}" for k, v in value.items())
 

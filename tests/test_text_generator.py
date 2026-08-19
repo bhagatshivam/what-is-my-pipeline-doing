@@ -373,6 +373,22 @@ def test_reusable_workflow_calling_job_with_block_is_rendered():
     ) in output
 
 
+def test_reusable_workflow_calling_job_multiline_with_value_is_capped():
+    # lintrunner-clang's with: script: is a 10-line block scalar — the
+    # rendered job entry must stay one scannable line: the [+9 more
+    # lines] marker present, and the truncated script content genuinely
+    # absent (not just annotated alongside the full text).
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pytorch_lint.yml"))
+    output = generate_text(pipeline)
+    line = next(ln for ln in output.splitlines() if ln.startswith("3. lintrunner-clang —"))
+    assert (
+        'script: CHANGED_FILES="${{ needs.get-changed-files.outputs.changed-files }}" '
+        "[+9 more lines]; after get-label-type, get-changed-files"
+    ) in line
+    assert "if [ \"$CHANGED_FILES\"" not in line
+    assert ".github/scripts/lintrunner.sh" not in line
+
+
 def test_with_phrase_formats_bool_as_lowercase_yaml_style():
     # YAML `true`/`false` parses to Python bool — render it back in YAML's
     # own spelling, not Python's `True`/`False`.
@@ -382,12 +398,40 @@ def test_with_phrase_formats_bool_as_lowercase_yaml_style():
 
 
 def test_with_phrase_trims_block_scalar_trailing_newline_only():
-    # A `|` block scalar (e.g. `script:`) keeps one trailing newline per
-    # YAML's clip chomping. Left in, it would push the next "; "-joined
-    # clause in _job_line_body onto its own line instead of attaching it
-    # to the value's last content line — internal newlines must still be
-    # preserved verbatim, only the trailing one(s) trimmed.
-    assert _with_phrase({"script": "line one\nline two\n"}) == "script: line one\nline two"
+    # A `|` block scalar keeps one trailing newline per YAML's clip
+    # chomping even for genuinely single-line content. Left in, it would
+    # push the next "; "-joined clause in _job_line_body onto its own
+    # line instead of attaching it to the value's last content line. A
+    # value with no *internal* newline must render completely unchanged
+    # otherwise (no truncation marker) — this is the trailing-newline
+    # fix in isolation from the line-count cap below.
+    assert _with_phrase({"script": "single line\n"}) == "script: single line"
+
+
+def test_with_phrase_leaves_single_line_value_untouched():
+    # No embedded newline at all (not even a trailing one) — must never
+    # trigger the line-count cap below.
+    assert _with_phrase({"k": "single line"}) == "k: single line"
+
+
+def test_with_phrase_caps_multiline_value_at_first_line():
+    # A genuinely multiline value (e.g. a long `script:` body) would
+    # otherwise blow a job's single "IMPLEMENTATION DETAILS" line into a
+    # many-line wall of raw script — the same scannability problem
+    # _step_lines/_STEP_LIST_CAP already solve for long step lists,
+    # applied here to one value instead of a list. Only the first line is
+    # kept, with an explicit count of what was cut — never silently
+    # dropped.
+    assert _with_phrase({"script": "line one\nline two\nline three"}) == (
+        "script: line one [+2 more lines]"
+    )
+
+
+def test_with_phrase_two_line_value_is_the_truncation_boundary():
+    # Exactly one line beyond the first already triggers the cap (there
+    # is no "show 2, then truncate" grace period, unlike _STEP_LIST_CAP's
+    # 10-item threshold) — and the overflow count is correctly singular.
+    assert _with_phrase({"k": "line one\nline two"}) == "k: line one [+1 more line]"
 
 
 # ---------------------------------------------------------------------------
