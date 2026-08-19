@@ -256,6 +256,14 @@ def _with_phrase(value: Dict[str, Any]) -> str:
             # `True`/`False` — this is displaying a fact from the YAML
             # source, not a Python value.
             return "true" if v else "false"
+        if isinstance(v, str):
+            # A `|` block scalar (e.g. `script:`) keeps one trailing
+            # newline per YAML's clip chomping. Left in place, it pushes
+            # the next "; "-joined clause onto its own line instead of
+            # attaching it to the value's last content line. Only the
+            # trailing newline(s) are trimmed — internal newlines (the
+            # multiline content itself) are preserved verbatim.
+            return v.rstrip("\n")
         return str(v)
     return ", ".join(f"{k}: {_fmt(v)}" for k, v in value.items())
 

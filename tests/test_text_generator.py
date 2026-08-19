@@ -381,6 +381,15 @@ def test_with_phrase_formats_bool_as_lowercase_yaml_style():
     )
 
 
+def test_with_phrase_trims_block_scalar_trailing_newline_only():
+    # A `|` block scalar (e.g. `script:`) keeps one trailing newline per
+    # YAML's clip chomping. Left in, it would push the next "; "-joined
+    # clause in _job_line_body onto its own line instead of attaching it
+    # to the value's last content line — internal newlines must still be
+    # preserved verbatim, only the trailing one(s) trimmed.
+    assert _with_phrase({"script": "line one\nline two\n"}) == "script: line one\nline two"
+
+
 # ---------------------------------------------------------------------------
 # Item 4 — permissions/concurrency/deployment_environment: pipeline-level
 # header lines, per-job clauses, and the two phrase helpers.

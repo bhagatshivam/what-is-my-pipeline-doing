@@ -39,8 +39,7 @@ fi
 export CLANG=1
 # Cap parallelism to the pod's CPU budget; os.cpu_count() overcounts on k8s and OOMs.
 export MAX_JOBS="$(nproc --ignore=2)"
-.github/scripts/lintrunner.sh
-; after get-label-type, get-changed-files; condition: github.repository_owner == 'pytorch' && (
+.github/scripts/lintrunner.sh; after get-label-type, get-changed-files; condition: github.repository_owner == 'pytorch' && (
   needs.get-changed-files.outputs.changed-files == '*' ||
   contains(needs.get-changed-files.outputs.changed-files, '.h') ||
   contains(needs.get-changed-files.outputs.changed-files, '.cpp') ||
@@ -56,8 +55,7 @@ export MAX_JOBS="$(nproc --ignore=2)"
 
 4. lintrunner-pyrefly — delegates to reusable workflow ./.github/workflows/_lint.yml; with: runner: mt-l-x86iamx-8-16, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, script: CHANGED_FILES="${{ needs.get-changed-files.outputs.changed-files }}"
 echo "Running pyrefly"
-ADDITIONAL_LINTRUNNER_ARGS="--take PYREFLY --all-files" .github/scripts/lintrunner.sh
-; after get-label-type, get-changed-files; condition: github.repository_owner == 'pytorch' && (
+ADDITIONAL_LINTRUNNER_ARGS="--take PYREFLY --all-files" .github/scripts/lintrunner.sh; after get-label-type, get-changed-files; condition: github.repository_owner == 'pytorch' && (
   needs.get-changed-files.outputs.changed-files == '*' ||
   contains(needs.get-changed-files.outputs.changed-files, '.py') ||
   contains(needs.get-changed-files.outputs.changed-files, '.pyi')
@@ -71,8 +69,7 @@ if [ "$CHANGED_FILES" = '*' ]; then
   ADDITIONAL_LINTRUNNER_ARGS="--skip CLANGTIDY,CLANGTIDY_EXECUTORCH_COMPATIBILITY,CLANGFORMAT,PYREFLY --all-files" .github/scripts/lintrunner.sh
 else
   ADDITIONAL_LINTRUNNER_ARGS="--skip CLANGTIDY,CLANGTIDY_EXECUTORCH_COMPATIBILITY,CLANGFORMAT,PYREFLY ${CHANGED_FILES}" .github/scripts/lintrunner.sh
-fi
-; after get-label-type, get-changed-files
+fi; after get-label-type, get-changed-files
 6. quick-checks — delegates to reusable workflow ./.github/workflows/_lint.yml; with: runner: mt-l-x86iamx-8-16, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, script: # Ensure no non-breaking spaces
 # NB: We use 'printf' below rather than '\u000a' since bash pre-4.2
 # does not support the '\u000a' syntax (which is relevant for local linters)
@@ -94,8 +91,7 @@ popd
 
 # CUDA kernel launch check
 set -eux
-python3 torch/testing/_internal/check_kernel_launches.py |& tee cuda_kernel_launch_checks.txt
-; after get-label-type; condition: github.repository_owner == 'pytorch'
+python3 torch/testing/_internal/check_kernel_launches.py |& tee cuda_kernel_launch_checks.txt; after get-label-type; condition: github.repository_owner == 'pytorch'
 7. pr-sanity-checks — runs on linux.24_04.4x; 2 steps; condition: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-pr-sanity-checks') && github.repository_owner == 'pytorch' }}
    - Checkout PyTorch
    - PR size check (nonretryable)
@@ -120,8 +116,7 @@ fi
 # Check that jobs will be cancelled
 .github/scripts/ensure_actions_will_cancel.py
 
-exit $RC
-; after get-label-type; condition: github.repository_owner == 'pytorch'
+exit $RC; after get-label-type; condition: github.repository_owner == 'pytorch'
 9. toc — delegates to reusable workflow ./.github/workflows/_lint.yml; with: runner: mt-l-x86iamx-8-16, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, script: # Regenerate ToCs and check that they didn't change
 set -eu
 
@@ -144,13 +139,11 @@ if ! .github/scripts/report_git_status.sh .; then
   # shellcheck disable=SC2016
   echo "    markdown-toc --bullets='-' -i \"\$FILE\""
   false
-fi
-; after get-label-type; condition: github.repository_owner == 'pytorch'
+fi; after get-label-type; condition: github.repository_owner == 'pytorch'
 10. test-tools — delegates to reusable workflow ./.github/workflows/_lint.yml; with: runner: mt-l-x86iamx-8-16, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, script: # Test tools
 PYTHONPATH=$(pwd) pytest tools/stats
 PYTHONPATH=$(pwd) pytest tools/test -o "python_files=test*.py"
-PYTHONPATH=$(pwd) pytest .github/scripts -o "python_files=test*.py"
-; after get-label-type; condition: ${{ github.repository == 'pytorch/pytorch' }}
+PYTHONPATH=$(pwd) pytest .github/scripts -o "python_files=test*.py"; after get-label-type; condition: ${{ github.repository == 'pytorch/pytorch' }}
 11. test_run_test — runs on linux.24_04.4x; 4 steps; condition: ${{ github.repository == 'pytorch/pytorch' }}
    - Checkout PyTorch
    - Setup Python 3.10
