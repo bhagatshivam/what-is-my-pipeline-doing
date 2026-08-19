@@ -453,14 +453,37 @@ generated output, not just checking it doesn't raise.
   workflow <target>` (sourced from `Job.raw_extras["uses"]`) in place of
   the step-count clause, e.g. `eslint_ci.yml`'s `test_package_manager`.
   This is a deliberate, narrow exception to "raw_extras is never read
-  here": only this one pre-existing parser-established key, scoped to
-  exactly this fact. `Pipeline.linked_workflows` was considered instead
+  here": originally scoped to this one pre-existing parser-established
+  key. **A second key, `raw_extras["with"]`, was added to that same
+  exception by the fix documented in the next bullet below (PR #53,
+  2026-08-19)** — the exception is still narrowly scoped to this one
+  job-level `uses:` fact, just via two keys instead of one now, not a
+  general opening of `raw_extras` into this generator's output.
+  `Pipeline.linked_workflows` was considered instead
   but rejected — its `(target, relationship)` dedup has no per-job field
   at all, so it cannot answer "what does *this specific job* call" once
   two jobs call different targets, which is already true across these
   fixtures. The separate `LINKED WORKFLOWS` section and its dedup are
   otherwise unchanged; a job's own line and that section still aren't
   literally 1:1, they're just no longer misleading in isolation.
+- **Reusable-workflow `with:` inputs not rendered for uses:-only jobs, plus a
+  multiline-value readability regression caught during the same fix
+  (discovered during Tier 4 scoring, 2026-08-19).** `generators/text_generator.py`'s
+  `_job_line_body()` stated only 'delegates to reusable workflow X' for a job whose
+  own `uses:` makes it a reusable-workflow call, omitting any `with:` input values
+  even though `parsers/github_actions.py` (line 1074) already captured them into
+  `raw_extras['with']` -- the IR had the fact; Layer 3 didn't render it. The first
+  fix (rendering with: values verbatim) introduced a second problem: multiline
+  values (e.g. a script: input) could blow a single job entry into many lines of
+  raw script, reintroducing the YAML-inventory-dump readability failure Phase 7.5
+  moved away from. A genuinely multiline with: value is now capped to its first
+  line plus an explicit '[+N more lines]' marker -- the same tradeoff
+  _STEP_LIST_CAP already makes for long step lists: nothing is silently hidden,
+  but full content isn't rendered inline either. Affected 4 of 10 held-out
+  pipelines (32 jobs in nextjs_build_and_test alone) and one dev fixture. Resolved:
+  PR #53, 2026-08-19 -- documented as a post-freeze exception in BUILD_PLAN.md's
+  changelog rather than merged silently, given the 10 August implementation
+  freeze.
 - **Dependencies never imply success-gating.** `"after X"` in a job line
   states execution order only; it never becomes "only runs if X
   succeeds", even though that's GitHub Actions' real default runtime
