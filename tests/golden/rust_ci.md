@@ -22,13 +22,13 @@ outcome runs after calculate_matrix, job
 
 IMPLEMENTATION DETAILS
 1. calculate_matrix — runs on ubuntu-24.04-arm; 3 steps
-   - Checkout the source code
+   - Checkout the source code (https://github.com/actions/checkout)
    - Test citool
    - Calculate the CI job matrix
 2. job — runs on ${{ matrix.os }}; 33 steps; matrix: combinations determined at runtime; after calculate_matrix; deployment environment: ${{ ((github.repository == 'rust-lang/rust' && (github.ref == 'refs/heads/try-perf' || github.ref == 'refs/heads/automation/bors/try' || github.ref == 'refs/heads/automation/bors/auto')) && 'bors') || '' }}
    - Install cargo in AWS CodeBuild
    - disable git crlf conversion
-   - checkout the source code
+   - checkout the source code (https://github.com/actions/checkout)
    - free up disk space
    - print disk usage
    - configure the PR in which the error message will be posted
@@ -38,7 +38,7 @@ IMPLEMENTATION DETAILS
    - show the current environment
    - ... and 23 more steps
 3. outcome — runs on ubuntu-24.04; 2 steps; after calculate_matrix, job; condition: ${{ needs.calculate_matrix.outputs.run_type == 'auto' }}; deployment environment: ${{ (github.repository == 'rust-lang/rust' && 'bors') || '' }}
-   - checkout the source code
+   - checkout the source code (https://github.com/actions/checkout)
    - publish toolstate
 
 SECRETS REQUIRED

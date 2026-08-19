@@ -28,7 +28,7 @@ test-tools runs after get-label-type
 link-check runs after get-label-type
 
 IMPLEMENTATION DETAILS
-1. get-label-type — delegates to reusable workflow pytorch/pytorch/.github/workflows/_runner-determinator.yml@main; with: triggering_actor: ${{ github.triggering_actor }}, issue_owner: ${{ github.event.pull_request.user.login || github.event.issue.user.login }}, curr_branch: ${{ github.head_ref || github.ref_name }}; condition: github.repository_owner == 'pytorch'
+1. get-label-type — delegates to reusable workflow pytorch/pytorch/.github/workflows/_runner-determinator.yml@main (https://github.com/pytorch/pytorch); with: triggering_actor: ${{ github.triggering_actor }}, issue_owner: ${{ github.event.pull_request.user.login || github.event.issue.user.login }}, curr_branch: ${{ github.head_ref || github.ref_name }}; condition: github.repository_owner == 'pytorch'
 2. get-changed-files — delegates to reusable workflow ./.github/workflows/_get-changed-files.yml; with: all_files: ${{ contains(github.event.pull_request.labels.*.name, 'lint-all-files') || contains(github.event.pull_request.labels.*.name, 'Reverted') || github.event_name == 'push' }}; condition: github.repository_owner == 'pytorch'
 3. lintrunner-clang — delegates to reusable workflow ./.github/workflows/_lint.yml; with: runner: mt-l-x86iamx-8-16, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-cuda13.0-cudnn9-py3.10-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, script: CHANGED_FILES="${{ needs.get-changed-files.outputs.changed-files }}" [+9 more lines]; after get-label-type, get-changed-files; condition: github.repository_owner == 'pytorch' && (
   needs.get-changed-files.outputs.changed-files == '*' ||
@@ -53,30 +53,30 @@ IMPLEMENTATION DETAILS
 5. lintrunner-noclang — delegates to reusable workflow ./.github/workflows/_lint.yml; with: runner: mt-l-x86iamx-8-16, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, script: CHANGED_FILES="${{ needs.get-changed-files.outputs.changed-files }}" [+8 more lines]; after get-label-type, get-changed-files
 6. quick-checks — delegates to reusable workflow ./.github/workflows/_lint.yml; with: runner: mt-l-x86iamx-8-16, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, script: # Ensure no non-breaking spaces [+21 more lines]; after get-label-type; condition: github.repository_owner == 'pytorch'
 7. pr-sanity-checks — runs on linux.24_04.4x; 2 steps; condition: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-pr-sanity-checks') && github.repository_owner == 'pytorch' }}
-   - Checkout PyTorch
+   - Checkout PyTorch (https://github.com/pytorch/pytorch)
    - PR size check (nonretryable)
 8. workflow-checks — delegates to reusable workflow ./.github/workflows/_lint.yml; with: runner: mt-l-x86iamx-8-16, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, script: # Regenerate workflows [+21 more lines]; after get-label-type; condition: github.repository_owner == 'pytorch'
 9. toc — delegates to reusable workflow ./.github/workflows/_lint.yml; with: runner: mt-l-x86iamx-8-16, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, script: # Regenerate ToCs and check that they didn't change [+22 more lines]; after get-label-type; condition: github.repository_owner == 'pytorch'
 10. test-tools — delegates to reusable workflow ./.github/workflows/_lint.yml; with: runner: mt-l-x86iamx-8-16, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, script: # Test tools [+3 more lines]; after get-label-type; condition: ${{ github.repository == 'pytorch/pytorch' }}
 11. test_run_test — runs on linux.24_04.4x; 4 steps; condition: ${{ github.repository == 'pytorch/pytorch' }}
-   - Checkout PyTorch
-   - Setup Python 3.10
+   - Checkout PyTorch (https://github.com/pytorch/pytorch)
+   - Setup Python 3.10 (https://github.com/actions/setup-python)
    - Install dependencies
    - Run run_test.py (nonretryable)
 12. test_collect_env — runs on ${{ matrix.runner }}; 6 steps; matrix: 3 combinations (via include); condition: ${{ github.repository == 'pytorch/pytorch' }}
-   - Checkout PyTorch
+   - Checkout PyTorch (https://github.com/pytorch/pytorch)
    - Get min python version
-   - Setup Old Python version
-   - Setup Min Python version
+   - Setup Old Python version (https://github.com/actions/setup-python)
+   - Setup Min Python version (https://github.com/actions/setup-python)
    - Install torch
    - Run collect_env.py (nonretryable)
 13. link-check — delegates to reusable workflow ./.github/workflows/_link_check.yml; with: runner: ${{ needs.get-label-type.outputs.label-type }}, docker-image: 308535385114.dkr.ecr.us-east-1.amazonaws.com/pytorch/ci-image:pytorch-linux-jammy-linter-${{ needs.get-label-type.outputs.ci-docker-hash }}, ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}; after get-label-type; condition: github.repository_owner == 'pytorch'
 14. doc-redirects-check — runs on linux.24_04.4x; 2 steps; condition: github.event_name == 'pull_request' && github.repository_owner == 'pytorch'
-   - Checkout PyTorch
+   - Checkout PyTorch (https://github.com/pytorch/pytorch)
    - Doc redirects check (nonretryable)
 
 LINKED WORKFLOWS
-- calls pytorch/pytorch/.github/workflows/_runner-determinator.yml@main
+- calls pytorch/pytorch/.github/workflows/_runner-determinator.yml@main (https://github.com/pytorch/pytorch)
 - calls ./.github/workflows/_get-changed-files.yml
 - calls ./.github/workflows/_lint.yml
 - calls ./.github/workflows/_link_check.yml

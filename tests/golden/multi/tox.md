@@ -24,25 +24,25 @@ release_yaml__release runs after release_yaml__build
 
 IMPLEMENTATION DETAILS
 1. check_yaml__test — runs on ${{ matrix.os.image }}; 7 steps; matrix: 18 combinations (py, os)
-   - actions/checkout
-   - Install the latest version of uv
-   - Cache wheel downloads
+   - actions/checkout (https://github.com/actions/checkout)
+   - Install the latest version of uv (https://github.com/astral-sh/setup-uv)
+   - Cache wheel downloads (https://github.com/actions/cache)
    - Add .local/bin to Windows PATH
    - Install tox@self
    - Setup test suite
    - Run test suite
 2. check_yaml__check — runs on ${{ matrix.os.image }}; 8 steps; matrix: up to 10 combinations (tox_env, os), 1 excluded
-   - actions/checkout
-   - Install the latest version of uv
-   - Cache wheel downloads
+   - actions/checkout (https://github.com/actions/checkout)
+   - Install the latest version of uv (https://github.com/astral-sh/setup-uv)
+   - Cache wheel downloads (https://github.com/actions/cache)
    - Add .local/bin to Windows PATH
    - Install tox@self
    - Install Python 3.10 for type-min
    - Setup check suite
    - Run check for ${{ matrix.tox_env }}
 3. prepare_release_yaml__prepare-release — runs on ubuntu-24.04; 8 steps; permissions: contents: write; deployment environment: release-auth
-   - actions/checkout
-   - Install the latest version of uv
+   - actions/checkout (https://github.com/actions/checkout)
+   - Install the latest version of uv (https://github.com/astral-sh/setup-uv)
    - Configure git
    - Set up remote tracking
    - Calculate next version
@@ -50,15 +50,15 @@ IMPLEMENTATION DETAILS
    - Run release process
    - Display completion message
 4. release_yaml__build — runs on ubuntu-24.04; 4 steps
-   - actions/checkout
-   - Install the latest version of uv
+   - actions/checkout (https://github.com/actions/checkout)
+   - Install the latest version of uv (https://github.com/astral-sh/setup-uv)
    - Build package
-   - Store the distribution packages
+   - Store the distribution packages (https://github.com/actions/upload-artifact)
 5. release_yaml__release — runs on ubuntu-24.04; 2 steps; after release_yaml__build; permissions: id-token: write
-   - Download all the dists
-   - Publish to PyPI
+   - Download all the dists (https://github.com/actions/download-artifact)
+   - Publish to PyPI (https://github.com/pypa/gh-action-pypi-publish)
 6. update_schemastore_yaml__update-schemastore — runs on ubuntu-24.04; 7 steps; deployment environment: schemastore
-   - actions/checkout
+   - actions/checkout (https://github.com/actions/checkout)
    - Fork and clone SchemaStore
    - Sync fork's master with upstream
    - Create or reset branch from synced fork

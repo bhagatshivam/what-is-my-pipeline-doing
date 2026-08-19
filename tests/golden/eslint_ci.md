@@ -19,9 +19,9 @@ Independent jobs (no dependencies): verify_files, test_on_node, test_on_browser,
 
 IMPLEMENTATION DETAILS
 1. verify_files — runs on ubuntu-latest; 14 steps
-   - actions/checkout@v7
-   - actions/setup-go@v6
-   - actions/setup-node@v6
+   - actions/checkout@v7 (https://github.com/actions/checkout)
+   - actions/setup-go@v6 (https://github.com/actions/setup-go)
+   - actions/setup-node@v6 (https://github.com/actions/setup-node)
    - Lint GitHub Actions workflows
    - Install Packages
    - Install Docs Packages
@@ -31,21 +31,21 @@ IMPLEMENTATION DETAILS
    - Lint Docs JS Files
    - ... and 4 more steps
 2. test_on_node — runs on ${{ matrix.os }}; 6 steps; matrix: 5 base combinations (os, node, NODE_OPTIONS) + 3 via include
-   - actions/checkout@v7
-   - actions/setup-node@v6
+   - actions/checkout@v7 (https://github.com/actions/checkout)
+   - actions/setup-node@v6 (https://github.com/actions/setup-node)
    - Install Packages
    - Test
    - Fuzz Test
    - Test EMFILE Handling
 3. test_on_browser — runs on ubuntu-latest; 5 steps
-   - actions/checkout@v7
-   - actions/setup-node@v6
+   - actions/checkout@v7 (https://github.com/actions/checkout)
+   - actions/setup-node@v6 (https://github.com/actions/setup-node)
    - Install Packages
    - Test
    - Fuzz Test
 4. test_types — runs on ubuntu-latest; 9 steps
-   - actions/checkout@v7
-   - actions/setup-node@v6
+   - actions/checkout@v7 (https://github.com/actions/checkout)
+   - actions/setup-node@v6 (https://github.com/actions/setup-node)
    - Install Packages
    - Test types (eslint)
    - Test types (eslint-config-eslint)
@@ -53,15 +53,15 @@ IMPLEMENTATION DETAILS
    - Check types compile (TypeScript 5.3)
    - Check types compile (TypeScript 5.x)
    - Check types compile (TypeScript 7 preview)
-5. test_package_manager — delegates to reusable workflow eslint/workflows/.github/workflows/ci-package-manager.yml@main
+5. test_package_manager — delegates to reusable workflow eslint/workflows/.github/workflows/ci-package-manager.yml@main (https://github.com/eslint/workflows)
 6. pnpm_test — runs on ubuntu-latest; 4 steps
-   - actions/checkout@v7
-   - pnpm/action-setup
-   - actions/setup-node@v6
+   - actions/checkout@v7 (https://github.com/actions/checkout)
+   - pnpm/action-setup (https://github.com/pnpm/action-setup)
+   - actions/setup-node@v6 (https://github.com/actions/setup-node)
    - Run pnpm test
 
 LINKED WORKFLOWS
-- calls eslint/workflows/.github/workflows/ci-package-manager.yml@main
+- calls eslint/workflows/.github/workflows/ci-package-manager.yml@main (https://github.com/eslint/workflows)
 ```
 
 ## Pipeline Diagram

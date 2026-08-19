@@ -20,11 +20,11 @@ Independent jobs (no dependencies): test-linux
 
 IMPLEMENTATION DETAILS
 1. test-linux — runs on ${{ matrix.os }}; 9 steps; matrix: 2 combinations (os); condition: github.event.pull_request.draft == false
-   - actions/checkout
+   - actions/checkout (https://github.com/actions/checkout)
    - Install Clang ${{ env.CLANG_VERSION }}
    - Install Rust ${{ env.RUSTC_VERSION }}
-   - Set up Python ${{ env.PYTHON_VERSION }}
-   - Set up sccache
+   - Set up Python ${{ env.PYTHON_VERSION }} (https://github.com/actions/setup-python)
+   - Set up sccache (https://github.com/Mozilla-Actions/sccache-action)
    - Build
    - Test
    - Ensure running tests did not cause any change in the tree

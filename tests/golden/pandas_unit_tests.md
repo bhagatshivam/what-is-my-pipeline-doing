@@ -19,16 +19,16 @@ Independent jobs (no dependencies): ubuntu, macos-windows, Linux-32-bit, Linux-M
 
 IMPLEMENTATION DETAILS
 1. ubuntu — runs on ${{ matrix.platform }}; 8 steps; matrix: 8 base combinations (platform, environment, pytest_marker_expression, pandas_future_infer_string, pandas_future_python_scalars) + 10 via include; permissions: contents: read; concurrency: group ${{ github.event_name == 'push' && github.run_number || github.ref }}-${{ matrix.environment }}-${{ matrix.pytest_marker_expression }}-${{ matrix.extra_apt || '' }}-${{ matrix.pandas_future_infer_string }}-${{ matrix.platform }}; cancels in-progress runs
-   - Checkout
+   - Checkout (https://github.com/actions/checkout)
    - Generate extra locales
    - Create virtual environment with Pixi
    - Build pandas
    - Import check
    - Test (not single_cpu)
    - Test (single_cpu)
-   - Upload test coverage to Codecov
+   - Upload test coverage to Codecov (https://github.com/codecov/codecov-action)
 2. macos-windows — runs on ${{ matrix.os }}; 5 steps; matrix: 12 combinations (os, environment); permissions: contents: read; concurrency: group ${{ github.event_name == 'push' && github.run_number || github.ref }}-${{ matrix.environment }}-${{ matrix.os }}; cancels in-progress runs
-   - Checkout
+   - Checkout (https://github.com/actions/checkout)
    - Create virtual environment with Pixi
    - Remove link.EXE for Windows
    - Build pandas
@@ -43,26 +43,26 @@ IMPLEMENTATION DETAILS
    - Build environment
    - Run Tests
 5. Windows-MinGW — runs on windows-2025; 3 steps; permissions: contents: read; concurrency: group ${{ github.event_name == 'push' && github.run_number || github.ref }}-mingw; cancels in-progress runs
-   - Checkout
+   - Checkout (https://github.com/actions/checkout)
    - Create virtual environment with Pixi
    - Build pandas
 6. Linux-Sanitizers — runs on ubuntu-24.04; 5 steps; permissions: contents: read; concurrency: group ${{ github.event_name == 'push' && github.run_number || github.ref }}-sanitizers; cancels in-progress runs
-   - Checkout
+   - Checkout (https://github.com/actions/checkout)
    - Create virtual environment with Pixi
    - Build pandas
    - Get Sanitizer Path
    - Test
 7. python-dev — runs on ${{ matrix.os }}; 4 steps; matrix: 4 combinations (os); condition: false; permissions: contents: read; concurrency: group ${{ github.event_name == 'push' && github.run_number || github.ref }}-${{ matrix.os }}-python-dev; cancels in-progress runs
-   - actions/checkout
-   - Set up Python Dev Version
+   - actions/checkout (https://github.com/actions/checkout)
+   - Set up Python Dev Version (https://github.com/actions/setup-python)
    - Build Environment
    - Run Tests
 8. emscripten — runs on ubuntu-24.04; 8 steps; permissions: contents: read; concurrency: group ${{ github.event_name == 'push' && github.run_number || github.ref }}-wasm; cancels in-progress runs
-   - Checkout pandas Repo
-   - Set up Node.js
-   - Set up Python
+   - Checkout pandas Repo (https://github.com/actions/checkout)
+   - Set up Node.js (https://github.com/actions/setup-node)
+   - Set up Python (https://github.com/actions/setup-python)
    - Save Emscripten version
-   - Set up Emscripten toolchain
+   - Set up Emscripten toolchain (https://github.com/emscripten-core/setup-emsdk)
    - Build pandas for Pyodide
    - Set up Pyodide virtual environment
    - Test pandas for Pyodide

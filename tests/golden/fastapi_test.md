@@ -24,13 +24,13 @@ test-alls-green runs after test, coverage-combine, benchmark
 
 IMPLEMENTATION DETAILS
 1. changes — runs on ubuntu-latest; 2 steps; permissions: pull-requests: read
-   - actions/checkout
-   - dorny/paths-filter
+   - actions/checkout (https://github.com/actions/checkout)
+   - dorny/paths-filter (https://github.com/dorny/paths-filter)
 2. test — runs on ${{ matrix.os }}; 13 steps; matrix: 8 base combinations (os, python-version, deprecated-tests, uv-resolution, starlette-src) + 7 via include; after changes; condition: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/master'
    - Dump GitHub context
-   - actions/checkout
-   - Set up Python
-   - Setup uv
+   - actions/checkout (https://github.com/actions/checkout)
+   - Set up Python (https://github.com/actions/setup-python)
+   - Setup uv (https://github.com/astral-sh/setup-uv)
    - Install Dependencies
    - Ensure that we have the lowest supported Pydantic version
    - Install Starlette from source
@@ -40,26 +40,26 @@ IMPLEMENTATION DETAILS
    - ... and 3 more steps
 3. benchmark — runs on ubuntu-latest; 6 steps; after changes; condition: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/master'
    - Dump GitHub context
-   - actions/checkout
-   - Set up Python
-   - Setup uv
+   - actions/checkout (https://github.com/actions/checkout)
+   - Set up Python (https://github.com/actions/setup-python)
+   - Setup uv (https://github.com/astral-sh/setup-uv)
    - Install Dependencies
-   - CodSpeed benchmarks
+   - CodSpeed benchmarks (https://github.com/CodSpeedHQ/action)
 4. coverage-combine — runs on ubuntu-latest; 11 steps; after test
    - Dump GitHub context
-   - actions/checkout
-   - actions/setup-python
-   - Setup uv
+   - actions/checkout (https://github.com/actions/checkout)
+   - actions/setup-python (https://github.com/actions/setup-python)
+   - Setup uv (https://github.com/astral-sh/setup-uv)
    - Install Dependencies
-   - Get coverage files
+   - Get coverage files (https://github.com/actions/download-artifact)
    - ls -la coverage
    - uv run coverage combine coverage
    - uv run coverage html --title "Coverage for ${{ github.sha }}"
-   - Store coverage HTML
+   - Store coverage HTML (https://github.com/actions/upload-artifact)
    - ... and 1 more step
 5. test-alls-green — runs on ubuntu-latest; 2 steps; after test, coverage-combine, benchmark; condition: always()
    - Dump GitHub context
-   - Decide whether the needed jobs succeeded or failed
+   - Decide whether the needed jobs succeeded or failed (https://github.com/re-actors/alls-green)
 ```
 
 ## Pipeline Diagram

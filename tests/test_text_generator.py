@@ -16,12 +16,14 @@ import pytest
 
 from generators.text_generator import (
     _concurrency_phrase,
+    _external_action_repo_url,
+    _linked_workflow_line,
     _permissions_phrase,
     _topological_job_order,
     _with_phrase,
     generate_text,
 )
-from ir.schema import Job, Pipeline
+from ir.schema import Job, LinkedWorkflow, Pipeline
 from parsers.github_actions import GitHubActionsParser
 
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -357,7 +359,8 @@ def test_reusable_workflow_calling_job_without_with_block_has_no_with_clause():
     assert "with:" not in line
     assert line.endswith(
         "test_package_manager — delegates to reusable workflow "
-        "eslint/workflows/.github/workflows/ci-package-manager.yml@main"
+        "eslint/workflows/.github/workflows/ci-package-manager.yml@main "
+        "(https://github.com/eslint/workflows)"
     )
 
 
@@ -511,3 +514,115 @@ def test_job_level_facts_omitted_when_absent():
     assert "permissions:" not in output
     assert "concurrency:" not in output
     assert "deployment environment:" not in output
+
+
+# ---------------------------------------------------------------------------
+# External action/reusable-workflow source-repo links
+# ---------------------------------------------------------------------------
+
+def test_external_action_repo_url_owner_repo_ref():
+    assert _external_action_repo_url("actions/checkout@v3") == "https://github.com/actions/checkout"
+
+
+def test_external_action_repo_url_subpath_dropped():
+    assert _external_action_repo_url("actions/cache/restore@v5") == "https://github.com/actions/cache"
+
+
+def test_external_action_repo_url_external_workflow_file():
+    assert _external_action_repo_url(
+        "pytorch/pytorch/.github/workflows/_runner-determinator.yml@main"
+    ) == "https://github.com/pytorch/pytorch"
+
+
+def test_external_action_repo_url_local_reference_is_none():
+    assert _external_action_repo_url("./.github/workflows/_get-changed-files.yml") is None
+    assert _external_action_repo_url("./") is None
+
+
+def test_external_action_repo_url_docker_reference_is_none():
+    # No real fixture or held-out workflow has a docker:// uses: — hand-written,
+    # same as this project's other untested-against-real-data cases.
+    assert _external_action_repo_url("docker://alpine:3.18") is None
+
+
+def test_external_action_repo_url_no_at_ref_is_none():
+    # Not valid GH Actions syntax for an external reference (every real one
+    # has an @ref) and not a shape any fixture produces — defensive only.
+    assert _external_action_repo_url("actions/checkout") is None
+
+
+def test_step_level_external_action_gets_repo_link():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "eslint_ci.yml"))
+    output = generate_text(pipeline)
+    assert "   - actions/checkout@v7 (https://github.com/actions/checkout)" in output
+
+
+def test_step_level_local_action_has_no_repo_link():
+    # setup_python_test.yml: 14 uses: ./ steps (an exact split with its 14
+    # external ones) — at least as common a real shape as the external case,
+    # not a hypothetical. All must render with no parenthetical link.
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "setup_python_test.yml"))
+    output = generate_text(pipeline)
+    lines = [ln for ln in output.splitlines() if ln.strip().startswith("- setup-python")]
+    assert len(lines) >= 8
+    for line in lines:
+        assert "(https://github.com/" not in line
+
+
+def test_job_level_external_delegation_gets_repo_link():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pytorch_lint.yml"))
+    output = generate_text(pipeline)
+    assert (
+        "delegates to reusable workflow "
+        "pytorch/pytorch/.github/workflows/_runner-determinator.yml@main "
+        "(https://github.com/pytorch/pytorch)"
+    ) in output
+
+
+def test_job_level_local_delegation_has_no_repo_link():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pytorch_lint.yml"))
+    output = generate_text(pipeline)
+    line = next(
+        ln for ln in output.splitlines()
+        if ln.startswith("2. get-changed-files —")
+    )
+    assert "(https://github.com/" not in line
+    assert line.endswith(
+        "delegates to reusable workflow ./.github/workflows/_get-changed-files.yml; "
+        "with: all_files: ${{ contains(github.event.pull_request.labels.*.name, 'lint-all-files') "
+        "|| contains(github.event.pull_request.labels.*.name, 'Reverted') || github.event_name == 'push' }}; "
+        "condition: github.repository_owner == 'pytorch'"
+    )
+
+
+def test_linked_workflows_calls_entry_gets_repo_link():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pytorch_lint.yml"))
+    output = generate_text(pipeline)
+    assert (
+        "- calls pytorch/pytorch/.github/workflows/_runner-determinator.yml@main "
+        "(https://github.com/pytorch/pytorch)"
+    ) in output
+
+
+def test_linked_workflows_local_calls_entry_has_no_repo_link():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pytorch_lint.yml"))
+    output = generate_text(pipeline)
+    assert "- calls ./.github/workflows/_get-changed-files.yml" in output
+    assert "- calls ./.github/workflows/_get-changed-files.yml (https://github.com/" not in output
+
+
+def test_linked_workflow_line_triggered_by_never_gets_repo_link_even_if_shaped_like_one():
+    # LinkedWorkflow.target for a "triggered_by" entry is a workflow display
+    # name (Trigger.source_workflow), never a uses: ref — gating is on
+    # relationship, not on whether the target happens to parse as external.
+    # Constructed so the target string *would* parse as an external owner/
+    # repo ref, to prove the gate is the relationship check, not luck.
+    lw = LinkedWorkflow(target="some/repo@main", relationship="triggered_by")
+    assert _linked_workflow_line(lw) == "- triggered_by some/repo@main"
+
+
+def test_linked_workflow_line_calls_entry_gets_repo_link():
+    lw = LinkedWorkflow(target="actions/checkout@v3", relationship="calls")
+    assert _linked_workflow_line(lw) == (
+        "- calls actions/checkout@v3 (https://github.com/actions/checkout)"
+    )
