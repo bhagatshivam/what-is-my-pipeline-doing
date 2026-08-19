@@ -10,10 +10,13 @@ Contract:
   raw YAML, never re-derives anything the parser already decided; if a fact
   isn't in the IR, it isn't in this output.
 - `raw_extras` (on Pipeline/Job/Step) is not read here, with one narrow,
-  deliberate exception: `Job.raw_extras["uses"]` is read to state that a
-  `uses:`-only reusable-workflow-calling job delegates to that workflow,
-  rather than letting its necessarily-zero own step count read as "does
-  nothing" (see `_job_line_body`). This is the parser's own
+  deliberate exception covering a `uses:`-only reusable-workflow-calling
+  job: `Job.raw_extras["uses"]` is read to state that such a job delegates
+  to that workflow, rather than letting its necessarily-zero own step
+  count read as "does nothing", and `Job.raw_extras["with"]` (when
+  present) is read to state the inputs passed to that call — both facts
+  come from the same job-level `uses:` block and neither has any other
+  home in the schema (see `_job_line_body`). This is the parser's own
   already-established, single-job-scoped convention for exactly this fact
   (see LIMITATIONS.md's "Reusable workflows" section) — not a general
   opening of raw_extras into this generator's output. Every other
@@ -246,6 +249,17 @@ def _concurrency_phrase(value: Dict[str, Any]) -> str:
     return phrase
 
 
+def _with_phrase(value: Dict[str, Any]) -> str:
+    def _fmt(v: Any) -> str:
+        if isinstance(v, bool):
+            # Match YAML's own `true`/`false` spelling, not Python's
+            # `True`/`False` — this is displaying a fact from the YAML
+            # source, not a Python value.
+            return "true" if v else "false"
+        return str(v)
+    return ", ".join(f"{k}: {_fmt(v)}" for k, v in value.items())
+
+
 def _job_line_body(job: Job) -> str:
     clauses: List[str] = []
 
@@ -261,6 +275,9 @@ def _job_line_body(job: Job) -> str:
         # This is the one deliberate raw_extras exception documented in
         # the module docstring.
         clauses.append(f"delegates to reusable workflow {uses}")
+        with_block = job.raw_extras.get("with")
+        if with_block:
+            clauses.append(f"with: {_with_phrase(with_block)}")
     else:
         n = len(job.steps)
         clauses.append(f"{n} {_plural(n, 'step')}")

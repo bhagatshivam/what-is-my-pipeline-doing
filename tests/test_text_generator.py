@@ -18,6 +18,7 @@ from generators.text_generator import (
     _concurrency_phrase,
     _permissions_phrase,
     _topological_job_order,
+    _with_phrase,
     generate_text,
 )
 from ir.schema import Job, Pipeline
@@ -344,6 +345,40 @@ def test_reusable_workflow_calling_job_states_delegation():
         "eslint/workflows/.github/workflows/ci-package-manager.yml@main"
     ) in output
     assert "test_package_manager — 0 steps" not in output
+
+
+def test_reusable_workflow_calling_job_without_with_block_has_no_with_clause():
+    # eslint_ci.yml's test_package_manager has uses: but no job-level with:
+    # (only its steps use with:) — the whole line must stay unchanged by
+    # the with: clause added below, not just the delegation prefix.
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "eslint_ci.yml"))
+    output = generate_text(pipeline)
+    line = next(ln for ln in output.splitlines() if "test_package_manager —" in ln)
+    assert "with:" not in line
+    assert line.endswith(
+        "test_package_manager — delegates to reusable workflow "
+        "eslint/workflows/.github/workflows/ci-package-manager.yml@main"
+    )
+
+
+def test_reusable_workflow_calling_job_with_block_is_rendered():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "pytorch_lint.yml"))
+    output = generate_text(pipeline)
+    assert (
+        "get-changed-files — delegates to reusable workflow "
+        "./.github/workflows/_get-changed-files.yml; "
+        "with: all_files: ${{ contains(github.event.pull_request.labels.*.name, 'lint-all-files') "
+        "|| contains(github.event.pull_request.labels.*.name, 'Reverted') || github.event_name == 'push' }}; "
+        "condition: github.repository_owner == 'pytorch'"
+    ) in output
+
+
+def test_with_phrase_formats_bool_as_lowercase_yaml_style():
+    # YAML `true`/`false` parses to Python bool — render it back in YAML's
+    # own spelling, not Python's `True`/`False`.
+    assert _with_phrase({"uploadNativeArtifact": True, "skipInstallBuild": "yes"}) == (
+        "uploadNativeArtifact: true, skipInstallBuild: yes"
+    )
 
 
 # ---------------------------------------------------------------------------
