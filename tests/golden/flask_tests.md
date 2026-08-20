@@ -20,15 +20,15 @@ Independent jobs (no dependencies): tests, typing
 
 IMPLEMENTATION DETAILS
 1. tests — runs on ${{ matrix.os || 'ubuntu-latest' }}; 4 steps; matrix: 11 combinations (via include)
-   - actions/checkout
-   - astral-sh/setup-uv
-   - actions/setup-python
+   - actions/checkout (https://github.com/actions/checkout)
+   - astral-sh/setup-uv (https://github.com/astral-sh/setup-uv)
+   - actions/setup-python (https://github.com/actions/setup-python)
    - uv run --locked --no-default-groups --group dev tox run
 2. typing — runs on ubuntu-latest; 5 steps
-   - actions/checkout
-   - astral-sh/setup-uv
-   - actions/setup-python
-   - cache mypy
+   - actions/checkout (https://github.com/actions/checkout)
+   - astral-sh/setup-uv (https://github.com/astral-sh/setup-uv)
+   - actions/setup-python (https://github.com/actions/setup-python)
+   - cache mypy (https://github.com/actions/cache)
    - uv run --locked --no-default-groups --group dev tox run -e typing
 ```
 

@@ -26,44 +26,44 @@ publish_yml__docs-cloudflare runs after publish_yml__build
 
 IMPLEMENTATION DETAILS
 1. main_yml__tests — runs on ubuntu-latest; 7 steps; matrix: 5 combinations (python-version)
-   - actions/checkout
-   - Install uv
+   - actions/checkout (https://github.com/actions/checkout)
+   - Install uv (https://github.com/astral-sh/setup-uv)
    - Install dependencies
    - Run linting checks
    - Build package & docs
    - Run tests
    - Enforce coverage
 2. main_yml__check — runs on ubuntu-latest; 1 step; after main_yml__tests; condition: always()
-   - Decide whether the needed jobs succeeded or failed
+   - Decide whether the needed jobs succeeded or failed (https://github.com/re-actors/alls-green)
 3. main_yml__docs-cloudflare-preview — runs on ubuntu-latest; 6 steps; condition: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository; permissions: contents: read, pull-requests: write
-   - actions/checkout
-   - Install uv
+   - actions/checkout (https://github.com/actions/checkout)
+   - Install uv (https://github.com/astral-sh/setup-uv)
    - Install dependencies
    - Build docs
-   - cloudflare/wrangler-action
-   - Comment preview URL
+   - cloudflare/wrangler-action (https://github.com/cloudflare/wrangler-action)
+   - Comment preview URL (https://github.com/marocchino/sticky-pull-request-comment)
 4. publish_yml__build — runs on ubuntu-latest; 6 steps
-   - actions/checkout
-   - Install uv
+   - actions/checkout (https://github.com/actions/checkout)
+   - Install uv (https://github.com/astral-sh/setup-uv)
    - Install dependencies
    - Build package & docs
-   - Upload package distributions
-   - Upload documentation
+   - Upload package distributions (https://github.com/actions/upload-artifact)
+   - Upload documentation (https://github.com/actions/upload-artifact)
 5. publish_yml__pypi-publish — runs on ubuntu-latest; 2 steps; after publish_yml__build; condition: success() && startsWith(github.ref, 'refs/tags/'); permissions: id-token: write
-   - Download artifacts
-   - Publish distribution 📦 to PyPI
+   - Download artifacts (https://github.com/actions/download-artifact)
+   - Publish distribution 📦 to PyPI (https://github.com/pypa/gh-action-pypi-publish)
 6. publish_yml__docs-publish — runs on ubuntu-latest; 4 steps; after publish_yml__build; permissions: contents: read, pages: write, id-token: write
-   - Configure GitHub Pages
-   - Download artifacts
-   - Upload Pages artifact
-   - Deploy to GitHub Pages
+   - Configure GitHub Pages (https://github.com/actions/configure-pages)
+   - Download artifacts (https://github.com/actions/download-artifact)
+   - Upload Pages artifact (https://github.com/actions/upload-pages-artifact)
+   - Deploy to GitHub Pages (https://github.com/actions/deploy-pages)
 7. publish_yml__docs-cloudflare — runs on ubuntu-latest; 3 steps; after publish_yml__build
-   - actions/checkout
-   - Download artifacts
-   - cloudflare/wrangler-action
+   - actions/checkout (https://github.com/actions/checkout)
+   - Download artifacts (https://github.com/actions/download-artifact)
+   - cloudflare/wrangler-action (https://github.com/cloudflare/wrangler-action)
 8. zizmor_yml__zizmor — runs on ubuntu-latest; 2 steps; permissions: security-events: write
-   - Checkout repository
-   - Run zizmor 🌈
+   - Checkout repository (https://github.com/actions/checkout)
+   - Run zizmor 🌈 (https://github.com/zizmorcore/zizmor-action)
 
 SECRETS REQUIRED
 - CLOUDFLARE_API_TOKEN (used in job: main_yml__docs-cloudflare-preview)

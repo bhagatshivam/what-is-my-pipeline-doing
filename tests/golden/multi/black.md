@@ -24,50 +24,50 @@ diff_shades_yml__compare runs after diff_shades_yml__configure, diff_shades_yml_
 
 IMPLEMENTATION DETAILS
 1. diff_shades_yml__configure — runs on ubuntu-latest; 3 steps
-   - actions/checkout
-   - Set up Python
+   - actions/checkout (https://github.com/actions/checkout)
+   - Set up Python (https://github.com/actions/setup-python)
    - Calculate run configuration & metadata
 2. diff_shades_yml__analysis-base — runs on ubuntu-latest; 7 steps; matrix: combinations determined at runtime; after diff_shades_yml__configure
-   - Checkout this repository (full clone)
-   - Set up Python
+   - Checkout this repository (full clone) (https://github.com/actions/checkout)
+   - Set up Python (https://github.com/actions/setup-python)
    - Configure git
-   - Attempt to use cached baseline analysis
+   - Attempt to use cached baseline analysis (https://github.com/actions/cache)
    - Build and install baseline revision
    - Analyze baseline revision
-   - Upload baseline analysis
+   - Upload baseline analysis (https://github.com/actions/upload-artifact)
 3. diff_shades_yml__analysis-target — runs on ubuntu-latest; 9 steps; matrix: combinations determined at runtime; after diff_shades_yml__configure
-   - Checkout this repository (full clone)
-   - Set up Python
+   - Checkout this repository (full clone) (https://github.com/actions/checkout)
+   - Set up Python (https://github.com/actions/setup-python)
    - Configure git
    - Build and install target revision
-   - Attempt to find baseline analysis
+   - Attempt to find baseline analysis (https://github.com/actions/cache)
    - Analyze target revision (with repeated projects)
    - Analyze target revision (without repeated projects)
-   - Upload target analysis
+   - Upload target analysis (https://github.com/actions/upload-artifact)
    - Check for failed files for target revision
 4. diff_shades_yml__compare — runs on ubuntu-latest; 8 steps; matrix: combinations determined at runtime; after diff_shades_yml__configure, diff_shades_yml__analysis-base, diff_shades_yml__analysis-target; condition: not cancelled()
-   - actions/checkout
-   - actions/download-artifact
-   - Set up Python
+   - actions/checkout (https://github.com/actions/checkout)
+   - actions/download-artifact (https://github.com/actions/download-artifact)
+   - Set up Python (https://github.com/actions/setup-python)
    - Generate HTML diff report
-   - Upload diff report
+   - Upload diff report (https://github.com/actions/upload-artifact)
    - Generate summary file (PR only)
-   - Upload summary file (PR only)
+   - Upload summary file (PR only) (https://github.com/actions/upload-artifact)
    - Verify zero changes (PR only)
 5. diff_shades_comment_yml__comment — runs on ubuntu-latest; 8 steps; condition: github.event.workflow_run.event == 'pull_request' && contains(fromJSON('["success", "failure"]'), github.event.workflow_run.conclusion); permissions: pull-requests: write
-   - actions/checkout
-   - actions/download-artifact
+   - actions/checkout (https://github.com/actions/checkout)
+   - actions/download-artifact (https://github.com/actions/download-artifact)
    - Validate downloaded comment artifacts
-   - Set up Python
+   - Set up Python (https://github.com/actions/setup-python)
    - Get PR number
    - Get details from initial workflow run
-   - Try to find pre-existing PR comment
-   - Create or update PR comment
+   - Try to find pre-existing PR comment (https://github.com/peter-evans/find-comment)
+   - Create or update PR comment (https://github.com/peter-evans/create-or-update-comment)
 6. lint_yml__lint — runs on ubuntu-latest; 6 steps; condition: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-   - actions/checkout
+   - actions/checkout (https://github.com/actions/checkout)
    - Assert PR target is main
-   - Set up Python
-   - Run pre-commit hooks
+   - Set up Python (https://github.com/actions/setup-python)
+   - Run pre-commit hooks (https://github.com/pre-commit/action)
    - Format ourselves
    - Regenerate schema
 

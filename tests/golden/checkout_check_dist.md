@@ -18,12 +18,12 @@ Independent jobs (no dependencies): check-dist
 
 IMPLEMENTATION DETAILS
 1. check-dist — runs on ubuntu-latest; 6 steps
-   - actions/checkout@v7
-   - Set Node.js 24.x
+   - actions/checkout@v7 (https://github.com/actions/checkout)
+   - Set Node.js 24.x (https://github.com/actions/setup-node)
    - Install dependencies
    - Rebuild the index.js file
    - Compare the expected and actual dist/ directories
-   - actions/upload-artifact@v7
+   - actions/upload-artifact@v7 (https://github.com/actions/upload-artifact)
 ```
 
 ## Pipeline Diagram

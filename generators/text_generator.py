@@ -41,7 +41,19 @@ Contract:
 - Each job's aggregate step count is always shown, plus a per-job listing
   of `Step.name` (capped, with an overflow indicator on long jobs — see
   `_step_lines`). No other step-level detail is projected into this
-  format (per-step conditions/env/with_args stay out of scope).
+  format (per-step conditions/env/with_args stay out of scope), with one
+  exception (2026-08-19): a `StepType.ACTION` step's `Step.value` (the
+  `uses:` ref — a typed field, not `raw_extras`) is read to append a
+  `(https://github.com/<owner>/<repo>)` link when it names an external
+  GitHub-hosted action, via `_external_action_repo_url`. The same helper
+  also links the job-level `delegates to reusable workflow X` clause
+  (from `raw_extras["uses"]`, already read) and `LINKED WORKFLOWS`'
+  `"calls"` entries (never its `"triggered_by"` entries, whose `target`
+  is a workflow display name, not a `uses:`-shaped ref). A local
+  same-repo reference (`./...`) or a `docker://...` image reference never
+  gets a link — only the repo root is ever linked, never a ref-pinned
+  deep link (a ref may be a branch/tag/shortened-SHA, and GitHub's URL
+  scheme doesn't reliably resolve all three the same way).
 - `permissions`/`concurrency`/`deployment_environment` are read directly
   (not via raw_extras) as of 2026-07-22 — these are now dedicated typed IR
   fields, not an opening of the raw_extras exception above. See
@@ -70,7 +82,7 @@ Contract:
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from generators.common import (
     _and_join,
@@ -88,6 +100,7 @@ from ir.schema import (
     Pipeline,
     SecretScope,
     SourcePlatform,
+    StepType,
     Trigger,
     TriggerType,
 )
@@ -206,14 +219,62 @@ def _trigger_phrase(trigger: Trigger) -> str:
 _STEP_LIST_CAP = 10
 
 
+def _external_action_repo_url(uses: str) -> Optional[str]:
+    """
+    A `uses:` string (or a `LinkedWorkflow.target` for a `"calls"` entry —
+    same shape) -> the GitHub repo-root URL of the external action/reusable
+    workflow it names, or `None` when it isn't an external GitHub-hosted
+    reference at all: a local same-repo path (`./...`) or a `docker://...`
+    image reference. Always the plain repo root
+    (`https://github.com/<owner>/<repo>`), never a ref-pinned deep link —
+    deliberately: a ref may be a branch, tag, or a *shortened* commit SHA
+    (all valid in `uses:`), and GitHub's URL scheme doesn't resolve all
+    three the same reliable way a plain repo-root link does. Simple and
+    always-safe wins over precise and sometimes-wrong.
+
+    A local reference never has an `@ref` suffix in any real fixture or
+    held-out workflow this project has (GH Actions has no ref-pinning
+    syntax for same-repo reusable-workflow calls) — the `./`/`../`/`/`
+    check below is what actually excludes it, not the `@` check, so this
+    holds even for a hypothetical local ref that did have one.
+    `docker://...` is untested against real data: no fixture or held-out
+    workflow has one, but the shape is real GH Actions syntax.
+    """
+    if uses.startswith("docker://"):
+        return None
+    if uses.startswith("./") or uses.startswith("../") or uses.startswith("/"):
+        return None
+    ref_part, sep, _ref = uses.partition("@")
+    if not sep:
+        # No `@ref` at all — not a recognized external action/reusable-
+        # workflow shape. Every real external reference in this project's
+        # fixtures and held-out set has one.
+        return None
+    segments = ref_part.split("/")
+    if len(segments) < 2 or not segments[0] or not segments[1]:
+        return None
+    return f"https://github.com/{segments[0]}/{segments[1]}"
+
+
+def _repo_link_suffix(uses: str) -> str:
+    url = _external_action_repo_url(uses)
+    return f" ({url})" if url else ""
+
+
 def _step_lines(job: Job) -> List[str]:
     """
     Per-job step name listing — PROJECT_PLAN.md's Tool 1 deliverable list
     normatively includes "What each step in each job does"; the aggregate
     count alone (this generator's prior behaviour) didn't satisfy it. Only
-    `Step.name` is surfaced, nothing else (no with_args/env/raw_extras, no
+    `Step.name` is surfaced, plus (2026-08-19) a source-repo link appended
+    to an external-action step via `_repo_link_suffix(step.value)` — no
+    other step-level detail is projected (no with_args/env/raw_extras, no
     step-level Condition) — mechanical and factual, matching this
-    generator's existing never-fabricate-intent principle.
+    generator's existing never-fabricate-intent principle. The link is
+    built from `step.value` (the ref, always the full original string),
+    never `step.name` (which shortens a SHA-pinned ref for display when no
+    explicit `name:` is given — see `_step_name_fallback` in
+    parsers/github_actions.py) — the two can legitimately differ.
 
     Capped at `_STEP_LIST_CAP` with an overflow line rather than listed in
     full: across all 10 real fixtures (58 jobs), the median job has 4-5
@@ -227,7 +288,10 @@ def _step_lines(job: Job) -> List[str]:
     if not job.steps:
         return []
     shown = job.steps[:_STEP_LIST_CAP]
-    lines = [f"   - {step.name}" for step in shown]
+    lines = []
+    for step in shown:
+        suffix = _repo_link_suffix(step.value) if step.type == StepType.ACTION else ""
+        lines.append(f"   - {step.name}{suffix}")
     remaining = len(job.steps) - len(shown)
     if remaining > 0:
         lines.append(f"   - ... and {remaining} more {_plural(remaining, 'step')}")
@@ -295,7 +359,7 @@ def _job_line_body(job: Job) -> str:
         # read as "this job does nothing"; state the delegation instead.
         # This is the one deliberate raw_extras exception documented in
         # the module docstring.
-        clauses.append(f"delegates to reusable workflow {uses}")
+        clauses.append(f"delegates to reusable workflow {uses}{_repo_link_suffix(uses)}")
         with_block = job.raw_extras.get("with")
         if with_block:
             clauses.append(f"with: {_with_phrase(with_block)}")
@@ -336,6 +400,19 @@ def _job_line_body(job: Job) -> str:
 # ---------------------------------------------------------------------------
 # Secrets / linked workflows
 # ---------------------------------------------------------------------------
+
+def _linked_workflow_line(lw) -> str:
+    """
+    `LinkedWorkflow.target` is only a `uses:`-shaped ref for a `"calls"`
+    entry (the calling job's own `uses:` string). A `"triggered_by"`
+    entry's `target` is `Trigger.source_workflow` — a workflow *display
+    name* from `on: workflow_run` (e.g. `"diff-shades"`), never a ref —
+    so linking is gated on `relationship` explicitly, not left to
+    `_external_action_repo_url` happening not to match it.
+    """
+    suffix = _repo_link_suffix(lw.target) if lw.relationship == "calls" else ""
+    return f"- {lw.relationship} {lw.target}{suffix}"
+
 
 def _secret_line(secret, jobs_by_name: Dict[str, Job]) -> str:
     """
@@ -518,7 +595,7 @@ def generate_text(pipeline: Pipeline) -> str:
     if pipeline.linked_workflows:
         lines.append("")
         lines.append("LINKED WORKFLOWS")
-        lines += [f"- {lw.relationship} {lw.target}" for lw in pipeline.linked_workflows]
+        lines += [_linked_workflow_line(lw) for lw in pipeline.linked_workflows]
 
     if pipeline.secrets:
         lines.append("")

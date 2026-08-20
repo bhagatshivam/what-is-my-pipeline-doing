@@ -21,8 +21,8 @@ cleanup runs after build, merge
 
 IMPLEMENTATION DETAILS
 1. build — runs on ${{ matrix.runs-on }}; 28 steps; matrix: 3 combinations (runs-on)
-   - Checkout
-   - Setup Node 24
+   - Checkout (https://github.com/actions/checkout)
+   - Setup Node 24 (https://github.com/actions/setup-node)
    - Install dependencies
    - Compile
    - Lint
@@ -33,22 +33,22 @@ IMPLEMENTATION DETAILS
    - Upload artifact #2
    - ... and 18 more steps
 2. upload-html-report — runs on ubuntu-latest; 6 steps
-   - Checkout
-   - Setup Node 24
+   - Checkout (https://github.com/actions/checkout)
+   - Setup Node 24 (https://github.com/actions/setup-node)
    - Install dependencies
    - Compile
    - Create HTML report
    - Upload HTML report (no archive)
 3. merge — runs on ubuntu-latest; 7 steps; after build
-   - Checkout
+   - Checkout (https://github.com/actions/checkout)
    - Merge all artifacts in run
-   - Download merged artifacts
+   - Download merged artifacts (https://github.com/actions/download-artifact)
    - Check merged artifact has directories for each artifact
    - Merge all Artifact-A
-   - Download merged artifacts
+   - Download merged artifacts (https://github.com/actions/download-artifact)
    - Verify merged artifacts
 4. cleanup — runs on ubuntu-latest; 1 step; after build, merge
-   - Delete test artifacts
+   - Delete test artifacts (https://github.com/actions/github-script)
 ```
 
 ## Pipeline Diagram
