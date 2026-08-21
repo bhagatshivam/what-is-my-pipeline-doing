@@ -73,6 +73,21 @@ IMPLEMENTATION DETAILS
 
 LINKED WORKFLOWS
 - triggered_by diff-shades
+
+ENVIRONMENT VARIABLES
+- HATCH_BUILD_HOOKS_ENABLE: 1
+- CC: clang-18
+- GITHUB_TOKEN: ${{ github.token }} (used in job: diff_shades_yml__configure, step: Calculate run configuration & metadata)
+- GITHUB_TOKEN: ${{ github.token }} (used in job: diff_shades_yml__analysis-base, step: Build and install baseline revision)
+- GITHUB_TOKEN: ${{ github.token }} (used in job: diff_shades_yml__analysis-target, step: Build and install target revision)
+- GITHUB_TOKEN: ${{ github.token }} (used in job: diff_shades_yml__compare, step: Generate summary file (PR only))
+- GITHUB_TOKEN: ${{ github.token }} (used in job: diff_shades_comment_yml__comment, step: Get PR number)
+- sha: ${{ github.event.workflow_run.head_sha }} (used in job: diff_shades_comment_yml__comment, step: Get PR number)
+- GITHUB_TOKEN: ${{ github.token }} (used in job: diff_shades_comment_yml__comment, step: Get details from initial workflow run)
+- pr: ${{ steps.pr.outputs.pr }} (used in job: diff_shades_comment_yml__comment, step: Get details from initial workflow run)
+- run_id: ${{ github.event.workflow_run.id }} (used in job: diff_shades_comment_yml__comment, step: Get details from initial workflow run)
+- preview_artifact: ${{ steps.comment-artifacts.outputs.preview }} (used in job: diff_shades_comment_yml__comment, step: Get details from initial workflow run)
+- stable_artifact: ${{ steps.comment-artifacts.outputs.stable }} (used in job: diff_shades_comment_yml__comment, step: Get details from initial workflow run)
 ```
 
 ## Pipeline Diagram

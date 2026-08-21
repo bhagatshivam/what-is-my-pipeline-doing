@@ -30,6 +30,9 @@ IMPLEMENTATION DETAILS
    - actions/setup-python (https://github.com/actions/setup-python)
    - cache mypy (https://github.com/actions/cache)
    - uv run --locked --no-default-groups --group dev tox run -e typing
+
+ENVIRONMENT VARIABLES
+- TOX_ENV: ${{ matrix.tox || format('py{0}', matrix.python) }} (used in job: tests, step: uv run --locked --no-default-groups --group dev tox run)
 ```
 
 ## Pipeline Diagram

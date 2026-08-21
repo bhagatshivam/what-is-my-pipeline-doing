@@ -60,6 +60,22 @@ IMPLEMENTATION DETAILS
 5. test-alls-green — runs on ubuntu-latest; 2 steps; after test, coverage-combine, benchmark; condition: always()
    - Dump GitHub context
    - Decide whether the needed jobs succeeded or failed (https://github.com/re-actors/alls-green)
+
+ENVIRONMENT VARIABLES
+- UV_NO_SYNC: true
+- INLINE_SNAPSHOT_DEFAULT_FLAGS: review
+- UV_PYTHON: ${{ matrix.python-version }} (used in job: test)
+- UV_RESOLUTION: ${{ matrix.uv-resolution }} (used in job: test)
+- STARLETTE_SRC: ${{ matrix.starlette-src }} (used in job: test)
+- GITHUB_CONTEXT: ${{ toJson(github) }} (used in job: test, step: Dump GitHub context)
+- COVERAGE_FILE: coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}-${{ matrix.deprecated-tests}} (used in job: test, step: Test)
+- CONTEXT: ${{ runner.os }}-py${{ matrix.python-version }}-${{ matrix.deprecated-tests}} (used in job: test, step: Test)
+- PYTEST_OPTIONS: ${{ (matrix.without-httpx2 == 'true') && '-W ignore::UserWarning' || '' }} (used in job: test, step: Test)
+- UV_PYTHON: 3.13 (used in job: benchmark)
+- UV_RESOLUTION: highest (used in job: benchmark)
+- GITHUB_CONTEXT: ${{ toJson(github) }} (used in job: benchmark, step: Dump GitHub context)
+- GITHUB_CONTEXT: ${{ toJson(github) }} (used in job: coverage-combine, step: Dump GitHub context)
+- GITHUB_CONTEXT: ${{ toJson(github) }} (used in job: test-alls-green, step: Dump GitHub context)
 ```
 
 ## Pipeline Diagram

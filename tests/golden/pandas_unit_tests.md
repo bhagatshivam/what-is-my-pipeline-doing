@@ -67,6 +67,18 @@ IMPLEMENTATION DETAILS
    - Set up Pyodide virtual environment
    - Test pandas for Pyodide
 
+ENVIRONMENT VARIABLES
+- LANG: ${{ matrix.lang || 'C.UTF-8' }} (used in job: ubuntu)
+- LC_ALL: ${{ matrix.lc_all || '' }} (used in job: ubuntu)
+- PANDAS_MOTO_URL: http://localhost:5000 (used in job: ubuntu, step: Test (not single_cpu))
+- PANDAS_MOTO_URL: http://localhost:5000 (used in job: ubuntu, step: Test (single_cpu))
+- LD_PRELOAD: ${{ env.ASAN_LIB_PATH }} (used in job: Linux-Sanitizers, step: Test)
+- ASAN_OPTIONS: detect_leaks=0 (used in job: Linux-Sanitizers, step: Test)
+- UBSAN_OPTIONS: halt_on_error=1:suppressions=${{ github.workspace }}/ci/suppressions/ubsan.txt (used in job: Linux-Sanitizers, step: Test)
+- PYTEST_WORKERS: auto (used in job: python-dev)
+- PATTERN: not slow and not network and not clipboard and not single_cpu (used in job: python-dev)
+- PYTEST_TARGET: pandas (used in job: python-dev)
+
 SECRETS REQUIRED
 - CODECOV_TOKEN (used in job: ubuntu, step: Upload test coverage to Codecov)
 ```

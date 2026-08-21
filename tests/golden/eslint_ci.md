@@ -62,6 +62,10 @@ IMPLEMENTATION DETAILS
 
 LINKED WORKFLOWS
 - calls eslint/workflows/.github/workflows/ci-package-manager.yml@main (https://github.com/eslint/workflows)
+
+ENVIRONMENT VARIABLES
+- NODE_OPTIONS: ${{ matrix.NODE_OPTIONS }} (used in job: test_on_node, step: Test)
+- TERM: xterm-256color (used in job: test_on_browser)
 ```
 
 ## Pipeline Diagram

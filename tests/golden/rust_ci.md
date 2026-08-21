@@ -41,6 +41,31 @@ IMPLEMENTATION DETAILS
    - checkout the source code (https://github.com/actions/checkout)
    - publish toolstate
 
+ENVIRONMENT VARIABLES
+- TOOLSTATE_REPO: https://github.com/rust-lang-nursery/rust-toolstate
+- TOOLSTATE_REPO_ACCESS_TOKEN: ${{ secrets.TOOLSTATE_REPO_ACCESS_TOKEN }}
+- COMMIT_MESSAGE: ${{ github.event.head_commit.message }} (used in job: calculate_matrix, step: Calculate the CI job matrix)
+- CI_JOB_NAME: ${{ matrix.name }} (used in job: job)
+- CI_JOB_DOC_URL: ${{ matrix.doc_url }} (used in job: job)
+- GITHUB_WORKFLOW_RUN_ID: ${{ github.run_id }} (used in job: job)
+- GITHUB_REPOSITORY: ${{ github.repository }} (used in job: job)
+- CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse (used in job: job)
+- HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }} (used in job: job)
+- DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }} (used in job: job)
+- SCCACHE_BUCKET: rust-lang-ci-sccache2 (used in job: job)
+- SCCACHE_REGION: us-west-1 (used in job: job)
+- CACHE_DOMAIN: ci-caches.rust-lang.org (used in job: job)
+- num: ${{ github.event.number }} (used in job: job, step: configure the PR in which the error message will be posted)
+- EXTRA_VARIABLES: ${{ toJson(matrix.env) }} (used in job: job, step: add extra environment variables)
+- AWS_ACCESS_KEY_ID: ${{ secrets.CACHES_AWS_ACCESS_KEY_ID }} (used in job: job, step: run the build)
+- AWS_SECRET_ACCESS_KEY: ${{ secrets.CACHES_AWS_SECRET_ACCESS_KEY }} (used in job: job, step: run the build)
+- AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }} (used in job: job, step: upload artifacts to S3)
+- AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }} (used in job: job, step: upload artifacts to S3)
+- DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }} (used in job: job, step: upload job metrics to DataDog)
+- DD_GITHUB_JOB_NAME: ${{ matrix.full_name }} (used in job: job, step: upload job metrics to DataDog)
+- TOOLSTATE_ISSUES_API_URL: https://api.github.com/repos/rust-lang/rust/issues (used in job: outcome, step: publish toolstate)
+- TOOLSTATE_PUBLISH: 1 (used in job: outcome, step: publish toolstate)
+
 SECRETS REQUIRED
 - TOOLSTATE_REPO_ACCESS_TOKEN
 - GITHUB_TOKEN (used in job: job)
