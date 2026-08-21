@@ -16,6 +16,7 @@ import pytest
 
 from generators.text_generator import (
     _concurrency_phrase,
+    _env_var_line,
     _external_action_repo_url,
     _linked_workflow_line,
     _permissions_phrase,
@@ -23,7 +24,7 @@ from generators.text_generator import (
     _with_phrase,
     generate_text,
 )
-from ir.schema import Job, LinkedWorkflow, Pipeline
+from ir.schema import EnvironmentVariable, Job, LinkedWorkflow, Pipeline, SecretScope, Step, StepType
 from parsers.github_actions import GitHubActionsParser
 
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -626,3 +627,85 @@ def test_linked_workflow_line_calls_entry_gets_repo_link():
     assert _linked_workflow_line(lw) == (
         "- calls actions/checkout@v3 (https://github.com/actions/checkout)"
     )
+
+
+# ---------------------------------------------------------------------------
+# ENVIRONMENT VARIABLES — Pipeline.environment_variables was captured by the
+# parser (all three scopes) but never rendered by this generator.
+# ---------------------------------------------------------------------------
+
+def test_env_var_line_pipeline_scope():
+    e = EnvironmentVariable(name="NODE_LTS_VERSION", value="22", scope=SecretScope.PIPELINE)
+    assert _env_var_line(e, jobs_by_name={}) == "- NODE_LTS_VERSION: 22"
+
+
+def test_env_var_line_job_scope():
+    e = EnvironmentVariable(name="TERM", value="xterm-256color",
+                             scope=SecretScope.JOB, scope_ref="test_on_browser")
+    assert _env_var_line(e, jobs_by_name={}) == (
+        "- TERM: xterm-256color (used in job: test_on_browser)"
+    )
+
+
+def test_env_var_line_step_scope_decodes_step_name():
+    job = Job(name="test-linux", steps=[
+        Step(name="Checkout", type=StepType.ACTION, value="actions/checkout@v3"),
+        Step(name="Re-run test in a folder whose name contains unusual chars",
+             type=StepType.COMMAND, value="echo test"),
+    ])
+    e = EnvironmentVariable(name="DIR", value="dir with spaces",
+                             scope=SecretScope.STEP, scope_ref="test-linux.1")
+    assert _env_var_line(e, jobs_by_name={"test-linux": job}) == (
+        "- DIR: dir with spaces (used in job: test-linux, "
+        "step: Re-run test in a folder whose name contains unusual chars)"
+    )
+
+
+def test_env_var_line_none_value_renders_as_no_value_set_not_literal_none():
+    # Untested against real data (0 of 23 real files scanned have a
+    # None-valued env var) — hand-built, same convention as PR #54's
+    # docker:// case. Deliberately doesn't say "dynamic"/"secret": the
+    # parser only actually produces None for a YAML declared-but-empty
+    # entry, not for a dynamic/secret reference (those are stored as their
+    # raw expression string) — see _env_var_line's own docstring.
+    e = EnvironmentVariable(name="FOO", value=None, scope=SecretScope.PIPELINE)
+    assert _env_var_line(e, jobs_by_name={}) == "- FOO: (no value set)"
+    assert "None" not in _env_var_line(e, jobs_by_name={})
+
+
+def test_env_var_line_step_scope_unresolvable_scope_ref_falls_back_to_job_only():
+    # Defensive fallback — mirrors _secret_line's equivalent branch, which
+    # itself has no test exercising it yet. This is the first test of its
+    # kind for this shape, not a mirror of an existing _secret_line test.
+    e = EnvironmentVariable(name="DIR", value="x", scope=SecretScope.STEP,
+                             scope_ref="nonexistent-job.3")
+    assert _env_var_line(e, jobs_by_name={}) == "- DIR: x (used in job: nonexistent-job)"
+
+
+def test_environment_variables_section_renders_all_scopes_for_real_fixture():
+    # node_test_linux.yml: 8 pipeline-scoped vars plus 1 step-scoped one
+    # (DIR, a real value with spaces/quotes/unicode) -- covers both the
+    # easy and the harder scope-decode branch in one real fixture.
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "node_test_linux.yml"))
+    output = generate_text(pipeline)
+    assert "ENVIRONMENT VARIABLES" in output
+    assert "- PYTHON_VERSION: 3.14" in output
+    assert "- RUSTC_VERSION: 1.83" in output
+    assert (
+        "- DIR: dir%20with $unusual\"chars?'åß∂ƒ©∆¬…` "
+        "(used in job: test-linux, step: Re-run test in a folder whose name contains unusual chars)"
+    ) in output
+
+
+def test_environment_variables_section_shows_job_scoped_real_example():
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "eslint_ci.yml"))
+    output = generate_text(pipeline)
+    assert "- TERM: xterm-256color (used in job: test_on_browser)" in output
+
+
+def test_no_environment_variables_section_when_pipeline_has_none():
+    # checkout_check_dist.yml has zero env vars at every scope -- the
+    # section must not appear at all, output otherwise unchanged.
+    pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "checkout_check_dist.yml"))
+    output = generate_text(pipeline)
+    assert "ENVIRONMENT VARIABLES" not in output

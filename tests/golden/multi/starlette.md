@@ -65,6 +65,9 @@ IMPLEMENTATION DETAILS
    - Checkout repository (https://github.com/actions/checkout)
    - Run zizmor 🌈 (https://github.com/zizmorcore/zizmor-action)
 
+ENVIRONMENT VARIABLES
+- HAS_CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }} (used in job: main_yml__docs-cloudflare-preview)
+
 SECRETS REQUIRED
 - CLOUDFLARE_API_TOKEN (used in job: main_yml__docs-cloudflare-preview)
 - CLOUDFLARE_API_TOKEN (used in job: main_yml__docs-cloudflare-preview, step: cloudflare/wrangler-action)

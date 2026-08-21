@@ -66,6 +66,20 @@ IMPLEMENTATION DETAILS
    - Commit and push
    - Create or update pull request
 
+ENVIRONMENT VARIABLES
+- FORCE_COLOR: 1
+- PYTEST_ADDOPTS: -vv --durations=20 (used in job: check_yaml__test, step: Run test suite)
+- DIFF_AGAINST: HEAD (used in job: check_yaml__test, step: Run test suite)
+- PYTEST_XDIST_AUTO_NUM_WORKERS: 0 (used in job: check_yaml__test, step: Run test suite)
+- FORCE_COLOR: 1
+- GH_TOKEN: ${{ secrets.RELEASE_PAT }} (used in job: prepare_release_yaml__prepare-release, step: Run release process)
+- STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }} (used in job: prepare_release_yaml__prepare-release, step: Run release process)
+- STEPS_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }} (used in job: prepare_release_yaml__prepare-release, step: Display completion message)
+- dists-artifact-name: python-package-distributions
+- FORCE_COLOR: 1
+- GH_TOKEN: ${{ secrets.SCHEMASTORE_TOKEN }} (used in job: update_schemastore_yaml__update-schemastore)
+- BRANCH: update-tox-schema (used in job: update_schemastore_yaml__update-schemastore)
+
 SECRETS REQUIRED
 - GITHUB_TOKEN (used in job: check_yaml__test, step: Install the latest version of uv)
 - GITHUB_TOKEN (used in job: check_yaml__check, step: Install the latest version of uv)

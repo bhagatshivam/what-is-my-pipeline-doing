@@ -59,14 +59,23 @@ Contract:
   fields, not an opening of the raw_extras exception above. See
   BUILD_PLAN.md's 2026-07-22 changelog entry for the promotion this
   followed.
-- generate_text()'s ```text``` block has five sections (Phase 7.5,
-  2026-07-30): AT A GLANCE (new, deterministic, zero inference — see
-  below), WHEN IT RUNS (renamed from TRIGGERS, same per-trigger content),
-  EXECUTION SUMMARY (new — which jobs are independent vs. depend on
-  others), IMPLEMENTATION DETAILS (renamed from "JOBS (in order)", content
-  unchanged), then LINKED WORKFLOWS / SECRETS REQUIRED as before. This
-  replaced a flat fact-inventory structure with no "big picture" framing
-  before the detail — supervisor feedback on Tool 1's real output.
+- generate_text()'s ```text``` block has six sections (five from Phase 7.5,
+  2026-07-30, plus ENVIRONMENT VARIABLES added 2026-08-19): AT A GLANCE
+  (new, deterministic, zero inference — see below), WHEN IT RUNS (renamed
+  from TRIGGERS, same per-trigger content), EXECUTION SUMMARY (new —
+  which jobs are independent vs. depend on others), IMPLEMENTATION
+  DETAILS (renamed from "JOBS (in order)", content unchanged), LINKED
+  WORKFLOWS, ENVIRONMENT VARIABLES (`Pipeline.environment_variables` —
+  see `_env_var_line`, mirrors `_secret_line`'s PIPELINE/JOB/STEP
+  branching exactly, plus the variable's own value), then SECRETS
+  REQUIRED last. ENVIRONMENT VARIABLES is placed before SECRETS REQUIRED
+  deliberately: SECRETS REQUIRED is an action item (values the reader
+  must supply before the pipeline can run), so it stays the final,
+  most-actionable section; environment variables are purely informational
+  (values already fixed in the YAML), grouped with the other
+  informational sections ahead of it. This replaced a flat fact-inventory
+  structure with no "big picture" framing before the detail — supervisor
+  feedback on Tool 1's real output.
 - AT A GLANCE is held to the exact same "never guess at intent" rule as
   the rest of this generator, stated explicitly because it's new: every
   sentence is built only from structured IR fields already on
@@ -444,6 +453,47 @@ def _secret_line(secret, jobs_by_name: Dict[str, Job]) -> str:
     return f"- {secret.name} (used in job: {job_key})"
 
 
+def _env_var_line(env_var, jobs_by_name: Dict[str, Job]) -> str:
+    """
+    Mirrors `_secret_line`'s exact PIPELINE/JOB/STEP branching and
+    `job.step_index` decode via `jobs_by_name` — same scope shape, same
+    defensive fallback for an unresolvable `scope_ref`. The one real
+    difference: an environment variable carries an actual literal value
+    worth showing (`{name}: {value}`), where a secret's value is never in
+    the IR at all.
+
+    `env_var.value` is `None` only when the parser's `_stringify_env_value`
+    saw a YAML declared-but-empty entry (`FOO:` with nothing after) — not,
+    despite `EnvironmentVariable.value`'s own inline schema comment, for a
+    "secret/dynamic reference" value (those are stored as their raw
+    expression string, e.g. `${{ secrets.X }}`, never nulled — see
+    `_parse_env_vars`'s docstring in parsers/github_actions.py, which
+    documents this exact divergence). Rendered as "(no value set)" rather
+    than the literal string "None" or silently dropping the variable —
+    and deliberately doesn't say "dynamic"/"secret", since the parser
+    doesn't actually assert that reason. Untested against real data: zero
+    of the 23 real files scanned (dev fixtures, held-out set, multi-fixture
+    repos) have a None-valued environment variable.
+    """
+    value = env_var.value if env_var.value is not None else "(no value set)"
+    if env_var.scope == SecretScope.PIPELINE or not env_var.scope_ref:
+        return f"- {env_var.name}: {value}"
+
+    if env_var.scope == SecretScope.JOB:
+        return f"- {env_var.name}: {value} (used in job: {env_var.scope_ref})"
+
+    job_key, _, index_str = env_var.scope_ref.partition(".")
+    job = jobs_by_name.get(job_key)
+    step_index = int(index_str) if index_str.isdigit() else None
+    if job is not None and step_index is not None and 0 <= step_index < len(job.steps):
+        return f"- {env_var.name}: {value} (used in job: {job_key}, step: {job.steps[step_index].name})"
+    # Defensive fallback, same rationale as _secret_line's — untested
+    # against real parser output either way (neither this branch nor
+    # _secret_line's equivalent has a test exercising it yet; this PR
+    # adds the first one, for this helper only).
+    return f"- {env_var.name}: {value} (used in job: {job_key})"
+
+
 # ---------------------------------------------------------------------------
 # At a glance (Phase 7.5, new) / Execution summary (Phase 7.5, new)
 # ---------------------------------------------------------------------------
@@ -597,10 +647,16 @@ def generate_text(pipeline: Pipeline) -> str:
         lines.append("LINKED WORKFLOWS")
         lines += [_linked_workflow_line(lw) for lw in pipeline.linked_workflows]
 
+    jobs_by_name = {j.name: j for j in pipeline.jobs}
+
+    if pipeline.environment_variables:
+        lines.append("")
+        lines.append("ENVIRONMENT VARIABLES")
+        lines += [_env_var_line(e, jobs_by_name) for e in pipeline.environment_variables]
+
     if pipeline.secrets:
         lines.append("")
         lines.append("SECRETS REQUIRED")
-        jobs_by_name = {j.name: j for j in pipeline.jobs}
         lines += [_secret_line(s, jobs_by_name) for s in pipeline.secrets]
 
     return "\n".join(lines) + "\n"

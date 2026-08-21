@@ -511,10 +511,21 @@ generated output, not just checking it doesn't raise.
   `build` has 28) rather than producing a wall of text. The aggregate
   step count in the job line itself is untouched and always reflects the
   true total regardless of the cap.
-- **`Pipeline.environment_variables` has no dedicated section**, and
-  job-level `Job.environment` names are not surfaced in job lines either
-  — out of scope for this slice, not a data-loss concern (the IR still
-  has the data; a future revision could add an "ENVIRONMENT" section).
+- **Resolved (2026-08-19): `Pipeline.environment_variables` now has a
+  dedicated `ENVIRONMENT VARIABLES` section**, placed between `LINKED
+  WORKFLOWS` and `SECRETS REQUIRED` (informational sections grouped
+  together, ahead of the actionable `SECRETS REQUIRED` checklist). New
+  `_env_var_line()` mirrors `_secret_line`'s exact PIPELINE/JOB/STEP
+  branching and `job.step_index` decode, plus the variable's own literal
+  value. `EnvironmentVariable.value == None` (a YAML declared-but-empty
+  entry — not, despite this field's own inline schema comment, a
+  "secret/dynamic reference"; see `_parse_env_vars`'s docstring in
+  parsers/github_actions.py) renders as `(no value set)`, never the
+  literal string `"None"`. `Job.environment`'s job-scoped names are not
+  separately surfaced in job lines, but the same underlying facts are no
+  longer missing from the document — they render via this new section
+  instead, alongside pipeline- and step-scoped entries, rather than
+  inline per job.
 - **PROJECT_PLAN.md's illustrative prose ("checks code style using
   flake8", "deploys to production") is deliberately not reproduced.**
   Fabricating that kind of description from a job name alone would be
@@ -1318,18 +1329,17 @@ against it. Current scope and limits, honestly stated:
   legitimate-looking job/secret pairing. Documented and tested
   (`evaluation/error_injection/job_key_grammar_violation.yml`), not fixed —
   out of scope for Item 5.
-- **Known limitation, already documented, now independently confirmed twice
-  (Round 1 self-tests and Round 2 held-out): no environment-variable output
-  section.** E2's coverage check (`evaluation/coverage_check.py`)
-  independently reconfirms this file's existing "Text generator" note that
-  `Pipeline.environment_variables` has no dedicated section in generated
-  text (see lines 491-494) — every `environment_variable` manifest fact
-  scores `missing` in the generated text, by design of the current
-  generator, not a scorer defect. Round 2's held-out set adds 3 more
-  real-world confirming instances beyond Round 1's dev fixtures:
-  `urllib3_ci.env_var.1` (`FORCE_COLOR`) and `scipy_linux.env_var.1`/`.2`
-  (`CCACHE_MAXSIZE`, `CCACHE_COMPILERCHECK`) all score `missing` in E2 for
-  the same documented reason.
+- **Resolved (2026-08-19): the environment-variable output gap this bullet
+  tracked (confirmed twice, Round 1 self-tests and Round 2 held-out) is
+  fixed** — see this file's "Text generator" section's now-`Resolved`
+  entry on `Pipeline.environment_variables`. The three real facts E2 named
+  here as confirming instances — `urllib3_ci.env_var.1` (`FORCE_COLOR`)
+  and `scipy_linux.env_var.1`/`.2` (`CCACHE_MAXSIZE`,
+  `CCACHE_COMPILERCHECK`) — were checked directly against the fixed
+  generator and all three now render in the `ENVIRONMENT VARIABLES`
+  section. E2 itself was not re-run as part of this fix (out of scope,
+  same boundary as PRs #53/#54) — this is a direct check of the specific
+  named facts, not a full coverage-check re-run.
 - **Held-out set "unseen" status is narrower than a blanket claim (Phase 7
   Step 1, 2026-07-25).** E1/E2/E3 have already been scored once against
   `evaluation/held_out_workflows/` (Round 2 results above: E1 80/80, E2

@@ -80,6 +80,11 @@ LINKED WORKFLOWS
 - calls ./.github/workflows/_get-changed-files.yml
 - calls ./.github/workflows/_lint.yml
 - calls ./.github/workflows/_link_check.yml
+
+ENVIRONMENT VARIABLES
+- BASE: ${{ github.event.pull_request.base.sha }} (used in job: pr-sanity-checks, step: PR size check (nonretryable))
+- HEAD: ${{ github.event.pull_request.head.sha }} (used in job: pr-sanity-checks, step: PR size check (nonretryable))
+- BASE_REF: ${{ github.event.pull_request.base.ref }} (used in job: doc-redirects-check, step: Doc redirects check (nonretryable))
 ```
 
 ## Pipeline Diagram

@@ -29,6 +29,17 @@ IMPLEMENTATION DETAILS
    - Test
    - Ensure running tests did not cause any change in the tree
    - Re-run test in a folder whose name contains unusual chars
+
+ENVIRONMENT VARIABLES
+- PYTHON_VERSION: 3.14
+- FLAKY_TESTS: keep_retrying
+- CLANG_VERSION: 19
+- CC: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang-19
+- CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++-19
+- SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
+- SCCACHE_IDLE_TIMEOUT: 0
+- RUSTC_VERSION: 1.83
+- DIR: dir%20with $unusual"chars?'åß∂ƒ©∆¬…` (used in job: test-linux, step: Re-run test in a folder whose name contains unusual chars)
 ```
 
 ## Pipeline Diagram
