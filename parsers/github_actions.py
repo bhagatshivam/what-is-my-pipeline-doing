@@ -839,7 +839,14 @@ def _parse_step(step: Dict[str, Any]) -> Step:
         value = ""
         raw_extras["unrecognized_step"] = step
 
-    name = step.get("name") or _step_name_fallback(step)
+    # .strip() guards against a YAML folded/block scalar name: (e.g. `name:
+    # >`) leaving a stray trailing newline (clip chomping keeps one) or,
+    # in principle, leading whitespace from some other scalar style — Step
+    # display name has no source-fidelity purpose for either, unlike a
+    # with:/run: value where the exact string is meaningful. Real case:
+    # celery_python_package.yml's Unit job step 4, `name: >` folding two
+    # source lines, leaves 'Run tox for "..."-unit"\n' without this strip.
+    name = (step.get("name") or _step_name_fallback(step)).strip()
     with_args = step.get("with")
     env_entries = _parse_env_vars(step.get("env"), SecretScope.STEP, None)
 

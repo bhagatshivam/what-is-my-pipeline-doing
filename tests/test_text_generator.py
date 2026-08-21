@@ -709,3 +709,37 @@ def test_no_environment_variables_section_when_pipeline_has_none():
     pipeline = GitHubActionsParser().parse(os.path.join(FIXTURES_DIR, "checkout_check_dist.yml"))
     output = generate_text(pipeline)
     assert "ENVIRONMENT VARIABLES" not in output
+
+
+def test_secret_and_env_var_step_decode_clean_for_folded_scalar_name(tmp_path):
+    # Integration proof that the parser-level strip (parsers/github_actions.py's
+    # _parse_step, fixed for celery_python_package.yml's real Unit-job-step-4
+    # bug) also protects _secret_line's and _env_var_line's own step: decode --
+    # not just _step_lines. Neither of those two functions strips anything
+    # itself; they're clean here only because Step.name can no longer carry
+    # an embedded newline by the time it reaches them. No real fixture scopes
+    # a secret/env var to a folded-scalar-named step, so this is synthetic,
+    # same tmp_path convention as tests/test_github_actions_raw_extras.py
+    # uses for shapes no real fixture exercises.
+    workflow = tmp_path / "folded-name.yml"
+    workflow.write_text(
+        "name: demo\n"
+        "on: push\n"
+        "jobs:\n"
+        "  demo:\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - name: >\n"
+        "          Run tox for\n"
+        "          unit\n"
+        "        run: echo ${{ secrets.MY_TOKEN }}\n"
+        "        env:\n"
+        "          MY_VAR: hello\n",
+        encoding="utf-8",
+    )
+    pipeline = GitHubActionsParser().parse(str(workflow))
+    output = generate_text(pipeline)
+    assert "MY_TOKEN (used in job: demo, step: Run tox for unit)" in output
+    assert "MY_VAR: hello (used in job: demo, step: Run tox for unit)" in output
+    assert "Run tox for unit\n)" not in output
+    assert "Run tox for\n" not in output
