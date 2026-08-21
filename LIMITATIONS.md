@@ -103,6 +103,23 @@ secrets`, `## continue-on-error`, and `## Conditions (if:)` below.
   as a display label; tag/branch-pinned refs (e.g. `actions/checkout@v7`)
   are left as the full string, since those are already readable.
   `Step.value` is unaffected by this either way.
+- **Resolved (2026-08-21): a `name:` value could carry a stray trailing
+  newline from a YAML folded/block scalar.** `name: >` (or `|`) keeps one
+  trailing newline under default clip chomping, same root mechanism as PR
+  #53's `with:` trailing-newline bug — a different field hitting the same
+  YAML behavior. `Step.name` is now `.strip()`ped once, at the single
+  assignment point in `_parse_step` (covers both the explicit `name:` case
+  and the derived fallback), not `.rstrip("\n")` — a step display name has
+  no source-fidelity purpose for surrounding whitespace of any kind, unlike
+  `with:`/`run:` values where the exact string matters. Fixed at the
+  parser rather than patching each render site individually, since
+  `Step.name` is interpolated raw in three places in
+  `generators/text_generator.py` (`_step_lines`, plus `_secret_line`'s and
+  `_env_var_line`'s step-scope decode); a single independent scan of every
+  dev fixture, the held-out set, and the multi-fixture repos found exactly
+  one real instance (`celery_python_package.yml`'s `Unit` job, step 4,
+  `name: >` folding two source lines) — the other two render sites aren't
+  exercised by any real data today, but are covered by the fix regardless.
 - **`shell:` and `working-directory:`** (33 and 4 occurrences respectively)
   have no dedicated `Step` field and no pass currently scheduled to add
   one, unlike env/continue-on-error/if (all now implemented) — preserved

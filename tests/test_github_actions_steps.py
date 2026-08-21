@@ -298,3 +298,48 @@ def test_uses_with_no_at_sign_returned_unchanged():
     snippet = "steps:\n  - uses: ./.github/actions/foo\n"
     steps = _parse_steps(_load_steps(snippet))
     assert steps[0].name == "./.github/actions/foo"
+
+
+# ---------------------------------------------------------------------------
+# Stray whitespace in an explicit name: — a YAML folded/block scalar keeps
+# one trailing newline (clip chomping), same root cause as PR #53's with:
+# trailing-newline bug, different field. Real case: celery_python_package.yml's
+# Unit job step 4, name: > folding two source lines.
+# ---------------------------------------------------------------------------
+
+def test_folded_scalar_name_trailing_newline_is_stripped():
+    # Mirrors the real celery_python_package.yml shape exactly: `name: >`
+    # folds the internal line break to a space but keeps one trailing `\n`
+    # under default clip chomping.
+    snippet = (
+        "steps:\n"
+        "  - name: >\n"
+        "      Run tox for\n"
+        "      unit\n"
+        "    run: echo hi\n"
+    )
+    steps = _parse_steps(_load_steps(snippet))
+    assert steps[0].name == "Run tox for unit"
+    assert "\n" not in steps[0].name
+
+
+def test_explicit_name_leading_and_trailing_whitespace_stripped():
+    snippet = "steps:\n  - name: '  Padded step  '\n    run: echo hi\n"
+    steps = _parse_steps(_load_steps(snippet))
+    assert steps[0].name == "Padded step"
+
+
+def test_real_celery_python_package_unit_step_name_has_no_embedded_newline():
+    # Read-only inspection of the held-out fixture -- no generation there,
+    # same boundary as prior PRs. This is the one real instance found by an
+    # independent full scan of every dev fixture, the held-out set, and the
+    # multi-fixture repos.
+    pipeline = GitHubActionsParser().parse(
+        os.path.join(os.path.dirname(__file__), "..", "evaluation",
+                      "held_out_workflows", "celery_python_package.yml")
+    )
+    job = next(j for j in pipeline.jobs if j.name == "Unit")
+    step = job.steps[4]
+    assert step.name == 'Run tox for "${{ matrix.python-version }}-unit"'
+    assert "\n" not in step.name
+    assert len(job.steps) == 7
