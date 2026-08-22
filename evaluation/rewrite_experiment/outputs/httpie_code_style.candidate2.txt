@@ -1,0 +1,18 @@
+This document describes the "Code Style Check" pipeline, which is defined as a GitHub Actions workflow at `/home/user/what-is-my-pipeline-doing/evaluation/held_out_workflows/httpie_code_style.yml`.
+
+### When it Runs
+
+This workflow is triggered on every pull request. It will execute specifically if the pull request modifies any files matching the following paths: `.github/workflows/code-style.yml`, `extras/*.py`, `httpie/**/*.py`, `setup.py`, or `tests/**/*.py`.
+
+### Pipeline Overview
+
+The pipeline consists of a single job named `code-style`. There are no job dependencies, meaning this job runs independently.
+
+### Job: `code-style`
+
+This job runs on an `ubuntu-latest` environment and performs four sequential steps:
+
+1.  It uses the `actions/checkout@v3` action (available at `https://github.com/actions/checkout`) to check out the repository's code.
+2.  It then uses the `actions/setup-python@v4` action (available at `https://github.com/actions/setup-python`) to configure Python.
+3.  Next, it executes the command `make venv`.
+4.  Finally, it runs the command `make codestyle`.

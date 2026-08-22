@@ -1,0 +1,3 @@
+This "Code Style Check" pipeline is a GitHub Actions workflow designed to run on pull requests. It triggers automatically whenever a pull request touches files located at `.github/workflows/code-style.yml`, `extras/*.py`, `httpie/**/*.py`, `setup.py`, or `tests/**/*.py`.
+
+The pipeline contains a single job named `code-style`, which runs on an `ubuntu-latest` environment. This job performs four steps: it checks out the repository code, sets up Python, creates a virtual environment using `make venv`, and then executes code style checks with `make codestyle`.

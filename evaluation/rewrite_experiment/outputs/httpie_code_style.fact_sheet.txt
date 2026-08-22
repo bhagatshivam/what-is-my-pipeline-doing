@@ -1,0 +1,19 @@
+Pipeline: Code Style Check
+Source: /home/user/what-is-my-pipeline-doing/evaluation/held_out_workflows/httpie_code_style.yml (GitHub Actions)
+
+AT A GLANCE
+This workflow runs on pull requests.
+It contains 1 job, with no job dependencies, so GitHub may run them in parallel.
+
+WHEN IT RUNS
+- Runs on every pull request touching path .github/workflows/code-style.yml or extras/*.py or httpie/**/*.py or setup.py or tests/**/*.py
+
+EXECUTION SUMMARY
+Independent jobs (no dependencies): code-style
+
+IMPLEMENTATION DETAILS
+1. code-style — runs on ubuntu-latest; 4 steps
+   - actions/checkout@v3 (https://github.com/actions/checkout)
+   - actions/setup-python@v4 (https://github.com/actions/setup-python)
+   - make venv
+   - make codestyle

@@ -1,0 +1,126 @@
+This document provides a walkthrough of the `build-and-test` CI/CD pipeline, designed to help you understand its structure, triggers, and execution flow.
+
+### Pipeline Overview
+
+The `build-and-test` pipeline, defined in `/home/user/what-is-my-pipeline-doing/evaluation/held_out_workflows/nextjs_build_and_test.yml` (a GitHub Actions workflow), manages continuous integration for the project. It is configured to run with a concurrency group that cancels in-progress runs, ensuring only the latest relevant execution proceeds. The concurrency group is dynamically named based on whether the event is a pull request or a push.
+
+This workflow consists of 40 jobs in total. Five of these jobs have no declared dependencies and run independently, while the remaining 35 jobs depend on the successful completion of other jobs. A significant portion of the pipeline, 17 out of 40 jobs, utilizes a build matrix. Among these, 11 jobs define 47 specific combinations, with 6 additional jobs also using matrices whose sizes are not included in that total.
+
+### When the Pipeline Runs
+
+The `build-and-test` pipeline is triggered in two scenarios:
+*   On every push to the `canary` branch.
+*   On every pull request.
+
+### Initial Setup and Pre-processing Jobs
+
+Several jobs run early in the pipeline to set up the environment, gather metadata, or determine subsequent execution paths:
+
+*   **`optimize-ci`**: This job delegates its execution to the reusable workflow located at `./.github/workflows/pr_stack_optimizer.yml`.
+*   **`changes`**: Running on `ubuntu-latest`, this job has 3 steps. It checks out the repository, then specifically checks for "docs only" changes and "release" changes. It requires `contents: read` permissions. This job outputs `docs-only` and `rspack` values, which are used in conditions for other jobs.
+*   **`pr-ci-metadata`**: This job runs exclusively on `pull_request` events on `ubuntu-latest` with `contents: read` permissions. It has 2 steps: "Write PR metadata" and "Upload PR metadata" using `actions/upload-artifact`. It utilizes several environment variables to capture pull request details: `PR_NUMBER`, `PR_HEAD_SHA`, `PR_HEAD_REF`, `PR_HEAD_REPO`, `PR_BASE_REF`, and `PR_IS_FORK`.
+*   **`fetch-test-timings`**: This job runs on `ubuntu-latest` and depends on the `changes` job. It proceeds only if `needs.changes.outputs.docs-only` is `false`. It involves 9 steps, including setting up Node.js and pnpm, checking out the repository, caching the pnpm store, installing dependencies, fetching test timings, ensuring the timings file exists, and uploading test timings using `actions/upload-artifact`. This job requires the `KV_REST_API_URL` and `KV_REST_API_TOKEN` secrets.
+
+### Core Build Jobs
+
+These jobs are responsible for building various components of the project:
+
+*   **`build-next`**: This job delegates to the reusable workflow `./.github/workflows/build_reusable.yml` with `needsPlaywright: no`, `skipNativeBuild: yes`, and `stepName: build-next`.
+*   **`build-native`**: This job delegates to `./.github/workflows/build_reusable.yml` with `skipInstallBuild: yes`, `stepName: build-native`, and `uploadNativeArtifact: true`. It runs after the `changes` job and is conditional on `needs.changes.outputs.docs-only` being `false`.
+*   **`build-native-windows`**: Similar to `build-native`, this job delegates to `./.github/workflows/build_reusable.yml` with `skipInstallBuild: yes`, `stepName: build-native-windows`, `runs_on_labels: ["windows-latest-8-core-oss"]`, and `uploadNativeArtifact: true`. It also runs after `changes` and is conditional on `needs.changes.outputs.docs-only` being `false`.
+
+### Linting and Static Analysis
+
+These jobs ensure code quality and documentation integrity:
+
+*   **`lint`**: This job delegates to `./.github/workflows/build_reusable.yml` with `needsPlaywright: no`, `skipNativeBuild: yes`, `skipNativeInstall: yes`, and `stepName: lint`. It executes `pnpm lint-no-typescript` (and 7 more lines of commands) after the `build-next` job.
+*   **`validate-docs-links`**: Running on `ubuntu-latest`, this job has 4 steps: checking out the repository, setting up Node.js, setting up corepack, and running a link checker. It requires the `GITHUB_TOKEN` secret.
+*   **`ast-grep`**: This job runs on `ubuntu-latest` after the `changes` and `build-next` jobs. It has 2 steps: checking out the repository and running an `ast-grep lint` step using `ast-grep/action`.
+*   **`check-types-precompiled`**: This job delegates to `./.github/workflows/build_reusable.yml` with `needsPlaywright: no`, `afterBuild: pnpm types-and-precompiled`, and `stepName: types-and-precompiled`. It runs after the `changes`, `build-native`, and `build-next` jobs.
+
+### Rust-Specific Checks
+
+These jobs focus on the Rust components of the project:
+
+*   **`test-cargo-unit`**: This job delegates to `./.github/workflows/build_reusable.yml` with `needsRust: yes`, `needsNextest: yes`, `skipNativeBuild: yes`, `skipInstallBuild: yes`, `afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}`, `stepName: test-cargo-unit`, and `runs_on_labels: ["ubuntu-latest-16-core-oss"]`. It runs after `changes` and `build-next`, conditional on `needs.changes.outputs.docs-only` being `false`.
+*   **`rust-check`**: This job delegates to `./.github/workflows/build_reusable.yml` with `needsRust: yes`, `skipInstallBuild: yes`, `skipNativeBuild: yes`, `afterBuild: pnpm dlx turbo@${TURBO_VERSION} run rust-check ${TURBO_ARGS}`, and `stepName: rust-check`. It runs after `changes` and `build-next`, conditional on `needs.changes.outputs.docs-only` being `false`.
+*   **`rustdoc-check`**: This job delegates to `./.github/workflows/build_reusable.yml` with `needsRust: yes`, `skipInstallBuild: yes`, `skipNativeBuild: yes`, `afterBuild: ./scripts/deploy-turbopack-docs.sh`, and `stepName: rustdoc-check`. It runs after `changes` and `build-next`, conditional on `needs.changes.outputs.docs-only` being `false`.
+
+### Comprehensive Testing Suites
+
+The pipeline includes a wide array of testing jobs, often utilizing build matrices for varied configurations:
+
+#### Unit Tests
+*   **`test-unit`**: Delegates to `./.github/workflows/build_reusable.yml` with `needsPlaywright: no`, `nodeVersion: ${{ matrix.node }}`, `afterBuild: node run-tests.js --type unit`, and `stepName: test-unit-${{ matrix.node }}`. It uses a matrix with 2 Node.js version combinations. It runs after `changes`, `build-next`, and `build-native`, conditional on `needs.changes.outputs.docs-only` being `false`.
+*   **`test-unit-windows`**: Delegates to `./.github/workflows/build_reusable.yml` with `needsPlaywright: no`, `nodeVersion: ${{ matrix.node }}`, `afterBuild: node run-tests.js --type unit`, `stepName: test-unit-windows-${{ matrix.node }}`, and `runs_on_labels: ["windows-latest-8-core-oss"]`. It uses a matrix with 2 Node.js version combinations. It runs after `changes`, `build-native-windows`, and `build-next`, conditional on `needs.changes.outputs.docs-only` being `false`.
+
+#### Next.js Configuration Tests
+*   **`test-next-config-ts-native-ts-dev`**: Delegates to `./.github/workflows/build_reusable.yml` with `nodeVersion: ${{ matrix.node }}`, `afterBuild: export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true` (and 2 more lines), and `stepName: test-next-config-ts-native-ts-dev-${{ matrix.node }}`. It uses a matrix with 2 Node.js version combinations. It runs after `changes`, `build-next`, and `build-native`, conditional on `needs.changes.outputs.docs-only` being `false`.
+*   **`test-next-config-ts-native-ts-prod`**: Delegates to `./.github/workflows/build_reusable.yml` with `nodeVersion: ${{ matrix.node }}`, `afterBuild: export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true` (and 2 more lines), and `stepName: test-next-config-ts-native-ts-prod-${{ matrix.node }}`. It uses a matrix with 2 Node.js version combinations. It runs after `changes`, `build-next`, and `build-native`, conditional on `needs.changes.outputs.docs-only` being `false`.
+
+#### Turbopack Tests
+*   **`test-turbopack-dev`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export IS_TURBOPACK_TEST=1` (and 12 more lines), `testTimingsArtifact: test-timings`, `stepName: test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}`, and `runs_on_labels: ["ubuntu-latest-16-core-arm-oss"]`. It uses a matrix with up to 14 combinations (group, react), with 1 excluded. It runs after `optimize-ci`, `changes`, `build-next`, `build-native`, and `fetch-test-timings`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`test-turbopack-production`**: Delegates to `./.github/workflows/build_reusable.yml` with `nodeVersion: 20.9.0`, `afterBuild: export IS_TURBOPACK_TEST=1` (and 8 more lines), `testTimingsArtifact: test-timings`, `stepName: test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}`, and `runs_on_labels: ["ubuntu-latest-16-core-arm-oss"]`. It uses a matrix with up to 14 combinations (group, react), with 1 excluded. It runs after `optimize-ci`, `changes`, `build-next`, `build-native`, and `fetch-test-timings`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+
+#### Rspack Tests
+*   **`test-rspack-dev`**: Delegates to `./.github/workflows/build_reusable.yml` with `nodeVersion: 20.19.x`, `afterBuild: export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"` (and 18 more lines), `testTimingsArtifact: test-timings`, and `stepName: test-rspack-dev-react-${{ matrix.react }}-${{ matrix.group }}`. It uses a matrix with up to 10 combinations (group, react), with 1 excluded. It runs after `optimize-ci`, `changes`, `build-next`, `build-native`, and `fetch-test-timings`, conditional on `needs.optimize-ci.outputs.skip` being `false`, `needs.changes.outputs.docs-only` being `false`, and `needs.changes.outputs.rspack` being `true`.
+*   **`test-rspack-production`**: Delegates to `./.github/workflows/build_reusable.yml` with `nodeVersion: 20.19.x`, `afterBuild: export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"` (and 14 more lines), `testTimingsArtifact: test-timings`, and `stepName: test-rspack-production-react-${{ matrix.react }}-${{ matrix.group }}`. It uses a matrix with up to 14 combinations (group, react), with 1 excluded. It runs after `optimize-ci`, `changes`, `build-next`, `build-native`, and `fetch-test-timings`, conditional on `needs.optimize-ci.outputs.skip` being `false`, `needs.changes.outputs.docs-only` being `false`, and `needs.changes.outputs.rspack` being `true`.
+
+#### SWC WASM/NAPI Tests
+*   **`test-next-swc-wasm`**: Delegates to `./.github/workflows/build_reusable.yml` with `skipNativeBuild: yes`, `skipNativeInstall: yes`, `afterBuild: rustup target add wasm32-unknown-unknown` (and 10 more lines), and `stepName: test-next-swc-wasm`. It runs after `optimize-ci`, `changes`, and `build-next`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`test-next-napi-bindings-wasi`**: Delegates to `./.github/workflows/build_reusable.yml` with `skipNativeBuild: yes`, `skipNativeInstall: yes`, `afterBuild: rustup target add wasm32-wasip1-threads` (and 1 more line), and `stepName: test-next-napi-bindings-wasi`. This job runs after `optimize-ci`, `changes`, and `build-next`, but its condition is always `false`, meaning it will never execute.
+
+#### Development and Production Tests (Linux/Windows)
+*   **`test-dev`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export IS_WEBPACK_TEST=1` (and 10 more lines), `testTimingsArtifact: test-timings`, `stepName: test-dev-react-${{ matrix.react }}-${{ matrix.group }}`, and `runs_on_labels: ["ubuntu-latest-16-core-arm-oss"]`. It uses a matrix with up to 20 combinations (group, react), with 1 excluded. It runs after `optimize-ci`, `changes`, `build-native`, `build-next`, and `fetch-test-timings`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`test-prod`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export IS_WEBPACK_TEST=1` (and 6 more lines), `testTimingsArtifact: test-timings`, `stepName: test-prod-react-${{ matrix.react }}-${{ matrix.group }}`, and `runs_on_labels: ["ubuntu-latest-16-core-arm-oss"]`. It uses a matrix with up to 20 combinations (group, react), with 1 excluded. It runs after `optimize-ci`, `changes`, `build-native`, `build-next`, and `fetch-test-timings`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`test-dev-windows`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export NEXT_TEST_MODE=dev` (and 10 more lines), `stepName: test-dev-windows`, and `runs_on_labels: ["windows-latest-8-core-oss"]`. It runs after `optimize-ci`, `changes`, `build-native-windows`, and `build-next`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`test-integration-windows`**: Delegates to `./.github/workflows/build_reusable.yml` with `nodeVersion: 20.9.0`, `afterBuild: export NEXT_TEST_MODE=start` (and 12 more lines), `stepName: test-integration-windows`, and `runs_on_labels: ["windows-latest-8-core-oss"]`. It runs after `optimize-ci`, `changes`, `build-native-windows`, and `build-next`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`test-prod-windows`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export NEXT_TEST_MODE=start` (and 11 more lines), `stepName: test-prod-windows`, and `runs_on_labels: ["windows-latest-8-core-oss"]`. It runs after `optimize-ci`, `changes`, `build-native-windows`, and `build-next`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+
+#### New Tests and Deployments
+*   **`test-new-tests-dev`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true` (and 6 more lines), `stepName: test-new-tests-dev-${{matrix.group}}`, and `timeout_minutes: 120`. It uses a matrix with 5 combinations (group). It runs after `optimize-ci`, `changes`, `build-native`, and `build-next`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`test-new-tests-start`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true` (and 6 more lines), `stepName: test-new-tests-start-${{matrix.group}}`, and `timeout_minutes: 120`. It uses a matrix with 5 combinations (group). It runs after `optimize-ci`, `changes`, `build-native`, and `build-next`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`test-new-tests-deploy`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export NEXT_ENABLE_ADAPTER=1` (and 8 more lines), and `stepName: test-new-tests-deploy-${{matrix.group}}`. It uses a matrix with 5 combinations (group). It runs after `optimize-ci`, `test-prod`, `test-new-tests-dev`, and `test-new-tests-start`, conditional on `needs.optimize-ci.outputs.skip` being `false`.
+
+#### Cache Components Tests
+*   **`test-cache-components-dev`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export __NEXT_CACHE_COMPONENTS=true` (and 12 more lines), `testTimingsArtifact: test-timings`, and `stepName: test-cache-components-dev-${{ matrix.group }}`. It uses a matrix with 6 combinations (group). It runs after `optimize-ci`, `changes`, `build-native`, `build-next`, and `fetch-test-timings`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`test-cache-components-prod`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export __NEXT_CACHE_COMPONENTS=true` (and 12 more lines), `testTimingsArtifact: test-timings`, and `stepName: test-cache-components-prod-${{ matrix.group }}`. It uses a matrix with 7 combinations (group). It runs after `optimize-ci`, `changes`, `build-native`, `build-next`, and `fetch-test-timings`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`test-new-tests-deploy-cache-components`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: export __NEXT_CACHE_COMPONENTS=true` (and 9 more lines), and `stepName: test-new-tests-deploy-cache-components-${{matrix.group}}`. It uses a matrix with 5 combinations (group). It runs after `optimize-ci`, `test-cache-components-prod`, `test-new-tests-dev`, and `test-new-tests-start`, conditional on `needs.optimize-ci.outputs.skip` being `false`.
+
+#### Browser Tests
+*   **`test-firefox-safari`**: Delegates to `./.github/workflows/build_reusable.yml` with `browser: firefox webkit`, `afterBuild: # these all run without concurrency because they're heavier` (and 23 more lines), and `stepName: test-firefox-safari`. It runs after `optimize-ci`, `changes`, `build-native`, and `build-next`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+
+#### Benchmarking Tests
+*   **`test-bench`**: This job delegates to the reusable workflow `./.github/workflows/test-turbopack-rust-bench-test.yml`. It runs after `optimize-ci`, `changes`, and `build-next`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+*   **`devlow-bench`**: Delegates to `./.github/workflows/build_reusable.yml` with `afterBuild: ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs` (and 3 more lines), and `stepName: devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}`. It uses a matrix with 6 combinations (mode, selector). It runs after `optimize-ci`, `changes`, `build-next`, and `build-native`, conditional on `needs.optimize-ci.outputs.skip` being `false`, `needs.changes.outputs.docs-only` being `false`, and `github.event_name` not being `pull_request`.
+*   **`test-devlow`**: Delegates to `./.github/workflows/build_reusable.yml` with `skipNativeBuild: yes`, `stepName: test-devlow`, and `afterBuild: pnpm run --filter=devlow-bench test`. It runs after `optimize-ci` and `changes`, conditional on `needs.optimize-ci.outputs.skip` being `false` and `needs.changes.outputs.docs-only` being `false`.
+
+### Final Status Check
+
+*   **`tests-pass`**: This job runs on `ubuntu-latest` and has a single step that exits with `1`. It depends on a large number of preceding jobs, including `optimize-ci`, `changes`, `build-native`, `build-next`, `fetch-test-timings`, `lint`, `validate-docs-links`, `check-types-precompiled`, `test-unit`, `test-next-config-ts-native-ts-dev`, `test-next-config-ts-native-ts-prod`, `test-dev`, `test-prod`, `test-firefox-safari`, `test-cache-components-dev`, `test-cache-components-prod`, `test-cargo-unit`, `rust-check`, `rustdoc-check`, `test-next-swc-wasm`, `test-turbopack-dev`, `test-new-tests-dev`, `test-new-tests-start`, `test-new-tests-deploy`, `test-new-tests-deploy-cache-components`, `test-turbopack-production`, `test-unit-windows`, `test-dev-windows`, `test-integration-windows`, and `test-prod-windows`. This job is configured to run `always()`, regardless of the success or failure of its dependencies.
+
+### Reusable Workflows Utilized
+
+This pipeline calls the following reusable workflows:
+*   `./.github/workflows/pr_stack_optimizer.yml`
+*   `./.github/workflows/build_reusable.yml`
+*   `./.github/workflows/test-turbopack-rust-bench-test.yml`
+
+### Environment Variables and Secrets
+
+The pipeline uses several environment variables and requires specific secrets:
+
+#### Environment Variables
+*   `NODE_MAINTENANCE_VERSION`: Set to `20`.
+*   `NODE_LTS_VERSION`: Set to `22`.
+*   `PR_NUMBER`: Set to `${{ github.event.pull_request.number }}`, used in the `pr-ci-metadata` job's "Write PR metadata" step.
+*   `PR_HEAD_SHA`: Set to `${{ github.event.pull_request.head.sha }}`, used in the `pr-ci-metadata` job's "Write PR metadata" step.
+*   `PR_HEAD_REF`: Set to `${{ github.event.pull_request.head.ref }}`, used in the `pr-ci-metadata` job's "Write PR metadata" step.
+*   `PR_HEAD_REPO`: Set to `${{ github.event.pull_request.head.repo.full_name }}`, used in the `pr-ci-metadata` job's "Write PR metadata" step.
+*   `PR_BASE_REF`: Set to `${{ github.event.pull_request.base.ref }}`, used in the `pr-ci-metadata` job's "Write PR metadata" step.
+*   `PR_IS_FORK`: Set to `${{ github.event.pull_request.head.repo.full_name != github.repository }}`, used in the `pr-ci-metadata` job's "Write PR metadata" step.
+
+#### Secrets Required
+*   `KV_REST_API_URL`: Used in the `fetch-test-timings` job's "Fetch test timings" step.
+*   `KV_REST_API_TOKEN`: Used in the `fetch-test-timings` job's "Fetch test timings" step.
+*   `GITHUB_TOKEN`: Used in the `validate-docs-links` job's "Run link checker" step.
