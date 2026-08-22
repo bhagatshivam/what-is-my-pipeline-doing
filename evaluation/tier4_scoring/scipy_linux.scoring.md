@@ -8,181 +8,16 @@ Score each condition fact-by-fact against the checklist: present / missing / fal
 
 ## Condition A
 
-This CI/CD pipeline, named "Linux tests," is a comprehensive suite designed to ensure the quality, compatibility, and robustness of the SciPy library across various Linux environments, Python versions, and build configurations.
-
-Here's a breakdown of what it does:
-
-**Overall Purpose:**
-The pipeline aims to thoroughly test SciPy's build process, installation, and functionality on Linux, covering a wide range of scenarios including different Python versions (stable, development, debug), compilers (GCC, Clang), BLAS/LAPACK libraries (OpenBLAS, ATLAS), installation methods (pip, venv, sdist/wheel), and architectures (32-bit, ARM64). It also performs static analysis and generates code coverage reports.
-
-**Triggers (`on`):**
-The pipeline runs automatically on:
-*   **`push` events:** When code is pushed to the `main` branch or any branch matching `maintenance/**` (e.g., `maintenance/1.x`).
-*   **`pull_request` events:** When a pull request targets the `main` branch or any branch matching `maintenance/**`.
-
-**Permissions (`permissions`):**
-It grants `read` access to the repository contents, which is necessary for actions like `actions/checkout` to fetch the code.
-
-**Environment Variables (`env`):**
-*   `CCACHE_DIR`: Configures `ccache` (a compiler cache) to store its cache in the GitHub workspace, speeding up subsequent builds.
-*   `CCACHE_MAXSIZE`: Sets the maximum size of the `ccache` directory to 250MB.
-*   `CCACHE_COMPILERCHECK: "content"`: Specifies that `ccache` should check the content of the compiler executable, not just its modification time. This is explicitly noted as "Needed because Pixi doesn't set mtime for compilers," indicating a specific interaction with the `pixi` package manager used in some jobs.
-
-**Concurrency (`concurrency`):**
-It ensures that only one run of this workflow for a given branch or pull request is active at a time. If a new commit is pushed while a previous run is still in progress for the same branch/PR, the older run will be cancelled. This saves resources and prevents redundant checks.
-
----
-
-**Jobs Breakdown:**
-
-The pipeline consists of several independent jobs, many of which depend on `get_commit_message` and include a conditional `if` statement to only run if a specific output from `get_commit_message` is `1` (likely indicating "run CI") and the repository is `scipy/scipy` (or empty for local testing with `act`).
-
-1.  **`get_commit_message`**
-    *   **Purpose:** This is a utility job that uses a reusable workflow (`./.github/workflows/commit_message.yml`) to likely parse the commit message.
-    *   **Output:** It produces an `output.message` which is used by subsequent jobs to conditionally run. This is often used to implement "skip CI" messages or similar logic.
-
-2.  **`test_meson`**
-    *   **Name:** `pyrefly (py3.12) & dev deps (py3.15), fast, spin`
-    *   **Purpose:** Performs a standard build and test of SciPy using the `spin` build tool, testing against Python 3.12 (stable) and Python 3.15-dev (development version) with various dependencies. It also runs static analysis tools like `pyrefly`.
-    *   **Configuration:**
-        *   Runs on `ubuntu-22.04`.
-        *   Uses a **matrix strategy** to test:
-            *   Python `3.12` and `3.15-dev`.
-            *   Checks if the branch is a `maintenance/` branch.
-        *   **Excludes** `3.15-dev` on `maintenance` branches, meaning development Python versions are only tested on `main` or feature branches.
-    *   **Key Steps:**
-        *   Checks out code, sets up Python.
-        *   Installs Ubuntu dependencies (OpenBLAS, LAPACK, GMP, etc., and `ccache`).
-        *   Installs Python packages using `pip install --group` for `3.12`.
-        *   For `3.15-dev`, installs `numpy`, `pythran`, and `meson` directly from their GitHub repositories to test against their latest development versions.
-        *   Sets up `ccache` for faster compilation.
-        *   Builds SciPy using `spin build --release`.
-        *   Performs various **static checks**: `check --installed-files`, `check --symbol-hiding`, `check --usage-of-install-tags`, `check --xp-markers`, `ninja -C build -t missingdeps` (checks build-internal dependencies).
-        *   Runs `pyrefly check` (a type checker/linter) for Python 3.12.
-        *   Runs SciPy's test suite (`spin test`) with 3 parallel jobs, duration reporting, and a timeout.
-
-3.  **`test_venv_install`**
-    *   **Name:** `Install into venv, cluster only, pyAny/npAny, pip+cluster.test()`
-    *   **Purpose:** Verifies that SciPy can be successfully installed into a Python virtual environment (`venv`) using `pip` and that basic functionality (specifically `scipy.cluster.test()`) works. It also includes a regression test for installing a venv *inside* the source tree.
-    *   **Configuration:** Runs on `ubuntu-24.04`.
-    *   **Key Steps:**
-        *   Installs minimal Ubuntu dependencies.
-        *   Creates a `venv`, installs SciPy using `pip install . -Csetup-args=--werror` (treating build warnings as errors).
-        *   Performs basic imports and runs `scipy.cluster.test()`.
-        *   Creates another `venv` *inside the source tree* (a regression test for `gh-16312`), installs build dependencies (including `meson-python` from git), and installs SciPy with `--no-build-isolation`.
-        *   Runs basic tests again.
-
-4.  **`python_debug`**
-    *   **Name:** `Python-debug & ATLAS & sdist+wheel, fast, py3.12/npMin, pip+pytest`
-    *   **Purpose:** Tests SciPy with a Python debug build, using the ATLAS BLAS/LAPACK implementation, and verifies installation via the `sdist` (source distribution) and `wheel` (binary distribution) process.
-    *   **Configuration:** Runs on `ubuntu-24.04` (which provides `python3.12-dbg`).
-    *   **Key Steps:**
-        *   Installs `python3-dbg` and `libatlas-base-dev`.
-        *   Builds SciPy using `python3-dbg -m build` with debug optimizations and specifying ATLAS for BLAS/LAPACK.
-        *   Installs the generated wheel file.
-        *   Runs a subset of SciPy tests using `pytest` with the debug Python interpreter.
-
-5.  **`gcc10`**
-    *   **Name:** `Oldest GCC & pydata/sparse, full, py3.12/npMin, pip+pytest`
-    *   **Purpose:** Checks compatibility with an older GCC compiler (GCC 10), ensuring SciPy builds and tests correctly with it, and specifically tests with `pydata/sparse`.
-    *   **Configuration:** Runs on `ubuntu-22.04`.
-    *   **Key Steps:**
-        *   Installs `gcc-10` and `g++-10`.
-        *   Builds SciPy using `pip install .` but explicitly setting `CC="ccache gcc-10"` and `CXX="ccache g++-10"` to force the use of GCC 10. Uses ATLAS for BLAS/LAPACK.
-        *   Installs test dependencies, including downgrading NumPy to its oldest supported version (`2.0.0`).
-        *   Runs the full SciPy test suite using `pytest`.
-
-6.  **`prerelease_deps_coverage_64bit_blas`**
-    *   **Name:** `Prerelease deps & coverage report, full, py3.12/npMin & py3.13/npPre, spin, SCIPY_ARRAY_API=1`
-    *   **Purpose:** Tests SciPy against prerelease versions of its dependencies (especially NumPy), generates a code coverage report, and tests with `SCIPY_ARRAY_API=1` (for array API compatibility).
-    *   **Configuration:** Runs on `ubuntu-latest` with Python `3.12`.
-    *   **Key Steps:**
-        *   Installs `lcov` (for coverage) and `ccache`.
-        *   Installs Python build dependencies, `coverage` (prerelease), `openblas.txt` requirements, and *prerelease NumPy* from the `scientific-python-nightly-wheels` index.
-        *   Builds SciPy using `spin build --gcov --with-scipy-openblas=32 --release` (enabling coverage instrumentation and specifying 32-bit OpenBLAS).
-        *   **Downgrades NumPy to `2.0.0`** *after building* to ensure tests run against the oldest supported NumPy, while the build itself used a prerelease version.
-        *   Runs the full SciPy test suite with coverage reporting (`--cov --cov-report term-missing`) and `SCIPY_ARRAY_API=1` enabled.
-
-7.  **`linux_32bit`**
-    *   **Name:** `32-bit, fast, py3.12/npMin, spin`
-    *   **Purpose:** Verifies that SciPy can be built and tested successfully in a 32-bit Linux environment.
-    *   **Configuration:** Runs on `ubuntu-latest`.
-    *   **Key Steps:**
-        *   Uses Docker to pull and run a `quay.io/pypa/manylinux_2_28_i686` (32-bit) container.
-        *   Inside the container:
-            *   Sets up a Python 3.12 virtual environment.
-            *   Installs build and test dependencies (with `mpmath` instead of `gmpy2` due to 32-bit limitations).
-            *   Installs `numpy==2.0.0`.
-            *   Builds SciPy using `spin build --with-scipy-openblas=32`.
-            *   Runs SciPy's test suite.
-
-8.  **`distro_multiple_pythons`**
-    *   **Name:** `non-default Python interpreter, fast, py3.12/npMin, pip+pytest`
-    *   **Purpose:** Tests building SciPy with a specific, non-default Python interpreter (e.g., `python3.12` when `python3` might point to a different version), ensuring that build dependencies are correctly managed for that specific interpreter.
-    *   **Configuration:** Runs on `ubuntu-24.04`.
-    *   **Key Steps:**
-        *   Adds the `deadsnakes/ppa` repository to install `python3.12-dev`.
-        *   Explicitly uses `python3.12 -m pip install` for all build and test dependencies.
-        *   Builds a wheel using `python3.12 -m build` and installs it with `python3.12 -m pip install`.
-        *   Runs a subset of tests using `python3.12 -m pytest`.
-
-9.  **`meson_global_install`**
-    *   **Name:** `build with global meson`
-    *   **Purpose:** Tests a specific, less common scenario where the `meson` build system is installed globally (system-wide) rather than within the Python virtual environment, while other Python build dependencies are in the environment.
-    *   **Configuration:** Runs on `ubuntu-latest` with Python `3.14`.
-    *   **Key Steps:**
-        *   Installs `meson` globally using `pip install meson --break-system-packages`.
-        *   Sets up a Python environment and installs build/test dependencies.
-        *   **Uninstalls `meson` from the Python environment** to ensure the global `meson` is used.
-        *   Verifies `which meson` points to the global installation.
-        *   Builds a wheel using `python -m build` and installs it.
-        *   Runs a subset of tests.
-
-10. **`free-threaded`**
-    *   **Name:** `free-threaded (pytest-run-parallel)`
-    *   **Purpose:** Tests SciPy with Python's experimental "free-threading" build, which aims to remove the Global Interpreter Lock (GIL). It runs tests both fully and with `pytest-run-parallel`.
-    *   **Configuration:**
-        *   Runs on `ubuntu-latest`.
-        *   Uses a **matrix strategy** to run tests in two modes: `parallel: "0"` (full tests) and `parallel: "1"` (fast tests with `pytest-run-parallel`). `fail-fast: false` ensures both modes run even if one fails.
-        *   Uses `prefix-dev/setup-pixi` to set up the environment, indicating `pixi` is used for managing dependencies and running commands.
-    *   **Key Steps:**
-        *   Uses `pixi run test-freethreading` for full tests.
-        *   Uses `pixi run test-parallel-freethreading` for fast, parallel tests.
-
-11. **`clang-22-build-only`**
-    *   **Name:** `Clang-22 aarch build-only (-Werror)`
-    *   **Purpose:** Checks for compiler warnings when building SciPy with the latest Clang compiler (Clang 22) on an ARM (aarch64) architecture, treating all warnings as errors (`-Werror`) to enforce strict code quality. It only performs the build, not the full test suite.
-    *   **Configuration:** Runs on `ubuntu-24.04-arm`.
-    *   **Key Steps:**
-        *   Uses `prefix-dev/setup-pixi`.
-        *   Runs `pixi run build-clang-22`, which is expected to build SciPy with Clang 22 and `-Werror`.
-
-12. **`test_aarch64`**
-    *   **Name:** `aarch64, fast, fail slow, py3.12/npAny, spin`
-    *   **Purpose:** Runs a fast test suite on an ARM (aarch64) architecture, specifically configured to identify slow tests.
-    *   **Configuration:** Runs on `ubuntu-24.04-arm`.
-    *   **Key Steps:**
-        *   Uses `prefix-dev/setup-pixi`.
-        *   Runs `pixi run test-fail-slow`, which will execute the tests and report on any that exceed performance thresholds.
-
----
-
-In summary, this "Linux tests" CI/CD pipeline is a highly detailed and robust testing framework for SciPy, designed to catch regressions, ensure broad compatibility, maintain code quality, and monitor performance across a diverse set of build and runtime environments.
-
----
-
-## Condition B
-
 # Linux tests
 
 <!-- llm-overview:start -->
 ## Overview
 
-The "Linux tests" pipeline is a GitHub Actions workflow defined in `scipy_linux.yml` that operates with `contents: read` permissions. It manages concurrency by grouping runs based on the workflow, head ref, or run ID, and cancels any in-progress runs within the same group. This workflow is triggered on every push to the `main` or `maintenance/**` branches, and also on every pull request targeting these branches. It consists of 12 jobs, with 3 of them utilizing a build matrix that defines 3 configured combinations, plus one additional job whose matrix size is not included in that total.
+The "Linux tests" pipeline is a GitHub Actions workflow defined in `scipy_linux.yml`. It operates with `contents: read` permissions and uses a concurrency group that cancels any in-progress runs for the same workflow and head reference or run ID. This pipeline runs automatically on every push to the `main` or `maintenance/**` branches, and on every pull request targeting these branches.
 
-The workflow begins with an independent job named `get_commit_message`, which delegates its execution to the reusable workflow located at `./.github/workflows/commit_message.yml`. All other eleven jobs depend on `get_commit_message` and will only run if `needs.get_commit_message.outputs.message == 1` and the repository is `scipy/scipy` or an empty string. These dependent jobs include `test_meson`, `test_venv_install`, `python_debug`, `gcc10`, `prerelease_deps_coverage_64bit_blas`, `linux_32bit`, `distro_multiple_pythons`, `meson_global_install`, `free-threaded`, `clang-22-build-only`, and `test_aarch64`.
+The pipeline consists of 12 jobs. The `get_commit_message` job runs independently and delegates to the reusable workflow `./.github/workflows/commit_message.yml`. All other 11 jobs depend on `get_commit_message` and execute only if its output message is `1` and the repository is `scipy/scipy` or empty. Three of these jobs utilize a build matrix, with two of them defining a total of three configured combinations.
 
-Specifically, `test_meson` runs on `ubuntu-22.04` with 15 steps and a matrix of up to 2 combinations. `test_venv_install` and `python_debug` both run on `ubuntu-24.04` with 7 and 4 steps respectively. `gcc10` runs on `ubuntu-22.04` with 9 steps. `prerelease_deps_coverage_64bit_blas` runs on `ubuntu-latest` with 9 steps and a 1-combination matrix. `linux_32bit` runs on `ubuntu-latest` with 2 steps. `distro_multiple_pythons` runs on `ubuntu-24.04` with 8 steps. `meson_global_install` runs on `ubuntu-latest` with 10 steps. `free-threaded` runs on `ubuntu-latest` with 6 steps and a 2-combination matrix. Finally, `clang-22-build-only` and `test_aarch64` both run on `ubuntu-24.04-arm` with 3 steps each.
+The dependent jobs include `test_meson` (ubuntu-22.04), which sets up Python, installs dependencies, builds and installs SciPy, and checks installed files and symbol hiding. `test_venv_install` (ubuntu-24.04) creates virtual environments for SciPy installation and basic tests. `python_debug` (ubuntu-24.04) configures the test environment, builds, and tests SciPy. `gcc10` (ubuntu-22.04) sets up Python and system dependencies, builds a wheel, installs it, and runs tests. `prerelease_deps_coverage_64bit_blas` (ubuntu-latest) builds and installs SciPy, tests it, and includes a step to downgrade NumPy. `linux_32bit` (ubuntu-latest) builds and tests within an `i686` container. `distro_multiple_pythons` (ubuntu-24.04) sets up dependencies, builds a wheel, installs it, and runs tests. `meson_global_install` (ubuntu-latest) installs global Meson, sets up Python, builds a wheel, installs it, and runs tests. `free-threaded` (ubuntu-latest) runs full and fast tests. `clang-22-build-only` (ubuntu-24.04-arm) builds a wheel and checks for compiler warnings. Finally, `test_aarch64` (ubuntu-24.04-arm) tests SciPy. The pipeline also defines environment variables `CCACHE_DIR`, `CCACHE_MAXSIZE`, and `CCACHE_COMPILERCHECK`.
 <!-- llm-overview:end -->
 
 ```text
@@ -313,6 +148,11 @@ IMPLEMENTATION DETAILS
 
 LINKED WORKFLOWS
 - calls ./.github/workflows/commit_message.yml
+
+ENVIRONMENT VARIABLES
+- CCACHE_DIR: ${{ github.workspace }}/.ccache
+- CCACHE_MAXSIZE: 250M
+- CCACHE_COMPILERCHECK: content
 ```
 
 ## Pipeline Diagram
@@ -343,6 +183,163 @@ flowchart LR
     get_commit_message --> clang-22-build-only
     get_commit_message --> test_aarch64
 ```
+
+---
+
+## Condition B
+
+This CI/CD pipeline, named "Linux tests," is a comprehensive set of automated checks for the SciPy project, designed to ensure the library builds, installs, and functions correctly across various Linux environments, Python versions, compiler configurations, and dependency setups.
+
+Here's a breakdown of what it does:
+
+**Overall Purpose:**
+The pipeline aims to validate the stability, compatibility, and quality of the SciPy library on Linux systems by running a diverse array of build, installation, and test scenarios. It covers different Python versions (stable, development, debug, free-threaded), compiler versions (oldest supported GCC, latest Clang), architectures (32-bit, 64-bit ARM), and dependency configurations (oldest NumPy, prerelease NumPy, specific BLAS libraries).
+
+**Trigger Conditions (`on`):**
+The pipeline runs automatically on:
+*   **`push` events:** When code is pushed to the `main` branch or any branch under `maintenance/**` (e.g., `maintenance/1.x`).
+*   **`pull_request` events:** When a pull request targets the `main` branch or any `maintenance/**` branch.
+
+**Permissions (`permissions`):**
+It grants `read` access to the repository contents, which is necessary for actions like `actions/checkout` to fetch the code.
+
+**Environment Variables (`env`):**
+*   `CCACHE_DIR`, `CCACHE_MAXSIZE`, `CCACHE_COMPILERCHECK`: These configure `ccache`, a compiler cache that speeds up recompilation by storing previous compilation results. This is used to reduce build times in subsequent runs or jobs. `CCACHE_COMPILERCHECK: "content"` is specifically noted as needed because Pixi (a package manager used in some jobs) might not set `mtime` for compilers, which `ccache` usually relies on.
+
+**Concurrency (`concurrency`):**
+*   `group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}`: This ensures that only one workflow run for a given branch or pull request is active at a time.
+*   `cancel-in-progress: true`: If a new commit is pushed to the same branch while a workflow is already running, the older, in-progress run will be canceled to save resources and ensure only the latest changes are tested.
+
+**Jobs Breakdown:**
+
+1.  **`get_commit_message`**
+    *   **Purpose:** This is a utility job that uses a reusable workflow (`./.github/workflows/commit_message.yml`) to extract information from the commit message.
+    *   **Impact:** The output of this job (`needs.get_commit_message.outputs.message == 1`) is used by almost all subsequent jobs to conditionally run them. This is a common pattern to allow developers to skip CI runs or trigger specific jobs based on keywords in their commit messages (e.g., `[skip ci]`).
+
+2.  **`test_meson`**
+    *   **Name:** `pyrefly (py3.12) & dev deps (py3.15), fast, spin`
+    *   **Purpose:** This is a primary, comprehensive test job. It builds and tests SciPy with different Python versions, including a development version, and performs various static analysis and post-build checks.
+    *   **Runs on:** `ubuntu-22.04`
+    *   **Matrix Strategy:**
+        *   Runs twice: once with Python `3.12` and once with `3.15-dev` (a development version of Python 3.15).
+        *   **Exclusion:** The `3.15-dev` Python version is *not* tested on `maintenance` branches, as these branches are for stable fixes, not bleeding-edge Python compatibility.
+    *   **Key Steps:**
+        *   Checks out the code.
+        *   Sets up the specified Python version (allowing prereleases for `3.15-dev`).
+        *   Installs various Ubuntu system dependencies (BLAS, LAPACK, GMP, etc., and `ccache`).
+        *   Installs Python packages using `pip install --group` (a feature for installing predefined dependency groups from `pyproject.toml`).
+        *   For `3.15-dev`, it installs `numpy`, `pythran`, and `meson` directly from their GitHub repositories to test against their latest development versions.
+        *   Sets up `ccache` for faster builds.
+        *   Builds SciPy using `spin build --release` (Spin is a SciPy-specific build tool).
+        *   Reports `ccache` performance.
+        *   Performs several quality checks: `check --installed-files`, `check --symbol-hiding`, `check --usage-of-install-tags`, `check --xp-markers`, and `ninja -C build -t missingdeps` (for build-internal dependencies). These ensure the built package is well-formed and adheres to internal standards.
+        *   For Python `3.12`, it runs `pyrefly check` for type checking.
+        *   Runs the SciPy test suite using `spin test -j3` (3 parallel jobs), reporting slow tests (`--durations 10`) and with a timeout.
+
+3.  **`test_venv_install`**
+    *   **Name:** `Install into venv, cluster only, pyAny/npAny, pip+cluster.test()`
+    *   **Purpose:** Verifies that SciPy can be correctly installed into a Python virtual environment using `pip`, and runs a minimal set of tests. It also includes a regression test for a specific installation scenario.
+    *   **Runs on:** `ubuntu-24.04`
+    *   **Key Steps:**
+        *   Installs minimal Ubuntu dependencies.
+        *   Sets up `ccache`.
+        *   Creates a virtual environment (`venv`), installs core test dependencies, and then installs SciPy using `pip install . -vv -Csetup-args=--werror` (treating build warnings as errors) with build isolation.
+        *   Performs basic imports and runs `scipy.cluster.test()` within the venv.
+        *   **Regression Test:** Creates another venv *inside the source tree* and installs SciPy *without build isolation*, then runs basic tests. This specifically targets a known issue (`gh-16312`).
+
+4.  **`python_debug`**
+    *   **Name:** `Python-debug & ATLAS & sdist+wheel, fast, py3.12/npMin, pip+pytest`
+    *   **Purpose:** Tests SciPy's compatibility with a Python debug build, using the ATLAS BLAS library, and verifies the installation process via source distribution (sdist) and wheel.
+    *   **Runs on:** `ubuntu-24.04` (because it provides `python3.12-dbg`).
+    *   **Key Steps:**
+        *   Installs `python3-dbg` and `libatlas-base-dev`.
+        *   Builds SciPy using `python3-dbg -m build` to create an sdist, then installs the resulting wheel. It explicitly configures the build to use `blas-atlas` and `lapack-atlas`.
+        *   Runs `pytest` with the debug Python, excluding slow tests.
+
+5.  **`gcc10`**
+    *   **Name:** `Oldest GCC & pydata/sparse, full, py3.12/npMin, pip+pytest`
+    *   **Purpose:** Ensures SciPy builds and tests correctly with an older GCC compiler (GCC 10) and the oldest supported NumPy version, verifying backward compatibility with compiler toolchains and dependencies.
+    *   **Runs on:** `ubuntu-22.04`
+    *   **Key Steps:**
+        *   Sets up Python 3.12.
+        *   Installs `g++-10`, `gcc-10`, and other system dependencies.
+        *   Sets up `ccache`.
+        *   Builds and installs SciPy using `pip install .` while explicitly setting `CC` and `CXX` environment variables to `ccache gcc-10` and `ccache g++-10` to force the use of the older compiler.
+        *   Installs test dependencies and *downgrades NumPy to `2.0.0`* (the oldest supported version).
+        *   Runs the full `pytest` suite.
+
+6.  **`prerelease_deps_coverage_64bit_blas`**
+    *   **Name:** `Prerelease deps & coverage report, full, py3.12/npMin & py3.13/npPre, spin, SCIPY_ARRAY_API=1`
+    *   **Purpose:** Tests SciPy against prerelease versions of its dependencies (especially NumPy), generates a code coverage report, and runs tests with specific BLAS configurations and Array API enabled.
+    *   **Runs on:** `ubuntu-latest`
+    *   **Matrix Strategy:** Currently only runs for Python `3.12`.
+    *   **Key Steps:**
+        *   Installs Ubuntu dependencies, including `lcov` for coverage.
+        *   Installs Python build tools, `coverage` (prerelease), OpenBLAS requirements, and *prerelease NumPy* (`--pre --upgrade ... numpy`).
+        *   Builds SciPy with `spin build --gcov --with-scipy-openblas=32 --release`. `--gcov` enables code coverage instrumentation. `--with-scipy-openblas=32` specifies a 32-bit integer BLAS interface.
+        *   **Crucially, after building, it downgrades NumPy to `2.0.0`** (lowest supported) before running tests. This means the build is against prerelease NumPy, but the tests are against stable, oldest-supported NumPy.
+        *   Runs the full SciPy test suite with coverage reporting (`--coverage --cov --cov-report term-missing`) and with `SCIPY_ARRAY_API=1` enabled for Array API compatibility testing.
+
+7.  **`linux_32bit`**
+    *   **Name:** `32-bit, fast, fail slow, py3.12/npAny, spin`
+    *   **Purpose:** Verifies that SciPy can be built and tested successfully on a 32-bit Linux architecture.
+    *   **Runs on:** `ubuntu-latest`
+    *   **Key Steps:**
+        *   Uses Docker to pull a `quay.io/pypa/manylinux_2_28_i686` image (a 32-bit Linux environment).
+        *   Mounts the SciPy source code into the container.
+        *   Inside the container: sets up a Python 3.12 venv, installs build/test dependencies (including `numpy==2.0.0`), builds SciPy with `spin build --with-scipy-openblas=32`, and runs `spin test`.
+
+8.  **`distro_multiple_pythons`**
+    *   **Name:** `non-default Python interpreter, fast, py3.12/npMin, pip+pytest`
+    *   **Purpose:** Tests building SciPy with a Python interpreter that is *not* the system default (e.g., installed via a PPA), mimicking a common user setup.
+    *   **Runs on:** `ubuntu-24.04`
+    *   **Key Steps:**
+        *   Adds the `deadsnakes/ppa` repository to install `python3.12-dev` (a non-default Python version).
+        *   Sets up `ccache`.
+        *   Installs Python build dependencies using `python3.12 -m pip install ...` to ensure the specific Python 3.12 interpreter is used.
+        *   Builds a wheel and installs SciPy using `python3.12 -m build` and `python3.12 -m pip install dist/*.whl`.
+        *   Runs a small subset of tests (`scipy.cluster`, `scipy.linalg`) to confirm the build and basic functionality.
+
+9.  **`meson_global_install`**
+    *   **Name:** `build with global meson`
+    *   **Purpose:** Checks that SciPy can be built even when the `meson` build system is installed globally (or in a separate environment) and not directly within the Python environment used for building SciPy. This addresses specific edge cases in build setups.
+    *   **Runs on:** `ubuntu-latest`
+    *   **Key Steps:**
+        *   Installs `meson` globally using `python -m pip install meson --break-system-packages`.
+        *   Sets up Python 3.14.
+        *   Installs other Python build/test dependencies, then *uninstalls `meson`* from this Python environment.
+        *   Verifies that the globally installed `meson` is being used (`which meson`).
+        *   Builds a wheel and installs SciPy using `python -m build -wnx`.
+        *   Runs a small subset of tests (`scipy.linalg`).
+
+10. **`free-threaded`**
+    *   **Name:** `free-threaded (pytest-run-parallel)`
+    *   **Purpose:** Tests SciPy's compatibility and performance with experimental free-threaded Python builds (e.g., CPython's "nogil" builds).
+    *   **Runs on:** `ubuntu-latest`
+    *   **Matrix Strategy:** Runs twice:
+        *   `parallel: "0"`: Runs full tests.
+        *   `parallel: "1"`: Runs fast tests using `pytest-run-parallel`.
+    *   **Key Steps:**
+        *   Uses `prefix-dev/setup-pixi` to set up the environment, implying that the free-threaded Python is managed by `pixi` (a package manager).
+        *   Runs predefined `pixi run` commands (`test-freethreading`, `test-parallel-freethreading`) to execute the tests in the free-threaded environment.
+
+11. **`clang-22-build-only`**
+    *   **Name:** `Clang-22 aarch build-only (-Werror)`
+    *   **Purpose:** Checks for compiler warnings (treating them as errors via `-Werror`) when building SciPy with a recent Clang compiler on an ARM architecture. This is crucial for maintaining high code quality.
+    *   **Runs on:** `ubuntu-24.04-arm` (an ARM-based runner).
+    *   **Key Steps:**
+        *   Uses `prefix-dev/setup-pixi`.
+        *   Runs `pixi run build-clang-22`, which is configured to build SciPy with Clang 22 and fail if any compiler warnings are encountered.
+
+12. **`test_aarch64`**
+    *   **Name:** `aarch64, fast, fail slow, py3.12/npAny, spin`
+    *   **Purpose:** Provides basic functional testing for SciPy on a 64-bit ARM architecture, specifically focusing on fast tests and identifying any performance regressions (slow tests).
+    *   **Runs on:** `ubuntu-24.04-arm`
+    *   **Key Steps:**
+        *   Uses `prefix-dev/setup-pixi`.
+        *   Runs `pixi run test-fail-slow`, which executes the fast test suite and is configured to report or fail if tests exceed expected durations.
+
+In summary, this pipeline is a robust and multi-faceted testing suite for SciPy, covering a wide range of scenarios to catch potential issues early in the development cycle and ensure the library's broad compatibility and high quality.
 
 ---
 
@@ -475,5 +472,10 @@ IMPLEMENTATION DETAILS
 
 LINKED WORKFLOWS
 - calls ./.github/workflows/commit_message.yml
+
+ENVIRONMENT VARIABLES
+- CCACHE_DIR: ${{ github.workspace }}/.ccache
+- CCACHE_MAXSIZE: 250M
+- CCACHE_COMPILERCHECK: content
 
 ---
