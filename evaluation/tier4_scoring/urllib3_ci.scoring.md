@@ -60,10 +60,17 @@ ENVIRONMENT VARIABLES
 
 ## Condition B
 
-> **⚠ GENERATION FAILED -- this condition's tool call did not succeed. The text below is fallback/unprocessed output, not a real generated result. Score it as unavailable/failed, not as a legitimate output of its underlying method.**
-> Error: ServerError: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}
-
 # CI
+
+<!-- llm-overview:start -->
+## Overview
+
+This CI pipeline is defined as a GitHub Actions workflow and operates with `contents: read` permissions. It is configured to run automatically on every push to the repository and on every pull request. Additionally, it can be triggered manually. The pipeline comprises three jobs: `package`, `test`, and `coverage`. Two of these jobs, `package` and `test`, run independently, while the `coverage` job is configured to run after `test` completes. The `test` job utilizes a build matrix for its execution. The environment variable `FORCE_COLOR` is set to `1` for the pipeline.
+
+The `package` job executes on `ubuntu-latest` and involves three steps: checking out the repository, setting up Python, and checking packages. The `test` job runs on `${{ matrix.os }}` and uses a build matrix that includes 21 base combinations of Python version, OS, nox session, and container, along with 10 additional combinations via an include directive. Its steps include checking out the repository, setting up Python, installing `uv`, Chrome, Firefox, and Node.js, forcing an override of system Chrome, caching Pyodide downloads, running tests, and uploading coverage data. This job specifically uses the `CHROME_PATH` and `NOX_SESSION` environment variables.
+
+The `coverage` job runs on `ubuntu-24.04` after the `test` job, and it is configured to always execute regardless of the `test` job's outcome. This job's steps involve checking out the repository, setting up Python, installing `uv` and coverage tools, downloading coverage data, combining and checking the coverage, and uploading a report if the coverage check fails.
+<!-- llm-overview:end -->
 
 ```text
 Pipeline: CI
@@ -129,219 +136,127 @@ flowchart LR
 
 ## Condition C
 
-> **⚠ GENERATION FAILED -- this condition's tool call did not succeed. The text below is fallback/unprocessed output, not a real generated result. Score it as unavailable/failed, not as a legitimate output of its underlying method.**
-> Error: ServerError: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}
+This CI/CD pipeline, named "CI", is a comprehensive GitHub Actions workflow designed to ensure the quality, compatibility, and correctness of a Python project. It runs on various triggers and performs three main jobs: `package` (build and lint checks), `test` (extensive cross-platform and cross-version testing), and `coverage` (code coverage analysis and enforcement).
 
-name: CI
+Here's a detailed breakdown of what each part does:
 
-on: [push, pull_request, workflow_dispatch]
+---
 
-permissions:
-  contents: "read"
+### **Overall Configuration**
 
-defaults:
-  run:
-    shell: bash
-env:
-  FORCE_COLOR: 1
+*   **`name: CI`**: The name of the workflow, visible in the GitHub Actions tab.
+*   **`on: [push, pull_request, workflow_dispatch]`**:
+    *   **`push`**: The pipeline runs automatically whenever code is pushed to the repository (e.g., to `main` or any branch).
+    *   **`pull_request`**: The pipeline runs automatically whenever a pull request is opened, synchronized, or re-opened. This is crucial for pre-merge checks.
+    *   **`workflow_dispatch`**: Allows manual triggering of the workflow from the GitHub Actions UI, which is useful for debugging or specific runs.
+*   **`permissions: contents: "read"`**: Grants the workflow read access to the repository's contents, which is necessary for checking out the code.
+*   **`defaults: run: shell: bash`**: Sets `bash` as the default shell for all `run` steps, ensuring consistent script execution across different operating systems.
+*   **`env: FORCE_COLOR: 1`**: Forces colored output in the terminal, which can make logs easier to read.
 
-jobs:
-  package:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+---
 
-    steps:
-      - name: "Checkout repository"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
+### **Jobs**
 
-      - name: "Setup Python"
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: "3.x"
-          cache: "pip"
+The pipeline consists of three sequential jobs: `package`, `test`, and `coverage`.
 
-      - name: "Check packages"
-        run: |
-          python -m pip install -U pip setuptools wheel build twine rstcheck
-          python -m build
-          rstcheck --ignore-messages "(Duplicate implicit target name:.*)" CHANGES.rst
-          python -m twine check dist/*
+#### **1. `package` Job**
 
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15"]
-        os:
-          - macos-15
-          - windows-latest
-          - ubuntu-24.04
-        nox-session: ['']
-        container: ['']
-        include:
-          - experimental: false
-          - python-version: "3.12"
-            os: ubuntu-24.04
-            experimental: false
-            nox-session: test_integration
-          # Test with 3.12.2 for https://github.com/urllib3/urllib3/pull/3620 patch
-          - python-version: "3.12.2"
-            os: ubuntu-24.04
-            experimental: false
-            nox-session: test-3.12
-          # pypy
-          - python-version: "pypy-3.11"
-            os: ubuntu-24.04
-            experimental: false
-            nox-session: test-pypy3.11
-          # Test with the minimum supported pyOpenSSL for OpenSSL 1.1.1.
-          # Debian Bullseye was the last release with OpenSSL 1.1.1, and
-          # 3.13-bullsey was the last published image.
-          - python-version: "3.13"
-            os: ubuntu-24.04
-            container: python:3.13-bullseye
-            experimental: false
-            nox-session: test_min_pyopenssl
-          - python-version: "3.x"
-          # brotli
-            os: ubuntu-24.04
-            experimental: false
-            nox-session: test_brotlipy
-          - python-version: "3.12"
-            os: ubuntu-24.04
-            nox-session: emscripten(node)
-            experimental: true
-          - python-version: "3.12"
-            os: ubuntu-24.04
-            nox-session: emscripten(firefox)
-            experimental: true
-          - python-version: "3.12"
-            os: ubuntu-24.04
-            nox-session: emscripten(chrome)
-            experimental: true
-          - python-version: "3.15"
-            experimental: true
+This job focuses on building the Python package and performing basic sanity checks on its structure and documentation.
 
-    runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
-    name: ${{ fromJson('{"macos-15":"macOS","windows-latest":"Windows","ubuntu-24.04":"Ubuntu"}')[matrix.os] }} ${{ matrix.python-version }} ${{ matrix.nox-session}}
-    continue-on-error: ${{ matrix.experimental }}
-    timeout-minutes: 10
-    steps:
-      - name: "Checkout repository"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0 # Needed to fetch the version from git
-          persist-credentials: false
+*   **`runs-on: ubuntu-latest`**: Executes on a fresh Ubuntu Linux runner.
+*   **`timeout-minutes: 10`**: The job will be cancelled if it runs for longer than 10 minutes.
 
-      - name: "Setup Python ${{ matrix.python-version }}"
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        # pip will emit a warning about running as root if setup-python
-        # is used in a container.
-        if: ${{ matrix.container == '' }}
-        with:
-          python-version: ${{ matrix.python-version }}
-          allow-prereleases: true
-          check-latest: true
+**Steps:**
 
-      - name: "Install uv"
-        uses: astral-sh/setup-uv@d31148d669074a8d0a63714ba94f3201e7020bc3 # v8.3.0
-        with:
-          version: "0.11.7"
+*   **`Checkout repository`**: Downloads the project's code from the GitHub repository.
+*   **`Setup Python`**: Sets up the latest Python 3.x environment and caches `pip` dependencies to speed up subsequent runs.
+*   **`Check packages`**: This is the core of the job:
+    *   `python -m pip install -U pip setuptools wheel build twine rstcheck`: Installs essential tools for building, packaging, and checking Python distributions and documentation.
+        *   `build`: For building source distributions (`sdist`) and wheels (`.whl`).
+        *   `twine`: For checking package metadata and integrity.
+        *   `rstcheck`: For checking reStructuredText syntax.
+    *   `python -m build`: Builds the Python package into the `dist/` directory (creating `sdist` and `wheel` files).
+    *   `rstcheck --ignore-messages "(Duplicate implicit target name:.*)" CHANGES.rst`: Checks the `CHANGES.rst` file (likely a changelog or release notes) for reStructuredText syntax errors, ignoring specific duplicate target name warnings. This ensures documentation quality.
+    *   `python -m twine check dist/*`: Verifies the metadata and integrity of the built package files in the `dist/` directory. This step catches common packaging errors before potential publication.
 
-      - name: "Install Chrome"
-        uses: browser-actions/setup-chrome@4f8e94349a351df0f048634f25fec36c3c91eded # v2.1.1
-        id: setup-chrome
-        if: ${{ matrix.nox-session == 'emscripten(chrome)' }}
-        with:
-          install-chromedriver: true
-          chrome-version: canary
-      - name: Force override system chrome
-        env:
-          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
-        run: |
-          sudo rm -f /usr/bin/google-chrome
-          sudo rm -f /usr/bin/chrome
-          sudo ln -s $CHROME_PATH /usr/bin/google-chrome
-          sudo ln -s $CHROME_PATH /usr/bin/chrome
-          google-chrome --version
-        if: ${{ matrix.nox-session == 'emscripten(chrome)' }}
-      - name: "Install Firefox"
-        uses: browser-actions/setup-firefox@fcf821c621167805dd63a29662bd7cb5676c81a8 # v1.7.1
-        if: ${{ matrix.nox-session == 'emscripten(firefox)' }}
-      - name: "Install node.js"
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: ${{ matrix.nox-session == 'emscripten(node)' }}
-        with:
-          node-version: 22
-      - name: Cache pyodide downloads in nox cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: ${{ startsWith(matrix.nox-session, 'emscripten') }}
-        with:
-          path: .nox/.cache
-          # noxfile.py contains the Pyodide version used currently.
-          key: pyodide-downloads-${{ hashFiles('noxfile.py') }}
+**Purpose:** To ensure the Python package can be successfully built, its documentation (changelog) is valid, and its distribution files are correctly formed according to PyPI standards.
 
-      - name: "Run tests"
-        run: |
-          uvx nox -s "$NOX_SESSION"
-        env:
-          # If no explicit nox-session is set, run the default tests for the chosen Python version
-          NOX_SESSION: ${{ matrix.nox-session != '' && matrix.nox-session || format('test-{0}', matrix.python-version) }}
+#### **2. `test` Job**
 
-      - name: "Upload coverage data"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: coverage-data-${{ matrix.python-version }}-${{ matrix.os }}-${{ matrix.experimental }}-${{ matrix.nox-session }}
-          path: ".coverage.*"
-          if-no-files-found: error
-          include-hidden-files: true
+This is the most extensive job, running a matrix of tests across various Python versions, operating systems, and specialized environments.
 
+*   **`strategy: matrix`**: Defines a matrix of configurations to run tests against.
+    *   **`fail-fast: false`**: Crucially, this means that if one test configuration fails, the other configurations in the matrix will *continue* to run. This provides a more complete picture of failures across the entire test suite.
+    *   **`matrix` definitions**:
+        *   `python-version`: A wide range of Python versions are tested, including specific patch versions (`3.12.2`), pre-releases (`3.14t`, `3.15`), and PyPy (`pypy-3.11`). This ensures broad compatibility.
+        *   `os`: Tests are run on `macos-15`, `windows-latest`, and `ubuntu-24.04` for cross-platform compatibility.
+        *   `nox-session`: Defaults to empty, but specific `nox` sessions are defined in `include`.
+        *   `container`: Defaults to empty, but a specific Docker container is used for one test case.
+        *   **`include`**: This section adds specific, non-standard test configurations:
+            *   **Integration tests**: `test_integration` for Python 3.12 on Ubuntu.
+            *   **Specific patch version test**: `test-3.12` for Python 3.12.2 (likely targeting a specific bug fix or feature).
+            *   **PyPy tests**: `test-pypy3.11` for PyPy 3.11 on Ubuntu.
+            *   **Minimum `pyOpenSSL` test**: Uses a `python:3.13-bullseye` Docker container to test with an older OpenSSL 1.1.1 environment, ensuring compatibility with minimum supported dependencies.
+            *   **`brotlipy` tests**: `test_brotlipy` for Python 3.x on Ubuntu.
+            *   **Emscripten/Pyodide tests**: Several *experimental* tests (`emscripten(node)`, `emscripten(firefox)`, `emscripten(chrome)`) run Python code compiled to WebAssembly (Pyodide) in different JavaScript environments. This indicates the project might be designed to run in web browsers or Node.js.
+            *   **Experimental Python 3.15**: An experimental run for Python 3.15.
+*   **`runs-on: ${{ matrix.os }}`**: The runner OS is dynamically selected from the matrix.
+*   **`container: ${{ matrix.container }}`**: A Docker container is used if specified in the matrix (e.g., for the `bullseye` test).
+*   **`name: ...`**: Provides a descriptive name for each individual job run in the matrix, making it easy to identify which configuration is being tested.
+*   **`continue-on-error: ${{ matrix.experimental }}`**: **Important!** If a matrix configuration is marked as `experimental: true`, its failure will *not* cause the entire pipeline to fail. This allows testing cutting-edge or less stable configurations without blocking the main development flow.
+*   **`timeout-minutes: 10`**: Each individual test run in the matrix has a 10-minute timeout.
 
-  coverage:
-    if: always()
-    runs-on: "ubuntu-24.04"
-    needs: test
-    steps:
-      - name: "Checkout repository"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
+**Steps:**
 
-      - name: "Setup Python"
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: "3.x"
+*   **`Checkout repository`**: Downloads the code. `fetch-depth: 0` is used to fetch the full Git history, which might be needed to determine the project's version from Git tags.
+*   **`Setup Python ${{ matrix.python-version }}`**: Sets up the specific Python version for the current matrix run. It's skipped if a Docker container is used, as Python is assumed to be pre-installed there. `allow-prereleases: true` and `check-latest: true` are used for testing pre-release Python versions.
+*   **`Install uv`**: Installs `uv`, a fast Python package installer and resolver, which is used for dependency management and running commands.
+*   **`Install Chrome`, `Force override system chrome`, `Install Firefox`, `Install node.js`**: These steps conditionally install web browsers (Chrome, Firefox) and Node.js specifically for the `emscripten` (WebAssembly) tests, allowing the Python code to be tested in these environments.
+*   **`Cache pyodide downloads in nox cache`**: Caches Pyodide-related downloads for the `emscripten` tests, speeding up subsequent runs by avoiding repeated downloads.
+*   **`Run tests`**:
+    *   `uvx nox -s "$NOX_SESSION"`: Uses `uvx` (uv's equivalent of `npx`) to run `nox`. `nox` is a tool for running tests in isolated virtual environments.
+    *   `NOX_SESSION`: This environment variable dynamically selects the `nox` session to run. If a specific `nox-session` is defined in the matrix, it's used; otherwise, it defaults to `test-{python-version}` (e.g., `test-3.10`). This means `nox` handles the actual test execution and environment setup for each Python version and specific test scenario.
+*   **`Upload coverage data`**: After tests run, any generated `.coverage.*` files (which contain code coverage information) are uploaded as artifacts. These will be downloaded and combined by the `coverage` job.
 
-      - name: "Install uv"
-        uses: astral-sh/setup-uv@d31148d669074a8d0a63714ba94f3201e7020bc3 # v8.3.0
-        with:
-          version: "0.11.7"
+**Purpose:** To thoroughly test the project's code against a wide array of Python versions, operating systems, and specialized environments (including PyPy, older dependencies, and WebAssembly), ensuring maximum compatibility and catching regressions early. Experimental tests are allowed to run without blocking the pipeline.
 
-      - name: "Install coverage"
-        # Install the same version of coverage as in the lock file.
-        run: uv sync --dev --frozen
+#### **3. `coverage` Job**
 
-      - name: "Download coverage data"
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: coverage-data-*
-          merge-multiple: true
+This job collects all coverage data from the `test` job, combines it, and enforces a strict code coverage policy.
 
-      - name: "Combine & check coverage"
-        run: |
-          uv run -m build
-          uv run -m coverage combine
-          uv run -m coverage html --skip-covered --skip-empty
-          uv run -m coverage report --ignore-errors --show-missing --fail-under=100
+*   **`if: always()`**: **Important!** This job will run regardless of whether the `test` job succeeded or failed. This ensures that coverage reports are always generated, even if some tests failed, which can be crucial for debugging.
+*   **`runs-on: "ubuntu-24.04"`**: Executes on an Ubuntu Linux runner.
+*   **`needs: test`**: This job depends on the `test` job. It will start only after all matrix runs of the `test` job have completed (or been skipped/cancelled).
 
-      - if: ${{ failure() }}
-        name: "Upload report if check failed"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: coverage-report
-          path: htmlcov
+**Steps:**
+
+*   **`Checkout repository`**: Downloads the project's code.
+*   **`Setup Python`**: Sets up the latest Python 3.x environment.
+*   **`Install uv`**: Installs `uv`.
+*   **`Install coverage`**: `uv sync --dev --frozen` installs development dependencies, including the `coverage.py` tool, from a lock file. This ensures that the exact versions of tools used for coverage analysis are consistent.
+*   **`Download coverage data`**: Downloads all `coverage-data-*` artifacts that were uploaded by the `test` job. `merge-multiple: true` combines them into a single set of coverage files.
+*   **`Combine & check coverage`**: This is the core of the job:
+    *   `uv run -m build`: Rebuilds the package. This might be necessary to ensure the source files are available in the correct location for coverage reporting.
+    *   `uv run -m coverage combine`: Combines all the individual `.coverage.*` files downloaded from the `test` job into a single `.coverage` data file.
+    *   `uv run -m coverage html --skip-covered --skip-empty`: Generates a detailed HTML coverage report in the `htmlcov` directory, skipping files that are fully covered or empty.
+    *   `uv run -m coverage report --ignore-errors --show-missing --fail-under=100`: Generates a text-based coverage report in the console. **Crucially, `--fail-under=100` means this step will fail the job if the overall code coverage is not 100%**. This enforces a very strict code coverage policy.
+*   **`Upload report if check failed`**: If the previous step (`Combine & check coverage`) fails (meaning coverage is less than 100%), this step uploads the generated `htmlcov` directory as an artifact. This allows developers to easily inspect the detailed HTML report to see which lines are not covered.
+
+**Purpose:** To aggregate all code coverage data, generate comprehensive reports, and strictly enforce 100% code coverage. If coverage falls below 100%, the pipeline fails, and a detailed report is provided for debugging.
+
+---
+
+### **In Summary:**
+
+This CI/CD pipeline is designed for a Python project that prioritizes:
+
+1.  **Robust Packaging**: Ensures the project can be built and distributed correctly.
+2.  **Extensive Compatibility**: Tests across a wide range of Python versions (including PyPy and pre-releases) and operating systems (Linux, Windows, macOS).
+3.  **Specialized Environment Testing**: Includes tests for specific dependency versions (e.g., older OpenSSL) and advanced use cases like running Python in WebAssembly environments (browsers, Node.js).
+4.  **High Code Quality**: Enforces a very strict 100% code coverage policy, ensuring that virtually every line of code is covered by tests.
+5.  **Early Feedback**: Runs on every push and pull request, providing immediate feedback on code changes.
+6.  **Resilience**: Allows experimental tests to run without blocking the entire pipeline and always generates coverage reports, even on test failures.
+
+It uses modern Python tooling like `uv` and `nox` for efficient dependency management and test execution.
 
 ---
