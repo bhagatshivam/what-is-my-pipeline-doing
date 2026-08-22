@@ -528,6 +528,19 @@ generated output, not just checking it doesn't raise.
   `build` has 28) rather than producing a wall of text. The aggregate
   step count in the job line itself is untouched and always reflects the
   true total regardless of the cap.
+  **Independently confirmed (2026-08-22), Tier 2 error injection:** this
+  costs real, scored facts, not just a hypothetical gap. Two Tier 4
+  held-out pipelines' pre-registered checklists target step-level `if:`
+  as checkable facts — `vscode_pr.checklist.yml`'s `vscode_pr.condition.1`/
+  `.2` and `cpython_reusable_macos.checklist.yml`'s
+  `cpython_reusable_macos.condition.1` — and `vscode_pr.scoring.md` shows
+  the naive baseline (condition 3, raw YAML) narrating the gating
+  explicitly ("Install build tools (if cache miss)", line 246) on the
+  exact step where conditions 1/2 show only the bare step name (lines 44,
+  143). `evaluation/tier2_error_injection/REPORT.md`'s Mutation B
+  independently reproduces the same omission via error injection rather
+  than held-out scoring — converging evidence from two evaluation methods
+  for the same gap.
 - **Resolved (2026-08-19): `Pipeline.environment_variables` now has a
   dedicated `ENVIRONMENT VARIABLES` section**, placed between `LINKED
   WORKFLOWS` and `SECRETS REQUIRED` (informational sections grouped
