@@ -163,6 +163,21 @@ from the narrower "we don't show step conditions" framing the codebase
 docstring uses. Whether that's worth fixing is a separate, follow-up
 decision — not made here.
 
+This is not a first discovery: it's independent confirmation, via a second
+evaluation method, of the same gap already surfaced by Tier 4 scoring — the
+pre-registered checklists for two held-out pipelines,
+`evaluation/tier4_checklists/vscode_pr.checklist.yml` (facts
+`vscode_pr.condition.1`/`.2`) and `cpython_reusable_macos.checklist.yml`
+(fact `cpython_reusable_macos.condition.1`), both target step-level `if:`
+conditions as checkable facts, and the raw transcript in
+`evaluation/tier4_scoring/vscode_pr.scoring.md` shows the naive baseline
+(condition 3, which reads raw YAML directly) narrating the gating
+explicitly — e.g. "Install build tools (if cache miss)" — on a step where
+the deterministic and LLM-polished conditions (1 and 2) show only the bare
+step name, no mention of the condition at all; converging evidence from two
+independently-run evaluation methods for the same underlying gap is
+stronger than either alone.
+
 ## Mutation C — malformed secret reference (`secret.` vs `secrets.`)
 
 Copy of `tests/fixtures/checkout_check_dist.yml` with one change: an `env:`
