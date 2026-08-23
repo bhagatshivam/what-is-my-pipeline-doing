@@ -168,6 +168,22 @@ multi-scope data for the first time.
   secret referenced via unusual indirection — bracket syntax
   (`secrets['X']`) or a name built dynamically from a matrix/context value.
   Not seen in any of the 10 fixtures' 8 real secret references.
+  **Independently confirmed (2026-08-22), Tier 2 error injection:** a
+  single-character typo in the context name — `secret.FOO` (singular)
+  instead of the real `secrets.FOO` `_SECRET_REF_RE` requires — silently
+  fails this regex match entirely. No `Secret` entry is ever created, so
+  `_check_secret_and_env_scopes` never sees it (there's nothing to flag);
+  the value is instead captured as an ordinary `EnvironmentVariable` and
+  never appears under `SECRETS REQUIRED` at all.
+  `evaluation/tier2_error_injection/fixtures/secret_typo.yml`'s Mutation C
+  (`${{ secret.DEPLOY_TOKEN }}` on `checkout_check_dist.yml`'s `check-dist`
+  job) demonstrates this is not just a silent miss but an active
+  hallucination risk: the LLM-polished output asserted, with no hedge,
+  "The `check-dist` job requires and uses the `DEPLOY_TOKEN` secret" —
+  stating as settled fact something the tool's own extraction explicitly
+  did not establish (see `evaluation/tier2_error_injection/REPORT.md`'s
+  Mutation C for the full deterministic/LLM output and critical reading).
+  A real, demonstrated case, not a hypothetical one.
 - **`EnvironmentVariable.value` always stores the raw string, never `None`
   for an expression.** `ir/schema.py`'s inline comment on `value` suggests
   `None` "if the value is itself a secret/dynamic reference, not a
