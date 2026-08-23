@@ -1,0 +1,117 @@
+This document provides an overview of the "Linux tests" CI/CD pipeline, detailing its triggers, execution flow, and configuration.
+
+### Overview
+
+The "Linux tests" pipeline is a GitHub Actions workflow defined in `/home/user/what-is-my-pipeline-doing/evaluation/held_out_workflows/scipy_linux.yml`. It requires `contents: read` permissions. To manage concurrent runs, it groups workflows by `${{ github.workflow }}-${{ github.head_ref || github.run_id }}` and cancels any in-progress runs within the same group.
+
+This pipeline consists of 12 jobs. One job runs independently, while the remaining 11 jobs depend on other jobs. Three of the 12 jobs utilize a build matrix; two of these define a total of 3 configured combinations, with the matrix size of one additional job not included in this total.
+
+### When It Runs
+
+This workflow is triggered automatically in the following scenarios:
+
+*   On every push to the `main` branch or any branch matching the `maintenance/**` pattern.
+*   On every pull request that targets the `main` branch or any branch matching the `maintenance/**` pattern.
+
+### What Happens
+
+The pipeline executes 12 jobs. The `get_commit_message` job runs first, independently of any other jobs. All other jobs depend on `get_commit_message` and will only run after it completes successfully.
+
+Here is a detailed breakdown of each job:
+
+1.  **get_commit_message**: This job delegates its execution to a reusable workflow located at `./.github/workflows/commit_message.yml`.
+2.  **test_meson**: This job runs on `ubuntu-22.04` and consists of 15 steps. It uses a build matrix that can generate up to 2 combinations based on `python-version` and `maintenance-branch`, with 1 combination explicitly excluded. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `Setup Python`
+    *   `Install Ubuntu dependencies`
+    *   `Install Python packages`
+    *   `Install Python packages from repositories`
+    *   `Set up ccache`
+    *   `Setup build and install scipy`
+    *   `Ccache performance`
+    *   `Check installed files`
+    *   `Check symbol hiding`
+    *   ... and 5 more steps.
+3.  **test_venv_install**: This job runs on `ubuntu-24.04` and has 7 steps. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `Install Ubuntu dependencies`
+    *   `Set up ccache`
+    *   `Create venv, install SciPy`
+    *   `Basic imports and tests`
+    *   `Create venv inside source tree`
+    *   `Ccache performance`
+4.  **python_debug**: This job runs on `ubuntu-24.04` and has 4 steps. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `Configuring Test Environment`
+    *   `Build SciPy`
+    *   `Testing SciPy`
+5.  **gcc10**: This job runs on `ubuntu-22.04` and has 9 steps. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `Setup Python`
+    *   `Setup system dependencies`
+    *   `Setup Python build deps`
+    *   `Set up ccache`
+    *   `Build wheel and install`
+    *   `Ccache performance`
+    *   `Install test dependencies`
+    *   `Run tests`
+6.  **prerelease_deps_coverage_64bit_blas**: This job runs on `ubuntu-latest` and has 9 steps. It uses a build matrix with 1 combination based on `python-version`. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `Setup Python`
+    *   `Install Ubuntu dependencies`
+    *   `Install Python packages`
+    *   `Set up ccache`
+    *   `Build and install SciPy`
+    *   `Ccache performance`
+    *   `Downgrade NumPy to lowest supported`
+    *   `Test SciPy`
+7.  **linux_32bit**: This job runs on `ubuntu-latest` and has 2 steps. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `build + test in i686 container`
+8.  **distro_multiple_pythons**: This job runs on `ubuntu-24.04` and has 8 steps. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `Setup system dependencies`
+    *   `Set up ccache`
+    *   `Setup Python build deps`
+    *   `Build wheel and install`
+    *   `Ccache performance`
+    *   `Install test dependencies`
+    *   `Run tests`
+9.  **meson_global_install**: This job runs on `ubuntu-latest` and has 10 steps. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `Install system dependencies`
+    *   `Set up ccache`
+    *   `Install global meson`
+    *   `Setup Python`
+    *   `Setup Python build/test deps`
+    *   `Check we're using global Meson`
+    *   `Build wheel and install`
+    *   `Ccache performance`
+    *   `Run tests`
+10. **free-threaded**: This job runs on `ubuntu-latest` and has 6 steps. It uses a build matrix with 2 combinations that run in parallel. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `prefix-dev/setup-pixi`
+    *   `Set up ccache`
+    *   `Run tests (full)`
+    *   `Run tests (fast, with pytest-run-parallel)`
+    *   `Ccache performance`
+11. **clang-22-build-only**: This job runs on `ubuntu-24.04-arm` and has 3 steps. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `prefix-dev/setup-pixi`
+    *   `Build wheel, check for compiler warnings`
+12. **test_aarch64**: This job runs on `ubuntu-24.04-arm` and has 3 steps. It runs after `get_commit_message` and only if `needs.get_commit_message.outputs.message` is `1` and the repository is `scipy/scipy` or an empty string. Its steps include:
+    *   `actions/checkout`
+    *   `prefix-dev/setup-pixi`
+    *   `Test SciPy`
+
+### Dependencies
+
+This workflow calls the reusable workflow located at `./.github/workflows/commit_message.yml`.
+
+### Secrets & Configuration
+
+The pipeline utilizes the following environment variables for configuration:
+
+*   `CCACHE_DIR`: Set to `${{ github.workspace }}/.ccache`
+*   `CCACHE_MAXSIZE`: Set to `250M`
+*   `CCACHE_COMPILERCHECK`: Set to `content`

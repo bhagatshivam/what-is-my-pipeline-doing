@@ -183,3 +183,181 @@ See `evaluation/rewrite_experiment/outputs/`:
    — it's a property of what `generate_text()` puts in the fact sheet, not of
    any beautification prompt. Worth knowing if this experiment's finding
    motivates any real follow-up work, but out of scope for this branch.
+
+---
+
+## Addendum — Candidate 1 only, 2 more pipelines (`celery_python_package`, `scipy_linux`)
+
+**Status: still validation only.** No changes to `llm/gemini_provider.py`'s
+real `SYSTEM_PROMPT`, no merge, no PR — this branch stays unmerged regardless
+of how these numbers turn out; that decision is explicitly out of scope for
+this addendum. Only Candidate 1 (structured rewrite) was tested this time,
+not 0 or 2 — the question here is whether Candidate 1's near-perfect
+`nextjs_build_and_test` result generalizes to different pipeline shapes, not
+a fresh three-way comparison.
+
+### Pipeline selection
+
+Chosen for diversity against the existing `httpie_code_style` (tiny, 2
+facts) / `nextjs_build_and_test` (huge, 82 facts, 62 of them dependency
+edges) pair:
+
+- **`celery_python_package`** (20 facts) — mid-sized, a genuine
+  reusable-workflow-calling pair (`Integration-tests`/`Smoke-tests`) gated on
+  another job's `result`, not yet exercised by either existing pipeline.
+- **`scipy_linux`** (35 facts) — chosen over `vscode_pr` specifically for
+  the "heavy matrix/dependency" slot: `vscode_pr`'s checklist has **zero**
+  dependency facts (all 18 of its jobs are independent — no `needs:` chains
+  at all), while `scipy_linux` has 11 real dependency facts (a fan-out from
+  one gating job) plus 2 matrix facts — the actual dependency/matrix stress
+  this addendum was meant to add.
+
+### Generation notes
+
+Both calls used the exact same `CANDIDATE_1_PROMPT`, retry contract, and
+timeout as the committed `generate_outputs.py` — no script changes, only a
+scratch driver that imports `CANDIDATE_1_PROMPT`/`_call_with_one_retry`
+unmodified and runs it against 2 more pipelines. `celery_python_package`
+succeeded on the first attempt (12.4s); `scipy_linux` hit the same
+`504 DEADLINE_EXCEEDED` pattern seen previously on `nextjs_build_and_test`'s
+larger fact sheets, succeeded on retry (34.5s total, 2 attempts). Both final
+outputs are genuine LLM generations, no fallback used. Fact sheets and raw
+outputs are alongside the existing ones in
+`evaluation/rewrite_experiment/outputs/`.
+
+### Scoring method
+
+Identical rubric to the main report: fact-by-fact Present/Missing/False
+against each pipeline's existing pre-registered checklist
+(`evaluation/tier4_checklists/*.checklist.yml`, read-only, unmodified), same
+two conventions applied uniformly (compound facts need every component
+stated; dependency facts need an individually-named edge, not a summary
+sentence) — no length/polish credit.
+
+### Results
+
+#### `celery_python_package` (20 facts)
+
+| Category (count) | Present | Missing | False |
+|---|---|---|---|
+| trigger (3) | 3 | 0 | 0 |
+| job (4) | 4 | 0 | 0 |
+| dependency (4) | 4 | 0 | 0 |
+| step (2) | 2 | 0 | 0 |
+| condition (2) | 2 | 0 | 0 |
+| matrix (1) | 0 | 1 | 0 |
+| secret (1) | 0 | 1 | 0 |
+| linked_workflow (2) | 2 | 0 | 0 |
+| permissions (1) | 1 | 0 | 0 |
+| **Total (20)** | **18** | **2** | **0** |
+
+**Coverage: 90% (18/20), zero hallucinations.**
+
+Both Missing facts trace to the **deterministic fact sheet itself never
+carrying the required detail down** — a shared limitation of
+`generate_text()`'s rendering, not a Candidate-1-specific defect, same
+category as the main report's `nextjs_build_and_test.trigger.2` finding:
+
+- `matrix.1` ("python-version (6 values) x os (2 values), with 6 exclude
+  entries pruning Windows combos") — the fact sheet's own line reads only
+  `matrix: up to 12 combinations (python-version, os), 6 excluded`. It never
+  breaks the 12 down into per-axis cardinalities, and never says "Windows"
+  anywhere — that word appears nowhere in the fact sheet. Candidate 1
+  correctly reports the aggregate (12 combinations, 6 excluded) but cannot
+  state axis-level counts or the Windows detail without inventing
+  information not in its input, which the prompt explicitly forbids.
+- `secret.1` ("in a `with:` block, not `env:`") — the fact sheet's SECRETS
+  REQUIRED section states the secret name and which job/step uses it, but
+  never which YAML block (`with:` vs `env:`) it came from; `ir.schema.Secret`
+  doesn't carry that distinction into the rendered text at all. Same
+  shared-limitation shape.
+
+#### `scipy_linux` (35 facts)
+
+| Category (count) | Present | Missing | False |
+|---|---|---|---|
+| trigger (2) | 2 | 0 | 0 |
+| job (12) | 12 | 0 | 0 |
+| dependency (11) | 11 | 0 | 0 |
+| step (2) | 2 | 0 | 0 |
+| condition (1) | 1 | 0 | 0 |
+| matrix (2) | 0 | 1 | 1 |
+| linked_workflow (1) | 1 | 0 | 0 |
+| permissions (1) | 1 | 0 | 0 |
+| concurrency (1) | 1 | 0 | 0 |
+| environment_variable (2) | 2 | 0 | 0 |
+| **Total (35)** | **33** | **1** | **1** |
+
+**Coverage: 94.3% (33/35) — the first False in this experiment across all
+four pipelines tested.**
+
+All 11 dependency facts are individually Present — Candidate 1 states, in
+each job's own paragraph, "It runs after `get_commit_message` and only if
+[condition]," for every one of the 11 dependent jobs by name. This is a
+stronger dependency result than the main report's control ever achieved and
+matches Candidates 1/2's `nextjs_build_and_test` performance, on a
+fan-out-from-one-job topology rather than a many-to-many web.
+
+**`matrix.1`** ("python-version (2 values) x maintenance-branch (1 value),
+with 1 exclude entry") — Missing, same shared-limitation category as
+`celery_python_package.matrix.1` above: the fact sheet states only the
+aggregate ("up to 2 combinations ... 1 excluded"), never per-axis
+cardinalities, for any job, anywhere in this pipeline's fact sheet.
+
+**`matrix.2`** ("Job 'free-threaded' has a single-axis matrix: parallel with
+2 values") — **False, not Missing, and the specific reason is worth stating
+precisely.** The fact sheet's line for this job reads: `matrix: 2
+combinations (parallel)`. Every other job's matrix line in this same fact
+sheet uses the identical convention — the parenthetical names the axis
+(`(python-version)`, `(python-version, maintenance-branch)`) — and
+confirmed against the real YAML, `free-threaded`'s matrix is literally
+`strategy.matrix.parallel: ["0", "1"]`: `parallel` is the axis *name*, not a
+claim about execution behavior. Candidate 1 rewrote this as *"It uses a
+build matrix with 2 combinations that run in parallel"* — reading the axis
+label as an adjective describing how the combinations execute, rather than
+as the axis's name. This is a real misreading, not a length/polish issue:
+the model asserted something (concurrent execution) that is not stated
+anywhere in its input and is not what the fact means. It's also a narrow,
+specific failure mode — one axis-name string, on one job, out of 35 facts —
+not evidence the prompt fabricates freely; every other fact in this same
+35-fact pipeline, including 11 individually-named dependency edges and 12
+job attributions, came through with zero error. Worth flagging clearly
+rather than folding into the Missing count, since "stated something
+incorrect" and "stated nothing" are different failure modes and this
+report's whole point is not blurring that line for the sake of a cleaner
+number.
+
+### Combined numbers across all 4 pipelines tested (Candidate 1 only)
+
+| Pipeline | Facts | Present | Missing | False | Coverage |
+|---|---|---|---|---|---|
+| `httpie_code_style` | 2 | 2 | 0 | 0 | 100% |
+| `nextjs_build_and_test` | 82 | 81 | 1 | 0 | 98.8% |
+| `celery_python_package` | 20 | 18 | 2 | 0 | 90% |
+| `scipy_linux` | 35 | 33 | 1 | 1 | 94.3% |
+| **Total** | **139** | **134** | **4** | **1** | **96.4%** |
+
+**1 False in 139 scored facts across 4 pipelines of varying shape and size.**
+Every Missing across all four pipelines traces to a fact genuinely absent
+from the deterministic fact sheet itself (an architectural constraint of
+`generate_text()`, not a prompt failure) — none is a case of Candidate 1
+skipping something it could see. The one False is a real, specific,
+narrow misreading of an axis-name label as a behavior claim, isolated to a
+single fact on a single job — not a pattern repeated elsewhere in the same
+output or in any of the other three pipelines.
+
+### What this addendum adds to the main report's conclusions
+
+1. **Candidate 1's near-perfect dependency handling generalizes** beyond
+   `nextjs_build_and_test`'s many-to-many web to a fan-out-from-one-job
+   topology (`scipy_linux`, 11/11) and a small reusable-workflow-gated pair
+   (`celery_python_package`, 4/4) — not an artifact of one pipeline's shape.
+2. **The "zero hallucination" finding from the main report does not hold at
+   139 facts** — it holds at 138/139. The one exception is informative
+   precisely because it's narrow and specific (a label-vs-behavior
+   misreading), not because it's large or because it invalidates the
+   broader pattern.
+3. **Every Missing fact across all 4 pipelines is a fact-sheet-level gap,
+   not a prompt-level one** — reinforcing the main report's Observation 4
+   that the real ceiling on completeness is upstream of the beautification
+   layer entirely.

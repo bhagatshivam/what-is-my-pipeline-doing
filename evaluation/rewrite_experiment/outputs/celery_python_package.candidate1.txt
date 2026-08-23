@@ -1,0 +1,57 @@
+## Overview
+
+The Celery pipeline is a GitHub Actions workflow defined in the file `/home/user/what-is-my-pipeline-doing/evaluation/held_out_workflows/celery_python_package.yml`. This workflow requires `contents: read` permissions.
+
+It can be triggered by pushes to the `main` branch, by pull requests, or manually. The pipeline comprises four jobs: `Unit`, `Discover-test-modules`, `Integration-tests`, and `Smoke-tests`. Two of these jobs (`Unit` and `Discover-test-modules`) run independently, while the other two (`Integration-tests` and `Smoke-tests`) depend on the completion of the independent jobs. Three of the four jobs utilize a build matrix for execution.
+
+## When It Runs
+
+This workflow is configured to run under the following conditions:
+
+*   **On Push:** Whenever changes are pushed to the `main` branch, specifically if any `.py`, `.txt`, `.toml`, or `tox.ini` files are touched, or if the workflow files `.github/workflows/python-package.yml`, `.github/workflows/integration-tests.yml`, or `.github/workflows/smoke-tests.yml` are modified.
+*   **On Pull Request:** Whenever a pull request targets the `main` branch, specifically if any `.py`, `.txt`, `.toml`, or `tox.ini` files are touched, or if the workflow files `.github/workflows/python-package.yml`, `.github/workflows/integration-tests.yml`, or `.github/workflows/smoke-tests.yml` are modified.
+*   **Manually:** The workflow can also be triggered manually.
+
+## What Happens
+
+The Celery pipeline executes four distinct jobs:
+
+1.  **Unit:**
+    *   This job runs on an operating system determined by a build matrix.
+    *   It uses a build matrix that defines up to 12 combinations of `python-version` and `os`, with 6 specific combinations excluded from execution.
+    *   The job consists of 7 steps:
+        *   Install apt packages.
+        *   Checks out the repository using `actions/checkout@v7`.
+        *   Sets up Python for the specified `python-version` using `actions/setup-python`.
+        *   Installs `tox`.
+        *   Runs `tox` for the configuration matching `${{ matrix.python-version }}-unit`.
+        *   Utilizes `codecov/codecov-action@v7`.
+        *   Uploads test results to Codecov using `codecov/codecov-action@v7`.
+
+2.  **Discover-test-modules:**
+    *   This job runs on a `blacksmith-4vcpu-ubuntu-2404` runner.
+    *   It performs 2 steps:
+        *   Checks out the repository using `actions/checkout@v7`.
+        *   Discovers test module paths.
+
+3.  **Integration-tests:**
+    *   This job delegates its execution to a reusable workflow located at `./.github/workflows/integration-tests.yml`.
+    *   It passes an input `test_path` with a value determined by `${{ matrix.test_path }}`.
+    *   The job uses a build matrix where the combinations are determined at runtime.
+
+4.  **Smoke-tests:**
+    *   This job delegates its execution to a reusable workflow located at `./.github/workflows/smoke-tests.yml`.
+    *   It passes an input `test_path` with a value determined by `${{ matrix.test_path }}`.
+    *   The job uses a build matrix where the combinations are determined at runtime.
+
+## Dependencies
+
+*   The `Unit` and `Discover-test-modules` jobs run independently and do not have any declared dependencies on other jobs within this workflow.
+*   The `Integration-tests` job runs only after both the `Unit` and `Discover-test-modules` jobs have completed. Additionally, it has a condition that it will only proceed if the `Unit` job's result is 'success'. This job calls the reusable workflow `./.github/workflows/integration-tests.yml`.
+*   The `Smoke-tests` job runs only after both the `Unit` and `Discover-test-modules` jobs have completed. Additionally, it has a condition that it will only proceed if the `Unit` job's result is 'success'. This job calls the reusable workflow `./.github/workflows/smoke-tests.yml`.
+
+## Secrets & Configuration
+
+The workflow requires the following secret:
+
+*   **CODECOV_TOKEN:** This secret is used within the `Unit` job by the `codecov/codecov-action@v7` step and the "Upload test results to Codecov" step.

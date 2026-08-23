@@ -1,0 +1,41 @@
+Pipeline: Celery
+Source: /home/user/what-is-my-pipeline-doing/evaluation/held_out_workflows/celery_python_package.yml (GitHub Actions)
+Permissions: contents: read
+
+AT A GLANCE
+This workflow runs on pushes to `main`, pull requests, and manual dispatch.
+It contains 4 jobs: 2 with no declared dependencies, 2 depending on other jobs.
+3 of 4 jobs use a build matrix.
+
+WHEN IT RUNS
+- Runs on every push to main branch; touching path **.py or **.txt or .github/workflows/python-package.yml or .github/workflows/integration-tests.yml or .github/workflows/smoke-tests.yml or **.toml or tox.ini
+- Runs on every pull request targeting main branch; touching path **.py or **.txt or **.toml or .github/workflows/python-package.yml or .github/workflows/integration-tests.yml or .github/workflows/smoke-tests.yml or tox.ini
+- Can be triggered manually
+
+EXECUTION SUMMARY
+Independent jobs (no dependencies): Unit, Discover-test-modules
+Integration-tests runs after Unit, Discover-test-modules
+Smoke-tests runs after Unit, Discover-test-modules
+
+IMPLEMENTATION DETAILS
+1. Unit — runs on ${{ matrix.os }}; 7 steps; matrix: up to 12 combinations (python-version, os), 6 excluded
+   - Install apt packages
+   - actions/checkout@v7 (https://github.com/actions/checkout)
+   - Set up Python ${{ matrix.python-version }} (https://github.com/actions/setup-python)
+   - Install tox
+   - Run tox for "${{ matrix.python-version }}-unit"
+   - codecov/codecov-action@v7 (https://github.com/codecov/codecov-action)
+   - Upload test results to Codecov (https://github.com/codecov/codecov-action)
+2. Discover-test-modules — runs on blacksmith-4vcpu-ubuntu-2404; 2 steps
+   - actions/checkout@v7 (https://github.com/actions/checkout)
+   - Discover test module paths
+3. Integration-tests — delegates to reusable workflow ./.github/workflows/integration-tests.yml; with: test_path: ${{ matrix.test_path }}; matrix: combinations determined at runtime; after Unit, Discover-test-modules; condition: needs.Unit.result == 'success'
+4. Smoke-tests — delegates to reusable workflow ./.github/workflows/smoke-tests.yml; with: test_path: ${{ matrix.test_path }}; matrix: combinations determined at runtime; after Unit, Discover-test-modules; condition: needs.Unit.result == 'success'
+
+LINKED WORKFLOWS
+- calls ./.github/workflows/integration-tests.yml
+- calls ./.github/workflows/smoke-tests.yml
+
+SECRETS REQUIRED
+- CODECOV_TOKEN (used in job: Unit, step: codecov/codecov-action@v7)
+- CODECOV_TOKEN (used in job: Unit, step: Upload test results to Codecov)
