@@ -12,71 +12,71 @@ facts:
   category: trigger
   description: 'Runs on every push (bare `on: [push, pull_request]` form, no branch filter)'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: requests_lint.trigger.2
   category: trigger
   description: 'Runs on every pull request (bare `on: [push, pull_request]` form, no branch filter)'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: requests_lint.job.1
   category: job
   description: Job 'lint' exists, runs on ubuntu-24.04
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: requests_lint.step.1
   category: step
   description: Job 'lint' has a step named 'Set up Python'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: requests_lint.step.2
   category: step
   description: Job 'lint' has a step named 'Run pre-commit'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: requests_lint.permissions.1
   category: permissions
   description: 'Workflow-level permissions: contents: read'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''

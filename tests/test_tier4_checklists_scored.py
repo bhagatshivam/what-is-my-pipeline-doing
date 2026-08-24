@@ -1,19 +1,18 @@
 """
-tests/test_tier4_checklists_not_yet_scored.py — Tier 4 pre-registration
-integrity check (EVALUATION_PLAN.md Method 9).
+tests/test_tier4_checklists_scored.py — Tier 4 scoring integrity check
+(EVALUATION_PLAN.md Method 9).
 
 Asserts every evaluation/tier4_checklists/*.checklist.yml fact's three
-condition slots are outcome: null -- mechanical proof that no scoring has
-happened yet, rather than relying on a manual diff-read to confirm it.
+condition slots carry a real outcome (present/missing/false) -- mechanical
+proof that Method 9 scoring has actually been completed, rather than relying
+on a manual diff-read to confirm it.
 
-IMPORTANT, read before "fixing" a failure here: this test is only valid
-for the window between committing the checklists and actually running
-Method 9. The moment real scoring begins and outcome values get filled
-in, this test is EXPECTED to start failing -- that failure is the correct,
-intended signal that scoring has started, not a bug. Whoever lands the
-first real scores must delete or rewrite this test as part of that same
-PR (e.g. to assert scored facts are one of correct/missing/incorrect
-instead of asserting null) -- see BUILD_PLAN.md Section 6's open item.
+This file supersedes tests/test_tier4_checklists_not_yet_scored.py, which
+asserted the opposite (outcome: null everywhere) during the pre-registration
+window before scoring began. That window is over: outcome values were
+transcribed from evaluation/tier4_scoring/*.scoring.md in the PR that
+renamed this file, per the retirement plan recorded in this file's own
+former docstring and in BUILD_PLAN.md Section 6.
 """
 
 import glob
@@ -24,6 +23,7 @@ import yaml
 
 _CHECKLISTS_DIR = os.path.join(os.path.dirname(__file__), "..", "evaluation", "tier4_checklists")
 _CONDITION_KEYS = ("condition_1_deterministic", "condition_2_llm_polished", "condition_3_naive_baseline")
+_VALID_OUTCOMES = ("present", "missing", "false")
 
 
 def _checklist_paths():
@@ -36,7 +36,7 @@ def test_ten_checklists_exist():
 
 
 @pytest.mark.parametrize("checklist_path", _checklist_paths())
-def test_checklist_all_condition_slots_are_null(checklist_path):
+def test_checklist_all_condition_slots_are_scored(checklist_path):
     with open(checklist_path, encoding="utf-8") as f:
         checklist = yaml.safe_load(f)
 
@@ -48,12 +48,15 @@ def test_checklist_all_condition_slots_are_null(checklist_path):
         for key in _CONDITION_KEYS:
             assert key in fact, f"{checklist_path}: fact {fact['fact_id']} missing {key}"
             slot = fact[key]
-            assert slot["outcome"] is None, (
-                f"{checklist_path}: fact {fact['fact_id']}'s {key} has a non-null outcome "
-                f"({slot['outcome']!r}) -- Method 9 scoring appears to have started. If that's "
-                "correct and intentional, this test must be deleted/rewritten as part of that "
-                "same change, not left failing (see this file's module docstring)."
+            assert slot["outcome"] in _VALID_OUTCOMES, (
+                f"{checklist_path}: fact {fact['fact_id']}'s {key} has outcome "
+                f"{slot['outcome']!r}, expected one of {_VALID_OUTCOMES}"
             )
+            if slot["outcome"] != "present":
+                assert slot["detail"], (
+                    f"{checklist_path}: fact {fact['fact_id']}'s {key} is "
+                    f"{slot['outcome']!r} but has an empty detail field"
+                )
 
 
 def test_grand_total_fact_count_across_all_ten():

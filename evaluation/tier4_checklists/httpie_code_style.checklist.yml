@@ -13,23 +13,23 @@ facts:
   description: Runs only on pull request, path-filtered to workflow/source/test files (no push trigger
     at all)
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: httpie_code_style.job.1
   category: job
   description: Job 'code-style' exists, runs on ubuntu-latest
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
