@@ -1,11 +1,12 @@
 # Tier 4 — Pre-Registered Fact-Checklist Findings (Method 9)
 
-**Status note:** this report is newly created, not an update to a prior
+**Status note:** this report was newly created (not an update to a prior
 version — no earlier `evaluation/tier4_findings/REPORT.md` existed in this
-repository before this PR. It covers only the fact-checklist half of Tier 4
-(`EVALUATION_PLAN.md` Method 9's three-condition comparison). The
-answerability audit (Tool 2, Method 9's second half) has not been run and is
-not covered here; see `BUILD_PLAN.md`'s open Tier 4 item.
+repository) to cover the fact-checklist half of Tier 4 (`EVALUATION_PLAN.md`
+Method 9's three-condition comparison). The answerability audit (Tool 2,
+Method 9's second half) is covered separately in
+`evaluation/tier4_answerability/REPORT.md`, whose synthesis section relates
+its usability-lens findings back to this report's fact-coverage framing.
 
 ## Method, in brief
 
