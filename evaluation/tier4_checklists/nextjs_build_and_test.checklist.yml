@@ -78,986 +78,986 @@ facts:
   category: trigger
   description: Runs on push to canary branch
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.trigger.2
   category: trigger
   description: 'Runs on pull request, restricted to opened/synchronize event types (types: filter, not
     the bare pull_request default)'
   condition_1_deterministic:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- shared, upstream fact-sheet limitation: the PR event-type restriction (opened/synchronize) is absent from generate_text()''s own WHEN IT RUNS section (''Runs on every pull request''), so no candidate/condition can state it without adding a fact not in the fact sheet. Already documented in evaluation/rewrite_experiment/REPORT.md.'
   condition_2_llm_polished:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- shared, upstream fact-sheet limitation: the PR event-type restriction (opened/synchronize) is absent from generate_text()''s own WHEN IT RUNS section (''Runs on every pull request''), so no candidate/condition can state it without adding a fact not in the fact sheet. Already documented in evaluation/rewrite_experiment/REPORT.md.'
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.concurrency.1
   category: concurrency
   description: 'Workflow-level concurrency: group is a conditional expression choosing a PR-scoped or
     SHA-scoped group name depending on github.event_name, cancel-in-progress: true'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.environment_variable.1
   category: environment_variable
   description: Workflow-level env var NODE_MAINTENANCE_VERSION = 20
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.environment_variable.2
   category: environment_variable
   description: Workflow-level env var NODE_LTS_VERSION = 22
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.job.2
   category: job
   description: Job 'changes' exists
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.job.4
   category: job
   description: 'Job ''build-native'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.job.6
   category: job
   description: 'Job ''build-next'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.job.7
   category: job
   description: Job 'fetch-test-timings' exists
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.job.8
   category: job
   description: 'Job ''lint'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this job individually.'
 - fact_id: nextjs_build_and_test.job.10
   category: job
   description: 'Job ''check-types-precompiled'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this job individually.'
 - fact_id: nextjs_build_and_test.job.11
   category: job
   description: 'Job ''test-cargo-unit'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this job individually.'
 - fact_id: nextjs_build_and_test.job.13
   category: job
   description: 'Job ''rust-check'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this job individually.'
 - fact_id: nextjs_build_and_test.job.22
   category: job
   description: 'Job ''test-next-swc-wasm'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this job individually.'
 - fact_id: nextjs_build_and_test.job.23
   category: job
   description: 'Job ''test-next-napi-bindings-wasi'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this job individually.'
 - fact_id: nextjs_build_and_test.job.30
   category: job
   description: 'Job ''test-new-tests-deploy'' exists; uses: ./.github/workflows/build_reusable.yml (matrix
     job)'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this job individually.'
 - fact_id: nextjs_build_and_test.job.33
   category: job
   description: 'Job ''test-dev-windows'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this job individually.'
 - fact_id: nextjs_build_and_test.job.34
   category: job
   description: 'Job ''test-integration-windows'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this job individually.'
 - fact_id: nextjs_build_and_test.job.37
   category: job
   description: 'Job ''test-firefox-safari'' exists; uses: ./.github/workflows/build_reusable.yml'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this job individually.'
 - fact_id: nextjs_build_and_test.job.40
   category: job
   description: Job 'tests-pass' exists
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.1
   category: dependency
   description: Job 'build-native' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.3
   category: dependency
   description: Job 'fetch-test-timings' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.4
   category: dependency
   description: Job 'lint' depends on 'build-next'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.5
   category: dependency
   description: Job 'check-types-precompiled' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.6
   category: dependency
   description: Job 'check-types-precompiled' depends on 'build-native'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.7
   category: dependency
   description: Job 'check-types-precompiled' depends on 'build-next'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.8
   category: dependency
   description: Job 'test-cargo-unit' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.9
   category: dependency
   description: Job 'test-cargo-unit' depends on 'build-next'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.13
   category: dependency
   description: Job 'rust-check' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.14
   category: dependency
   description: Job 'rust-check' depends on 'build-next'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.45
   category: dependency
   description: Job 'test-next-swc-wasm' depends on 'optimize-ci'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.46
   category: dependency
   description: Job 'test-next-swc-wasm' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.47
   category: dependency
   description: Job 'test-next-swc-wasm' depends on 'build-next'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.48
   category: dependency
   description: Job 'test-next-napi-bindings-wasi' depends on 'optimize-ci'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.49
   category: dependency
   description: Job 'test-next-napi-bindings-wasi' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.50
   category: dependency
   description: Job 'test-next-napi-bindings-wasi' depends on 'build-next'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.71
   category: dependency
   description: Job 'test-new-tests-deploy' depends on 'optimize-ci'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.72
   category: dependency
   description: Job 'test-new-tests-deploy' depends on 'test-prod'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.73
   category: dependency
   description: Job 'test-new-tests-deploy' depends on 'test-new-tests-dev'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.74
   category: dependency
   description: Job 'test-new-tests-deploy' depends on 'test-new-tests-start'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.84
   category: dependency
   description: Job 'test-dev-windows' depends on 'optimize-ci'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.85
   category: dependency
   description: Job 'test-dev-windows' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.86
   category: dependency
   description: Job 'test-dev-windows' depends on 'build-native-windows'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.87
   category: dependency
   description: Job 'test-dev-windows' depends on 'build-next'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.88
   category: dependency
   description: Job 'test-integration-windows' depends on 'optimize-ci'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.89
   category: dependency
   description: Job 'test-integration-windows' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.90
   category: dependency
   description: Job 'test-integration-windows' depends on 'build-native-windows'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.91
   category: dependency
   description: Job 'test-integration-windows' depends on 'build-next'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.101
   category: dependency
   description: Job 'test-firefox-safari' depends on 'optimize-ci'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: nextjs_build_and_test.dependency.102
   category: dependency
   description: Job 'test-firefox-safari' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.103
   category: dependency
   description: Job 'test-firefox-safari' depends on 'build-native'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.104
   category: dependency
   description: Job 'test-firefox-safari' depends on 'build-next'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline (condition 3, raw YAML -> LLM) never names this dependency edge individually.'
 - fact_id: nextjs_build_and_test.dependency.115
   category: dependency
   description: Job 'tests-pass' depends on 'optimize-ci'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.116
   category: dependency
   description: Job 'tests-pass' depends on 'changes'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.117
   category: dependency
   description: Job 'tests-pass' depends on 'build-native'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.118
   category: dependency
   description: Job 'tests-pass' depends on 'build-next'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.119
   category: dependency
   description: Job 'tests-pass' depends on 'fetch-test-timings'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.120
   category: dependency
   description: Job 'tests-pass' depends on 'lint'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.121
   category: dependency
   description: Job 'tests-pass' depends on 'validate-docs-links'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.122
   category: dependency
   description: Job 'tests-pass' depends on 'check-types-precompiled'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.123
   category: dependency
   description: Job 'tests-pass' depends on 'test-unit'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.124
   category: dependency
   description: Job 'tests-pass' depends on 'test-next-config-ts-native-ts-dev'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.125
   category: dependency
   description: Job 'tests-pass' depends on 'test-next-config-ts-native-ts-prod'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.126
   category: dependency
   description: Job 'tests-pass' depends on 'test-dev'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.127
   category: dependency
   description: Job 'tests-pass' depends on 'test-prod'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.128
   category: dependency
   description: Job 'tests-pass' depends on 'test-firefox-safari'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.129
   category: dependency
   description: Job 'tests-pass' depends on 'test-cache-components-dev'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.130
   category: dependency
   description: Job 'tests-pass' depends on 'test-cache-components-prod'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.131
   category: dependency
   description: Job 'tests-pass' depends on 'test-cargo-unit'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.132
   category: dependency
   description: Job 'tests-pass' depends on 'rust-check'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.133
   category: dependency
   description: Job 'tests-pass' depends on 'rustdoc-check'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.134
   category: dependency
   description: Job 'tests-pass' depends on 'test-next-swc-wasm'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.135
   category: dependency
   description: Job 'tests-pass' depends on 'test-turbopack-dev'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.136
   category: dependency
   description: Job 'tests-pass' depends on 'test-new-tests-dev'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.137
   category: dependency
   description: Job 'tests-pass' depends on 'test-new-tests-start'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.138
   category: dependency
   description: Job 'tests-pass' depends on 'test-new-tests-deploy'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.139
   category: dependency
   description: Job 'tests-pass' depends on 'test-new-tests-deploy-cache-components'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.140
   category: dependency
   description: Job 'tests-pass' depends on 'test-turbopack-production'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.141
   category: dependency
   description: Job 'tests-pass' depends on 'test-unit-windows'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.142
   category: dependency
   description: Job 'tests-pass' depends on 'test-dev-windows'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.143
   category: dependency
   description: Job 'tests-pass' depends on 'test-integration-windows'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'
 - fact_id: nextjs_build_and_test.dependency.144
   category: dependency
   description: Job 'tests-pass' depends on 'test-prod-windows'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
-    detail: ''
+    outcome: missing
+    detail: 'Missing -- naive baseline''s only mention of tests-pass''s dependencies is the vague blanket statement "This job explicitly lists all critical build, lint, and test jobs as dependencies" (evaluation/tier4_scoring/nextjs_build_and_test.scoring.md, Condition B). No individual job name is ever stated as a tests-pass dependency anywhere in the naive-baseline text, confirmed by exhaustive search. Same vague-blanket-statement pattern already scored Missing for scipy_linux''s dependency facts under this project''s established individually-named-edge convention.'

@@ -13,25 +13,25 @@ facts:
   description: 'Runs on push to main or test-me-* branches (also tags: ''*'', bare-string form, not a
     list)'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: pre_commit_main.trigger.2
   category: trigger
   description: Runs on every pull request, no filters
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: pre_commit_main.job.1
   category: job
@@ -39,37 +39,37 @@ facts:
     job (external, cross-repo: asottile/workflows) with with: inputs (env, os), no steps: block at all
     (GH Actions treats uses:/steps: as mutually exclusive at job level)'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: pre_commit_main.job.2
   category: job
   description: 'Job ''main-linux'' exists; same uses:-only shape as main-windows, calling the same external
     reusable workflow with different with: input values (env: 4-version list, os: ubuntu-latest)'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: pre_commit_main.concurrency.1
   category: concurrency
   description: 'Workflow-level concurrency: group is a dynamic expression (github.workflow + github.head_ref-or-run_id),
     cancel-in-progress: true'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''

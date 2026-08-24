@@ -13,122 +13,122 @@ facts:
   description: 'Runs on every push (bare `on: [push, pull_request, workflow_dispatch]` form, no branch
     filter)'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: urllib3_ci.trigger.2
   category: trigger
   description: 'Runs on every pull request (same bare on: list form)'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: urllib3_ci.job.1
   category: job
   description: Job 'package' exists, runs on ubuntu-latest
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: urllib3_ci.job.2
   category: job
   description: Job 'test' exists, runner is a dynamic ${{ matrix.os }} expression
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: urllib3_ci.job.3
   category: job
   description: Job 'coverage' exists, runs on ubuntu-24.04
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: urllib3_ci.dependency.1
   category: dependency
   description: '''coverage'' runs after ''test'''
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: urllib3_ci.step.1
   category: step
   description: Job 'package' has a step named 'Check packages'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: urllib3_ci.condition.1
   category: condition
   description: Job 'coverage' is gated on always() (runs even if 'test' failed, to still report coverage)
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: urllib3_ci.matrix.1
   category: matrix
   description: 'Job ''test'' has a multi-axis matrix: python-version (7 values) x os (3 values), plus
     include entries'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: urllib3_ci.permissions.1
   category: permissions
   description: 'Workflow-level permissions: contents: read'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: urllib3_ci.env_var.1
   category: environment_variable
@@ -140,11 +140,11 @@ facts:
 
     '
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''

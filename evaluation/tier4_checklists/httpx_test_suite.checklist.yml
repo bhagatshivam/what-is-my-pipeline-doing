@@ -12,71 +12,71 @@ facts:
   category: trigger
   description: Runs on push to master
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: httpx_test_suite.trigger.2
   category: trigger
   description: Runs on pull request targeting master or version-* branches
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: httpx_test_suite.job.1
   category: job
   description: Job 'tests' exists, runs on ubuntu-latest
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: httpx_test_suite.step.1
   category: step
   description: Job 'tests' has a step named 'Install dependencies'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: httpx_test_suite.step.2
   category: step
   description: Job 'tests' has a step named 'Run tests'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
 - fact_id: httpx_test_suite.matrix.1
   category: matrix
   description: 'Job ''tests'' has a single-axis matrix: python-version with 5 values'
   condition_1_deterministic:
-    outcome: null
+    outcome: present
     detail: ''
   condition_2_llm_polished:
-    outcome: null
+    outcome: present
     detail: ''
   condition_3_naive_baseline:
-    outcome: null
+    outcome: present
     detail: ''
