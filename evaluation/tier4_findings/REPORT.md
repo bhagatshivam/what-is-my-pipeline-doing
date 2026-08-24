@@ -1,11 +1,12 @@
 # Tier 4 — Pre-Registered Fact-Checklist Findings (Method 9)
 
-**Status note:** this report is newly created, not an update to a prior
+**Status note:** this report was newly created (not an update to a prior
 version — no earlier `evaluation/tier4_findings/REPORT.md` existed in this
-repository before this PR. It covers only the fact-checklist half of Tier 4
-(`EVALUATION_PLAN.md` Method 9's three-condition comparison). The
-answerability audit (Tool 2, Method 9's second half) has not been run and is
-not covered here; see `BUILD_PLAN.md`'s open Tier 4 item.
+repository) to cover the fact-checklist half of Tier 4 (`EVALUATION_PLAN.md`
+Method 9's three-condition comparison). The answerability audit (Tool 2,
+Method 9's second half) is covered separately in
+`evaluation/tier4_answerability/REPORT.md`, whose synthesis section relates
+its usability-lens findings back to this report's fact-coverage framing.
 
 ## Method, in brief
 
@@ -55,22 +56,61 @@ deterministic layer it rewrites, on this held-out set.
 ## Correction to this project's previous working figure
 
 An earlier internal working figure for this comparison stated the naive
-baseline's False rate as **15.4% (31/201)**. That figure was wrong and is
-superseded by the 0.5% (1/201) figure above. The error was a single
-30-fact block: `nextjs_build_and_test.dependency.115-144` (the "tests-pass"
-job's dependency list) had been scored False on the premise that the naive
-baseline's output "lists all other jobs" as dependencies of `tests-pass` —
-a claim that doesn't match what the naive baseline actually said. Re-read
-against the real text, the naive baseline never individually names any
-dependency edge for that job at all; it makes one vague blanket statement
-("this job explicitly lists all critical build, lint, and test jobs as
-dependencies") and stops. Under the individually-named-edge convention this
-project applies consistently everywhere else (e.g. `scipy_linux`'s
-dependency facts, `vscode_pr`'s job facts) — a fact scores Missing when a
-plausible-sounding but non-specific summary is offered instead of naming
-the fact itself, and reserves False for a stated claim that is concretely,
-checkably wrong — this block is Missing, not False. It was corrected before
-being transcribed into the checklists, not after.
+baseline's False rate as **15.4% (31/201)**. That figure was superseded by
+the 0.5% (1/201) figure above, for a single 30-fact block:
+`nextjs_build_and_test.dependency.115-144` (the "tests-pass" job's
+dependency list).
+
+This is not a case of an error being found and fixed in the usual sense —
+both scorings were accurate against the text they were scored from. The
+naive baseline for `nextjs_build_and_test` was generated twice, on two
+different dates, as two independent, non-deterministic LLM calls of the
+same condition: once on 2026-08-20 (commit `f20c036`), and again on
+2026-08-22 (commit `5053d08`) as part of an unrelated regeneration to add
+environment-variable facts to conditions 1/2 for three pipelines. The
+2026-08-20 generation stated the `tests-pass` job's dependencies as "lists
+*all* other jobs in the pipeline" — a specific, checkable claim, and a
+wrong one: `tests-pass` depends on roughly 29 of the pipeline's other 39
+jobs, not all of them. That generation was correctly scored False. The
+2026-08-22 regeneration produced different wording for the same fact —
+"this job explicitly lists all critical build, lint, and test jobs as
+dependencies" — a vaguer, unenumerated characterization that no longer
+makes a checkably wrong claim, just an incomplete one. Under the
+individually-named-edge convention this project applies consistently
+elsewhere (e.g. `scipy_linux`'s dependency facts, `vscode_pr`'s job facts)
+— a fact scores Missing when a plausible-sounding but non-specific summary
+is offered instead of individually naming the fact itself, and reserves
+False for a claim that is concretely, checkably wrong — the currently
+committed text (`5053d08`, unchanged since) is correctly scored Missing.
+The 2026-08-20 scoring wasn't wrong at the time; the source text underneath
+it changed.
+
+**A second, independently observed instance of the same phenomenon:**
+`urllib3_ci.matrix.1` (the job `test`'s multi-axis matrix fact) shows the
+identical pattern on a single fact rather than thirty. The 2026-08-20
+naive-baseline generation enumerated the `python-version` matrix axis as
+10 explicit values ("3.10, 3.11, 3.12, 3.13, 3.14, 3.14t, 3.15, `pypy-3.11`,
+`3.x`, and a specific `3.12.2`") — conflating the axis's actual 7 base
+values with 3 values that only exist via `include:` entries, a specific
+and checkably wrong count. The eventual regeneration (`8c63b3b`, after an
+intervening `5053d08` attempt failed with a `503` and fell back to an
+unprocessed error banner — see `BUILD_PLAN.md`'s PR #57/#58 entries)
+instead gives illustrative examples without committing to a count ("a wide
+range of Python versions... including specific patch versions, pre-releases,
+and PyPy") and correctly separates the `include` entries into their own
+section. `matrix.1`'s currently committed verdict is Present in all three
+conditions — the vaguer phrasing doesn't misstate anything, it just stops
+short of the wrong specific claim the earlier generation made.
+
+Two confirmed instances, both drawn from this project's own primary sources
+(`evaluation/tier4_scoring/*.scoring.md` and their git history) rather than
+from any external documentation: **naive-baseline verdicts on borderline or
+vague fan-in/fan-out claims are not fully stable across independent
+regenerations of the same condition** — sensitive to phrasing rather than
+reflecting a change in the underlying method's structural strength or
+weakness. Both corrections were made before transcription into the
+checklists, against each fact's currently committed source text, not after
+the fact.
 
 The one remaining genuine False is `cpython_reusable_macos.job.1`: the
 naive baseline states the checkout step is pinned to the tag
