@@ -48,14 +48,15 @@ work, so it isn't included here as a sourced data point.
 Only **3 of 11** (scipy, black, tox) had CI documentation both detailed
 enough to be useful and confirmed, independently, to still match current
 behavior — and that confirmation came from Tier 3's own comparison work, not
-from this table alone. **1 of 11** has no CI documentation at all. **5 of
+from this table alone. **1 of 11** has no CI documentation at all. **4 of
 11** acknowledge CI exists in one vague sentence with no operational
-detail — no trigger, no job, no "when does this actually run." **2 of 11**
+detail — no trigger, no job, no "when does this actually run." **3 of 11**
 have documentation that is detailed and confident, but wrong: one describing
 a CI system the project no longer runs, one describing a shape of the
-current system that has since changed underneath it.
+current system that has since changed underneath it, and one describing
+workflow files other than the ones it names.
 
-### Two concrete examples
+### Three concrete examples
 
 **`httpie_code_style` (httpie/cli) — old on both sides.** The CONTRIBUTING.md
 mention of CI ("GitHub Actions will automatically run HTTPie's test suite
@@ -83,16 +84,32 @@ this survey would have caught it at a different point in that cycle. A
 "currently accurate" doc in this sample is a snapshot of a moving target,
 not a guarantee.
 
+**`nextjs_build_and_test` (vercel/next.js) — confident, but about a
+different pipeline.** The project's CI documentation was last touched
+2026-06-04; the actual `build_and_test.yml` workflow it's nominally
+describing was last touched 2026-08-20 — a 77-day gap. Unlike `celery` and
+`httpx` above, the problem here isn't a retired system or a single claim
+that's drifted since it was written: the documentation itself is confident
+and detailed, but names workflow files other than the ones actually present
+in the repository today. This entry is recorded at the same table-row level
+of detail as the rest of this survey's non-headline cases, not verified as
+deeply as `tox`'s specific commit citation or `scipy`'s independent Tier 3
+comparison — `vercel/next.js` wasn't carried into that deeper cross-check,
+so there's no line-by-line confirmation of exactly which files the doc
+mismatches, only the dated last-touch comparison and the different-subject
+classification itself.
+
 ## Synthesis
 
 Across 11 real repos, only 3 had CI documentation that was both detailed
 and currently accurate (and one of those, `tox`, only stayed current
 because it happened to be edited the same day this data was gathered — a
 coincidence, not a stable state). One repo has no CI documentation at all.
-Five have only vague, one-line acknowledgments that CI exists, with no
-operational detail. Two have documentation that's detailed but wrong — one
+Four have only vague, one-line acknowledgments that CI exists, with no
+operational detail. Three have documentation that's detailed but wrong — one
 describing a CI system the project no longer uses, one describing a shape
-of the current system that's since changed underneath it. The gap sizes
+of the current system that's since changed underneath it, and one
+describing workflow files other than the ones it names. The gap sizes
 themselves (77–326 days between a doc's last edit and its subject
 workflow's) suggest documentation and pipeline configuration are maintained
 on independent, uncoordinated schedules in practice, not gaps introduced by
