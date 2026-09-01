@@ -165,12 +165,12 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
   - [x] Report actionable validation findings, with warnings clearly distinguishable from errors
   - [x] Define and document a non-zero CLI exit code for invalid IR (`3`, preserving `1` for failed drift checks and `2` for parse/input/operational failures)
   - [x] Add focused integration tests for important failure paths, including dangling dependencies, dependency cycles, non-mapping `jobs:`, and non-mapping individual job bodies
-- [ ] Correct terminology and documentation claims throughout project-facing documentation
-  - [ ] Replace claims that extracted facts are "verified" with accurate wording such as "deterministically extracted and structurally validated facts"
-  - [ ] State that golden-file tests detect regression against accepted output; they do not independently prove semantic correctness
-  - [ ] Clearly distinguish implemented, evaluated, and future functionality
-- [ ] Expand linting and CI across the complete maintained Python codebase, including `generators/`, `tool1/`, `tool2/`, `llm/`, `evaluation/`, and `cli.py` where those paths exist, rather than only `ir/`, `parsers/`, and `tests/`
-  - [ ] Add or record proportionate checks for validation-failure paths and evaluation utilities, without introducing an expensive or elaborate CI design
+- [x] Correct terminology and documentation claims throughout project-facing documentation — no "verified facts" language remains anywhere in `README.md`/`PROJECT_PLAN.md`/`LIMITATIONS.md`
+  - [x] Replace claims that extracted facts are "verified" with accurate wording such as "deterministically extracted and structurally validated facts" — present in `PROJECT_PLAN.md`, `LIMITATIONS.md`, and `llm/base.py`
+  - [x] State that golden-file tests detect regression against accepted output; they do not independently prove semantic correctness — see `EVALUATION_PLAN.md`'s Tier 1 Method 1
+  - [x] Clearly distinguish implemented, evaluated, and future functionality — see `LIMITATIONS.md` throughout and `EVALUATION_PLAN.md`'s Overview status table
+- [x] Expand linting and CI across the complete maintained Python codebase, including `generators/`, `tool1/`, `tool2/`, `llm/`, `evaluation/`, and `cli.py` where those paths exist, rather than only `ir/`, `parsers/`, and `tests/` — `.github/workflows/ci.yml`'s `ruff check` line covers `ir/ parsers/ tests/ generators/ tool1/ tool2/ llm/ evaluation/ cli.py scripts/`
+  - [x] Add or record proportionate checks for validation-failure paths and evaluation utilities, without introducing an expensive or elaborate CI design
 - [x] Add a limited set of security-relevant typed fields if achievable without delaying Phase 5
   - [x] Prioritise workflow/job permissions and deployment environment; these are currently preserved in `raw_extras`, but are not typed or surfaced
   - [x] Add concurrency only if straightforward; it is currently preserved in `raw_extras` — straightforward: every real occurrence at both levels is a mapping, so promoted alongside permissions/deployment_environment rather than deferred
@@ -184,11 +184,11 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
   - [x] Build (not just plan) a simple Mermaid job-node and dependency-edge comparison — `evaluation/diagram_diff.py` (E3), structural (bracket-shape) node classification
   - [x] Build (not just plan) a small robustness/mutation set — `evaluation/error_injection/` (E4), 8 cases, all outcomes matched pre-registered expectations
   - [x] Treat unsupported-claim or hallucination scoring as post-hoc evaluation, not as a runtime fact-ID or provenance system — the scorer runs after the fact against committed manifests, nothing is embedded at runtime
-- [ ] Update project-facing documentation
-  - [ ] Bring `README.md` into line with the actual implemented state and correct stale plans or claims
-  - [ ] Remove evaluator-recruitment assumptions; evaluation is self-conducted and mostly automated
-  - [ ] Clearly document supported features, known limitations, and validation behaviour
-  - [ ] Keep this practical; extensive visual polish is not part of the hardening phase
+- [x] Update project-facing documentation — README rewritten in PR #66 (merged 2026-09-01), bringing it in line with current implementation state, adding the evaluation-results summary, and removing stale/evaluator-recruitment assumptions
+  - [x] Bring `README.md` into line with the actual implemented state and correct stale plans or claims
+  - [x] Remove evaluator-recruitment assumptions; evaluation is self-conducted and mostly automated
+  - [x] Clearly document supported features, known limitations, and validation behaviour
+  - [x] Keep this practical; extensive visual polish is not part of the hardening phase
 
 **Explicitly deferred:** fact-ID preservation for LLM output; per-sentence source provenance; a complex runtime hallucination detector; rich Mermaid redesign or multiple diagram views; multiple LLM providers; a GUI or GitHub application; Jenkins, GitLab CI, or other CI-platform support; full external reusable-workflow resolution; a large performance benchmark; and a production-grade CLI redesign unless existing functionality requires it. Phase 5 implementation is not part of this phase-planning update and must not begin until this plan is approved.
 
@@ -229,11 +229,11 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
   uses the same marker-based injection so it can update a doc section
   without overwriting the rest of the file.
 - [x] Reuse the Phase 4/5 generators and LLM layer — Tool 2 should not need its own separate text/Mermaid/LLM code, just a layer that merges multiple IR objects before handing off to the same generators
-- [ ] Test against 2–3 real multi-workflow repos (not just single-file fixtures — pull whole `.github/workflows/` folders) — deliberately not yet done: real-repo fixture selection is its own approval gate (see 2026-07-23 changelog entry below), separate from this PR
+- [x] Test against 2–3 real multi-workflow repos (not just single-file fixtures — pull whole `.github/workflows/` folders) — `tests/fixtures/multi/{black,starlette,tox}`, three real repos each with their full real `.github/workflows/` folder (added 2026-07-23, between the 23 and 30 July changelog entries below)
 
 **Explicitly deferred:** any non-GitHub-Actions repo, animation feature.
 
-**Definition of done:** running `python cli.py tool2 <path/to/repo>` produces one unified Markdown doc + unified Mermaid diagram correctly describing a multi-workflow repository, for at least 2–3 real test repos. **Still open:** the 2–3 real-repo test pass above.
+**Definition of done:** running `python cli.py tool2 <path/to/repo>` produces one unified Markdown doc + unified Mermaid diagram correctly describing a multi-workflow repository, for at least 2–3 real test repos.
 
 ---
 
@@ -250,8 +250,8 @@ Create this skeleton in Phase 1 even if most files are empty stubs — it keeps 
 - [x] Error injection (broken dependency, malformed `if`, undefined secret — does the tool flag it or silently hallucinate?) — `evaluation/error_injection/` (E4), 8 cases, all pre-registered expectations matched, done prior to Phase 7 Step 1; case count intentionally not expanded (Decision 2, Phase 7 Step 1). Now guarded by `evaluation/_path_guard.py`.
 
 **Tasks (Tier 3 — moderate setup)**
-- [ ] Correctness check: trigger real pipelines on 4–5 real repos, compare GitHub's actual job/status output to the tool's documentation
-- [ ] Natural-pairs comparison: find repos with existing human-written CI docs (README/CONTRIBUTING/wiki), compare tool output directly against them
+- [x] Correctness check: trigger real pipelines on 4–5 real repos, compare GitHub's actual job/status output to the tool's documentation — PR #61 (2026-08-23), against 145 real GitHub Actions runs on this repo's own `ci.yml`, 6/7 comparison points match exactly (see changelog entry below)
+- [x] Natural-pairs comparison: find repos with existing human-written CI docs (README/CONTRIBUTING/wiki), compare tool output directly against them — PR #60 (2026-08-23), against `scipy_linux`/`tox`/`black`'s genuine human-written CI documentation, zero contradictions found (see changelog entry below)
 
 **Tasks (Tier 4 — self-conducted, zero recruitment; must happen in this order)**
 - [x] Pre-register the fact checklist for each evaluation pipeline — every objectively checkable fact in its YAML (triggers, `needs:` edges, required secrets, gating conditions) — and commit it to the repo *before* generating any of the three conditions' outputs. This is a distinct, ordered prerequisite, not just documentation: the protocol is invalid if the checklist is written after seeing what each condition got right or wrong.
@@ -461,11 +461,11 @@ Not a coding phase — see `WEEKLY_PLAN.md`'s day-by-day breakdown for this (Int
 
 Before considering the GitHub-Actions-only prototype complete and moving attention to Phase 9 or report-writing:
 
-- [ ] Tool 1: any single real-world GitHub Actions workflow file produces an accurate, LLM-polished Markdown doc with a correct Mermaid diagram
-- [ ] Tool 2: any real-world repo's full `.github/workflows/` folder produces one accurate unified doc + diagram
-- [ ] Post-hoc unsupported-claim scoring is complete for the agreed evaluation set
-- [ ] Tier 1 & 2 evaluation checks are automated and passing
-- [ ] At least Tier 3 evaluation has been run once against real repos
+- [x] Tool 1: any single real-world GitHub Actions workflow file produces an accurate, LLM-polished Markdown doc with a correct Mermaid diagram — see `README.md` and `samples/tool1.*` pairs
+- [x] Tool 2: any real-world repo's full `.github/workflows/` folder produces one accurate unified doc + diagram — see `README.md` and `samples/tool2.*` pairs
+- [x] Post-hoc unsupported-claim scoring is complete for the agreed evaluation set — Tier 4, `LIMITATIONS.md`'s 2026-08-24 entry
+- [x] Tier 1 & 2 evaluation checks are automated and passing — `.github/workflows/ci.yml` + golden-file tests
+- [x] At least Tier 3 evaluation has been run once against real repos — PR #60/#61 (2026-08-23), see Phase 7 above
 
 ---
 
