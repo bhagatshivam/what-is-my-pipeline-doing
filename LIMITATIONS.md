@@ -1482,15 +1482,17 @@ against it. Current scope and limits, honestly stated:
   per-pipeline breakdown, and a second independently-confirmed instance of
   the same regeneration-sensitivity phenomenon (`urllib3_ci.matrix.1`) are
   in `evaluation/tier4_findings/REPORT.md`. The same day, the answerability
-  audit (Method 9's second half) also ran: five ground-truth questions
-  checked against Tool 1's output and the naive baseline separately across
-  all 10 held-out pipelines (150 answers total), finding the naive
-  baseline's clearly weakest spot is secrets/external-action attribution —
-  its only outright "No" verdicts anywhere, plus its one answered-but-wrong
-  "Yes" (the same tag-vs-SHA misstatement above), concentrate there, while
-  its failures on the other four questions degrade to "Partial" rather than
-  "No" — written up in `evaluation/tier4_answerability/REPORT.md`. With both
-  halves of Method 9 scored, Tiers 1–4 of `EVALUATION_PLAN.md` are complete.
+  audit (Method 10) also ran: five ground-truth questions checked across
+  all 10 held-out pipelines against all three conditions (150 answers
+  total: 5 questions × 10 pipelines × 3 conditions), with the two Tool 1
+  conditions collapsed into one "Tool" column against the naive baseline
+  for reporting, finding the naive baseline's clearly weakest spot is
+  secrets/external-action attribution — its only outright "No" verdicts
+  anywhere, plus its one answered-but-wrong "Yes" (the same tag-vs-SHA
+  misstatement above), concentrate there, while its failures on the other
+  four questions degrade to "Partial" rather than "No" — written up in
+  `evaluation/tier4_answerability/REPORT.md`. With both Methods 9 and 10
+  scored, Tiers 1–4 of `EVALUATION_PLAN.md` are complete.
 
 ## CI environment
 
