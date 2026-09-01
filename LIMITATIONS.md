@@ -1453,6 +1453,46 @@ against it. Current scope and limits, honestly stated:
   does not invalidate PR 2's design (deterministic-vs-LLM as a headline
   framing) — it invalidates any interpretation of a single call as
   characterizing a specific fixture's LLM behaviour.
+- **Tier 4 complete, and a hallucination-rate correction (2026-08-24).**
+  `EVALUATION_PLAN.md` Tier 4 Method 9 — the pre-registered three-condition
+  fact-checklist protocol this section's "not yet buildable" bullet above
+  was waiting on — is now fully scored, closing the last open item from
+  Phase 7's Definition of Done. All 201 pre-registered facts across the 10
+  held-out checklists were transcribed present/missing/false against their
+  primary scoring sources: conditions 1 (deterministic) and 2 (LLM-polished)
+  are identical at 192/9/0 (95.5% present, 0% false); condition 3 (naive
+  raw-YAML baseline) is 107/93/1 (53.2% present, 0.5% false). This corrects
+  an earlier working figure for the naive baseline's false rate from 15.4%
+  (31/201) to 0.5% (1/201): the 30-fact
+  `nextjs_build_and_test.dependency.115-144` block was reclassified from
+  False to Missing after re-checking the naive baseline's actual committed
+  text, which turned out to state a vague, unenumerated summary ("lists all
+  critical build, lint, and test jobs") rather than the specific,
+  checkably-wrong claim ("lists all other jobs") an earlier, since-superseded
+  generation of the same condition had made — a case of the underlying text
+  changing between two independently correct scorings, not a scoring error,
+  per this project's own individually-named-edge convention for
+  Missing-vs-False. The one remaining genuine False
+  (`cpython_reusable_macos.job.1`) is a real misstatement: the naive
+  baseline claims a checkout step is pinned to the tag
+  `actions/checkout@v7.0.0`, when the real YAML pins to a full commit SHA
+  with `# v7.0.0` only as a trailing comment. Revised headline framing: the
+  naive baseline's primary demonstrated weakness is completeness (46.3%
+  Missing), not confident fabrication (0.5% False) — full detail, the
+  per-pipeline breakdown, and a second independently-confirmed instance of
+  the same regeneration-sensitivity phenomenon (`urllib3_ci.matrix.1`) are
+  in `evaluation/tier4_findings/REPORT.md`. The same day, the answerability
+  audit (Method 10) also ran: five ground-truth questions checked across
+  all 10 held-out pipelines against all three conditions (150 answers
+  total: 5 questions × 10 pipelines × 3 conditions), with the two Tool 1
+  conditions collapsed into one "Tool" column against the naive baseline
+  for reporting, finding the naive baseline's clearly weakest spot is
+  secrets/external-action attribution — its only outright "No" verdicts
+  anywhere, plus its one answered-but-wrong "Yes" (the same tag-vs-SHA
+  misstatement above), concentrate there, while its failures on the other
+  four questions degrade to "Partial" rather than "No" — written up in
+  `evaluation/tier4_answerability/REPORT.md`. With both Methods 9 and 10
+  scored, Tiers 1–4 of `EVALUATION_PLAN.md` are complete.
 
 ## CI environment
 
