@@ -1487,7 +1487,7 @@ against it. Current scope and limits, honestly stated:
   total: 5 questions × 10 pipelines × 3 conditions), with the two Tool 1
   conditions collapsed into one "Tool" column against the naive baseline
   for reporting, finding the naive baseline's clearly weakest spot is
-  secrets/external-action attribution — its only outright "No" verdicts
+  secrets/external actions attribution — its only outright "No" verdicts
   anywhere, plus its one answered-but-wrong "Yes" (the same tag-vs-SHA
   misstatement above), concentrate there, while its failures on the other
   four questions degrade to "Partial" rather than "No" — written up in
