@@ -95,6 +95,16 @@ The hallucination count is the headline metric. It's exactly where the naive raw
 - Randomise the order the three conditions are scored in, per pipeline.
 - Strip identifying formatting from the three outputs before scoring, where practical (condition 2's tool output is visually distinctive — Mermaid fences, the "JOBS (in order)" heading style — so full blinding isn't achievable here the way a recruited-evaluator blind study could manage; noted honestly as a limitation in "Threats to validity" rather than claimed as full blinding).
 
+**Run and completed, 2026-08-24 — the pre-registered expectation above was reversed.** This section's "headline metric" framing above, written before any output was generated, expected the naive baseline to lose primarily on hallucination — an LLM asked to "explain this" YAML with no structural guarantees inventing plausible-sounding but wrong claims. The actual result, scored against all 201 pre-registered facts across the 10 held-out pipelines, is the opposite: the naive baseline's weakness is **completeness**, not hallucination. Final numbers (full detail and per-pipeline breakdown in `evaluation/tier4_findings/REPORT.md`):
+
+| Condition | Present | Missing | False | % Present | % Missing | % False |
+|---|---:|---:|---:|---:|---:|---:|
+| 1 — Deterministic | 192 | 9 | 0 | 95.5% | 4.5% | 0.0% |
+| 2 — LLM-polished | 192 | 9 | 0 | 95.5% | 4.5% | 0.0% |
+| 3 — Naive baseline | 107 | 93 | 1 | 53.2% | 46.3% | 0.5% |
+
+The corrected naive-baseline false rate is **0.5% (1/201)**, down from an earlier working figure of 15.4% (31/201) that was based on a misquoted version of the naive baseline's own output text (the `nextjs_build_and_test.dependency.115-144` block was originally read as claiming it "lists all other jobs" — a specific, checkable, and wrong claim — when the actual committed text is a vaguer, unenumerated summary that is Missing, not False, under this project's own scoring convention). See `evaluation/tier4_findings/REPORT.md` for the full correction and a second, independently confirmed instance of the same phenomenon. The practical implication: this tool's advantage over the naive baseline is best framed as "achieves much higher completeness, at equivalent (near-zero) factual error rates," not "prevents hallucination" — the latter overstates what the evidence actually shows on this sample.
+
 ### 10. Answerability audit (Tool 2)
 Split-group comprehension testing is impossible with one person — there's no second group to hold out the raw YAML for. Replacing it with a method that's still objective and still tests comprehension outcomes, not stated preference:
 - Write concrete questions with ground-truth answers derived directly from the YAML: *"If I push to main, what runs?"*, *"Which pipeline fires on a PR to the release branch?"*, and similar.
@@ -102,6 +112,8 @@ Split-group comprehension testing is impossible with one person — there's no s
 - Report the **answerability rate** (questions answerable / total questions) as the headline number.
 
 Self-timing how long it takes to answer from the doc vs. from raw YAML may be included as anecdotal texture in the report, clearly labelled as a single author's informal timing, not a controlled measurement — never presented as a headline result or as if it carries the statistical weight a real split-group timing study would.
+
+**Run and completed, 2026-08-24.** Five ground-truth questions were checked across all 10 held-out pipelines against all three conditions (150 answers total: 5 questions × 10 pipelines × 3 conditions), with the two Tool 1 conditions — already established as fact-for-fact identical on this set — collapsed into one "Tool" column against the naive baseline for reporting. Full results, verification notes, and synthesis are in `evaluation/tier4_answerability/REPORT.md`; headline finding: the naive baseline's weakest question by a clear margin is secrets/external-actions attribution (Q5), its only outright "No" verdicts anywhere plus its one answered-but-wrong "Yes" all fall there, while its failures on the other four questions degrade gracefully to "Partial" rather than "No" — complementing, not duplicating, the completeness framing in `evaluation/tier4_findings/REPORT.md`.
 
 **Recommendation: run both.** These, together with Tiers 1–3, are the complete evaluation for this project.
 
@@ -163,16 +175,16 @@ At a glance, the finalized evaluation method set spans five tiers, from fully au
 
 | Tier | Method | Cost | Status |
 |---|---|---|---|
-| 1 | Golden-file regression testing | Free, automated (CI) | **Include** |
-| 1 | Coverage check | Free, automated | **Include** |
-| 1 | Diagram-structure check | Free, automated | **Include** |
-| 1 | Determinism/variance check (LLM layer, Phase 5+) | Free, automated | **Include** |
-| 1 | Readability metrics | Free, automated | **Include** |
-| 2 | Error injection | Low, one-time build | **Include** |
-| 3 | Correctness check (real pipeline runs) | Moderate | **Include** (already planned) |
-| 3 | Natural-pairs comparison | Moderate | **Include** (upgrades the original plan) |
-| 4 | Pre-registered fact-checklist protocol (Tool 1) | Moderate, self-conducted | **Include** — core method |
-| 4 | Answerability audit (Tool 2) | Moderate, self-conducted | **Include** — core method |
+| 1 | Golden-file regression testing | Free, automated (CI) | **Complete** |
+| 1 | Coverage check | Free, automated | **Complete** |
+| 1 | Diagram-structure check | Free, automated | **Complete** |
+| 1 | Determinism/variance check (LLM layer, Phase 5+) | Free, automated | **Complete** |
+| 1 | Readability metrics | Free, automated | **Complete** |
+| 2 | Error injection | Low, one-time build | **Complete** |
+| 3 | Correctness check (real pipeline runs) | Moderate | **Complete** (already planned) |
+| 3 | Natural-pairs comparison | Moderate | **Complete** (upgrades the original plan) |
+| 4 | Pre-registered fact-checklist protocol (Tool 1) | Moderate, self-conducted | **Complete** — core method |
+| 4 | Answerability audit (Tool 2) | Moderate, self-conducted | **Complete** — core method |
 | 5 | Real PR submission | Uncertain, external dependency | Attempt early, report honestly either way |
 | 5 | Practical/systems metrics | Free to log | Log always, write up if room |
 
