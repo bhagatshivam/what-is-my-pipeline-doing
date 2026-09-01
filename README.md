@@ -173,7 +173,7 @@ export GEMINI_MODEL="<your-available-gemini-model>"
 
 Only Gemini is a working provider in this prototype. The Ollama module (`llm/ollama_provider.py`) is an interface stub for future local-model support; it is not a runnable option yet.
 
-If Gemini is unavailable, times out, or returns an unusable response (including its own explicit "I'm not confident rewriting this safely" escape hatch), the tool falls back safely to byte-identical deterministic documentation instead of failing or substituting unverified prose.
+If Gemini is unavailable, times out, or returns an unusable response — including the literal sentinel `NO_OVERVIEW`, which the system prompt instructs it to return verbatim if it's unsure how to rewrite the fact sheet safely — the tool falls back safely to byte-identical deterministic documentation instead of failing or substituting unverified prose.
 
 ## Keeping documentation in sync
 
